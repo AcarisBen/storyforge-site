@@ -61,7 +61,7 @@ body {
 
 .progress-value {
 	height: 100%;
-	background: #64748b;
+	background: #f97316;
 	border-radius: inherit;
 	transition: width 200ms ease;
 }
