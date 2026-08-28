@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	background: #0d0f13;
+	color: #8c8f99;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+.identity-page {
+	min-height: 100vh;
+	padding: 8px 24px 40px;
+}
+
+.progress-panel,
+.identity-form {
+	width: min(66.6667vw, 960px);
+	margin: 0 auto;
+}
+
+.progress-panel {
+	margin-bottom: 21px;
+	padding: 17px 18px 15px;
+	background: #121419;
+	border: 1px solid #24272e;
+	border-radius: 11px;
+}
+
+.progress-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: #9a9da7;
+	font-size: 14px;
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.progress-heading strong {
+	color: #c5c7ce;
+	font-size: 14px;
+}
+
+.progress-track {
+	height: 7px;
+	margin-top: 12px;
+	overflow: hidden;
+	background: #24272e;
+	border-radius: 99px;
+}
+
+.progress-value {
+	height: 100%;
+	background: #64748b;
+	border-radius: inherit;
+	transition: width 200ms ease;
+}
+
+.progress-panel p {
+	margin: 8px 0 0;
+	color: #686b76;
+	font-size: 14px;
+}
+
+.identity-form {
+	display: grid;
+	gap: 21px;
+}
+
+.identity-card {
+	padding: 18px 18px 16px;
+	background: #121419;
+	border: 1px solid #24272e;
+	border-radius: 11px;
+}
+
+.field-label {
+	display: block;
+	margin-bottom: 9px;
+	color: #8e9099;
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+
+input,
+textarea {
+	width: 100%;
+	border: 1px solid #292c33;
+	border-radius: 11px;
+	outline: none;
+	background: #1a1d23;
+	color: #c5c7ce;
+	font: inherit;
+	font-size: 20px;
+}
+
+input { height: 56px; padding: 0 14px; }
+textarea { min-height: 132px; padding: 14px; resize: vertical; }
+
+input::placeholder,
+textarea::placeholder { color: #555861; opacity: 1; }
+
+input:focus,
+textarea:focus { border-color: #4b4f59; background: #1c1f25; }
+
+.field-note,
+.field-example {
+	display: flex;
+	align-items: flex-start;
+	gap: 7px;
+	margin: 9px 0 0;
+	font-size: 14px;
+	line-height: 1.35;
+}
+
+.field-note { color: #777a84; }
+.field-example { margin-top: 4px; color: #686b76; }
+.note-icon,
+.example-icon { flex: 0 0 9px; font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; }
+.note-icon { color: #b99a21; }
+.example-icon { color: #7863bd; }
+
+@media (max-width: 520px) {
+	.identity-page { padding: 8px 12px 28px; }
+	.progress-panel,
+	.identity-form { width: 100%; }
+	.identity-card { padding: 16px 14px 14px; }
+}
+
