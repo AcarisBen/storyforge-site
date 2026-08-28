@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Engenharia from './pages/Engenharia'
 import Essencia from './pages/Essencia'
 import Identidade from './pages/Identidade'
+import EstruturaDramatica from './pages/EstruturaDramatica'
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -41,7 +42,7 @@ function Sidebar({ activePage, onNavigate }) {
 
 function App() {
   const [activePage, setActivePage] = useState('essencia')
-  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
+  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
     <div className="app-shell">
