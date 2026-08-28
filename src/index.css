@@ -88,6 +88,25 @@ body {
 .character-card-type.type-secondary { color: #6aa5ff; }
 .character-card-body button, .delete-character { border: 0; background: transparent; color: #686b76; font: inherit; font-size: 13px; cursor: pointer; }
 .character-card-body button:hover, .delete-character:hover { color: #ef707b; }
+.world-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin: 28px 0 19px; }
+.world-filters { display: flex; flex-wrap: wrap; gap: 3px 10px; }
+.world-filters .character-filter { padding: 7px 10px; font-size: 13px; }
+.world-create-form { display: grid; gap: 14px; margin-bottom: 20px; padding: 18px; border: 1px solid #292c33; border-radius: 12px; background: #121419; }
+.world-create-form input, .world-create-form textarea, .world-create-form select { font-size: 16px; }
+.world-create-form textarea { min-height: 104px; }
+.world-create-form select { width: 100%; height: 56px; padding: 0 14px; border: 1px solid #292c33; border-radius: 11px; background: #1a1d23; color: #c5c7ce; font: inherit; }
+.world-create-form > div { display: flex; gap: 10px; }
+.world-create-form > div button { flex: 1; min-height: 42px; border: 0; border-radius: 10px; background: #241b3a; color: #b89be9; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.world-create-form > div button:last-child { flex: 0 0 auto; padding: 0 18px; border: 1px solid #30333b; background: #1a1d23; color: #999ca7; }
+.world-elements { display: grid; gap: 12px; }
+.world-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 18px; border: 1px solid #252831; border-radius: 12px; background: #121419; }
+.world-card h2 { margin: 0; color: #e1e1e5; font-size: 18px; }
+.world-card small { display: inline-block; margin-top: 10px; padding: 4px 10px; border-radius: 99px; background: #211a32; color: #b58cf5; font-size: 12px; }
+.world-card p { margin: 12px 0 0; color: #858892; font-size: 15px; line-height: 1.45; }
+.world-card-actions { display: flex; gap: 12px; }
+.world-card-actions button { border: 0; background: transparent; color: #999ca7; font: inherit; font-size: 14px; cursor: pointer; }
+.world-card-actions button:hover { color: #c5a6f5; }
+.world-empty { margin-top: 20px; }
 .back-link { margin: 0 0 22px; padding: 0; border: 0; background: transparent; color: #a69bbd; font: inherit; font-size: 15px; cursor: pointer; }
 .character-profile-header { display: grid; grid-template-columns: 94px 1fr auto; align-items: center; gap: 18px; margin-bottom: 28px; }
 .character-avatar { display: grid; place-items: center; overflow: hidden; background: #172439; color: #edf0f5; }
@@ -117,12 +136,15 @@ body {
 	.characters-header p { font-size: 14px; }
 	.character-toolbar { align-items: flex-start; flex-direction: column; }
 	.character-filters { gap: 4px; }
+	.world-toolbar { flex-direction: column; }
+	.world-filters { gap: 3px 5px; }
 	.characters-grid { grid-template-columns: 1fr; }
 	.character-create-form { grid-template-columns: 1fr; }
 	.character-create-form button { grid-column: auto; }
 	.character-profile-header { grid-template-columns: 72px 1fr; }
 	.character-avatar.large { width: 72px; height: 88px; }
 	.delete-character { grid-column: 2; justify-self: start; }
+	.world-card { flex-direction: column; }
 }
 
 .module-page { width: min(100% - 48px, 960px); margin: 0 auto; padding: 27px 0 40px; }
