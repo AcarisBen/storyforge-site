@@ -18,8 +18,8 @@ function Identidade() {
   const progress = Math.round((completedFields / fields.length) * 100)
 
   function handleChange(event) {
-    const { id, value } = event.target
-    setValues((currentValues) => ({ ...currentValues, [id]: value }))
+    const { name, value } = event.target
+    setValues((currentValues) => ({ ...currentValues, [name]: value }))
   }
 
   return (
@@ -35,7 +35,7 @@ function Identidade() {
         {fields.map(([label, placeholder, hint, example]) => (
           <section className="identity-card" key={label}>
             <label className="field-label" htmlFor={`identity-${label}`}>{label}</label>
-            <textarea id={`identity-${label}`} placeholder={placeholder} value={values[label]} onChange={handleChange} />
+            <textarea id={`identity-${label}`} name={label} placeholder={placeholder} value={values[label]} onChange={handleChange} />
             {hint && <p className="field-note"><span className="note-icon" aria-hidden="true">!</span>{hint}</p>}
             <p className="field-example"><span className="example-icon" aria-hidden="true">▣</span>{example}</p>
           </section>

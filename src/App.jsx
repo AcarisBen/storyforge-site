@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Engenharia from './pages/Engenharia'
 import Essencia from './pages/Essencia'
 import Identidade from './pages/Identidade'
 
@@ -40,7 +41,7 @@ function Sidebar({ activePage, onNavigate }) {
 
 function App() {
   const [activePage, setActivePage] = useState('essencia')
-  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
+  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
     <div className="app-shell">
