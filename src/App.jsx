@@ -7,6 +7,7 @@ import RitmoTimeline from './pages/RitmoTimeline'
 import Personagens from './pages/Personagens'
 import Mundo from './pages/Mundo'
 import Cenas from './pages/Cenas'
+import Misterios from './pages/Misterios'
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -46,7 +47,7 @@ function Sidebar({ activePage, onNavigate }) {
 
 function App() {
   const [activePage, setActivePage] = useState('essencia')
-  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : activePage === 'ritmo' ? <RitmoTimeline /> : activePage === 'personagens' ? <Personagens /> : activePage === 'mundo' ? <Mundo /> : activePage === 'cenas' ? <Cenas /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
+  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : activePage === 'ritmo' ? <RitmoTimeline /> : activePage === 'personagens' ? <Personagens /> : activePage === 'mundo' ? <Mundo /> : activePage === 'cenas' ? <Cenas /> : activePage === 'misterios' ? <Misterios /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
     <div className="app-shell">

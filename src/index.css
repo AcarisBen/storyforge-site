@@ -107,6 +107,29 @@ body {
 .world-card-actions button { border: 0; background: transparent; color: #999ca7; font: inherit; font-size: 14px; cursor: pointer; }
 .world-card-actions button:hover { color: #c5a6f5; }
 .world-empty { margin-top: 20px; }
+.mystery-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 28px 0 18px; color: #9b9eaa; font-size: 16px; }
+.mysteries-list { display: grid; gap: 12px; }
+.mystery-card { padding: 22px 18px; border: 1px solid #252831; border-radius: 12px; background: #121419; }
+.mystery-card-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.mystery-card-header h2 { margin: 0; color: #e1e1e5; font-size: 18px; }
+.mystery-card-header > div { display: flex; gap: 14px; }
+.mystery-card-header button { border: 0; background: transparent; color: #999ca7; font: inherit; font-size: 14px; cursor: pointer; }
+.mystery-card-header button:hover { color: #c5a6f5; }
+.mystery-card-header button:last-child:hover { color: #ef707b; }
+.mystery-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 30px; margin-top: 23px; }
+.mystery-summary > div { min-width: 0; }
+.mystery-summary span { color: #686b76; font-size: 13px; text-transform: uppercase; }
+.mystery-summary p { margin: 5px 0 0; color: #c5c7ce; font-size: 16px; line-height: 1.35; }
+.mystery-form { display: grid; gap: 15px; margin-bottom: 20px; padding: 18px; border: 1px solid #292c33; border-radius: 12px; background: #121419; }
+.mystery-card .mystery-form { margin: 18px 0 0; padding: 0; border: 0; }
+.mystery-form label { display: grid; gap: 8px; }
+.mystery-form label > span { color: #8e9099; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.mystery-form input, .mystery-form textarea { font-size: 16px; }
+.mystery-form textarea { min-height: 88px; }
+.mystery-form-actions { display: flex; gap: 10px; }
+.mystery-form-actions button { min-height: 42px; border-radius: 10px; font: inherit; font-size: 15px; cursor: pointer; }
+.mystery-form-actions .event-save { flex: 1; border: 0; }
+.mystery-empty { margin-top: 20px; }
 .scenes-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 28px 0 18px; color: #9b9eaa; font-size: 16px; }
 .scenes-list { display: grid; gap: 12px; }
 .scene-card { border: 1px solid #252831; border-radius: 14px; background: #121419; }
@@ -172,6 +195,9 @@ body {
 	.scene-card-header { gap: 8px; padding: 0 12px; }
 	.scene-expand { font-size: 15px; }
 	.scene-details { padding: 0 10px 14px; }
+	.mystery-toolbar { align-items: flex-start; gap: 12px; }
+	.mystery-summary { grid-template-columns: 1fr; }
+	.mystery-card-header { align-items: flex-start; }
 }
 
 .module-page { width: min(100% - 48px, 960px); margin: 0 auto; padding: 27px 0 40px; }
