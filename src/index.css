@@ -130,6 +130,35 @@ body {
 .mystery-form-actions button { min-height: 42px; border-radius: 10px; font: inherit; font-size: 15px; cursor: pointer; }
 .mystery-form-actions .event-save { flex: 1; border: 0; }
 .mystery-empty { margin-top: 20px; }
+.foreshadowing-info { margin-top: 24px; padding: 20px; border: 1px solid #252831; border-radius: 12px; background: #121419; color: #858892; font-size: 14px; line-height: 1.55; }
+.foreshadowing-info h2, .foreshadowing-info h3 { color: #c5c7ce; }
+.foreshadowing-info h2 { margin: 0 0 10px; font-size: 18px; }
+.foreshadowing-info h3 { margin: 19px 0 7px; font-size: 15px; }
+.foreshadowing-info p { margin: 0; }
+.foreshadowing-info ol, .foreshadowing-info ul { margin: 8px 0 0; padding-left: 20px; }
+.foreshadowing-info li { margin: 6px 0; }
+.twists-list { display: grid; gap: 12px; }
+.twist-card { padding: 22px 18px; border: 1px solid #252831; border-radius: 12px; background: #121419; }
+.twist-card-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.twist-card-header h2 { display: flex; align-items: center; gap: 9px; margin: 0; color: #e1e1e5; font-size: 18px; }
+.twist-card-header h2 span { color: #f1b51b; font-size: 23px; }
+.twist-card-header > div { display: flex; gap: 14px; }
+.twist-card-header button { border: 0; background: transparent; color: #999ca7; font: inherit; font-size: 14px; cursor: pointer; }
+.twist-card-header button:hover { color: #c5a6f5; }
+.twist-card-header button:last-child:hover { color: #ef707b; }
+.twist-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 30px; margin-top: 23px; }
+.twist-summary span { color: #686b76; font-size: 13px; text-transform: uppercase; }
+.twist-summary p { margin: 5px 0 0; color: #c5c7ce; font-size: 16px; line-height: 1.35; }
+.twist-form { display: grid; gap: 15px; margin-bottom: 20px; padding: 18px; border: 1px solid #292c33; border-radius: 12px; background: #121419; }
+.twist-card .twist-form { margin: 18px 0 0; padding: 0; border: 0; }
+.twist-form label { display: grid; gap: 8px; }
+.twist-form label > span { color: #8e9099; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.twist-form input, .twist-form textarea { font-size: 16px; }
+.twist-form textarea { min-height: 88px; }
+.twist-form-actions { display: flex; gap: 10px; }
+.twist-form-actions button { min-height: 42px; border-radius: 10px; font: inherit; font-size: 15px; cursor: pointer; }
+.twist-form-actions .event-save { flex: 1; border: 0; }
+.plot-empty { margin-top: 20px; }
 .scenes-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 28px 0 18px; color: #9b9eaa; font-size: 16px; }
 .scenes-list { display: grid; gap: 12px; }
 .scene-card { border: 1px solid #252831; border-radius: 14px; background: #121419; }
@@ -198,6 +227,9 @@ body {
 	.mystery-toolbar { align-items: flex-start; gap: 12px; }
 	.mystery-summary { grid-template-columns: 1fr; }
 	.mystery-card-header { align-items: flex-start; }
+	.twist-summary { grid-template-columns: 1fr; }
+	.twist-card-header { align-items: flex-start; }
+	.foreshadowing-info { padding: 16px; }
 }
 
 .module-page { width: min(100% - 48px, 960px); margin: 0 auto; padding: 27px 0 40px; }
