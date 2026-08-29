@@ -9,6 +9,7 @@ import Mundo from './pages/Mundo'
 import Cenas from './pages/Cenas'
 import Misterios from './pages/Misterios'
 import PlotTwists from './pages/PlotTwists'
+import Dashboard from './pages/Dashboard'
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -48,7 +49,7 @@ function Sidebar({ activePage, onNavigate }) {
 
 function App() {
   const [activePage, setActivePage] = useState('essencia')
-  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : activePage === 'ritmo' ? <RitmoTimeline /> : activePage === 'personagens' ? <Personagens /> : activePage === 'mundo' ? <Mundo /> : activePage === 'cenas' ? <Cenas /> : activePage === 'misterios' ? <Misterios /> : activePage === 'plot-twists' ? <PlotTwists /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
+  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : activePage === 'ritmo' ? <RitmoTimeline /> : activePage === 'personagens' ? <Personagens /> : activePage === 'mundo' ? <Mundo /> : activePage === 'cenas' ? <Cenas /> : activePage === 'misterios' ? <Misterios /> : activePage === 'plot-twists' ? <PlotTwists /> : activePage === 'dashboard' ? <Dashboard /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
     <div className="app-shell">
