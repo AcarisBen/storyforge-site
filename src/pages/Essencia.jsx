@@ -39,6 +39,23 @@ const fields = [
   ],
 ]
 
+// Ícone de Lâmpada
+const LightbulbIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+  </svg>
+)
+
+// Ícone de Livro Aberto
+const BookOpenIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+)
+
 function Essencia() {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(([label]) => [label, ''])))
   const completedFields = fields.filter(([label]) => values[label].trim() !== '').length
@@ -66,8 +83,16 @@ function Essencia() {
           <section className="identity-card" key={label}>
             <label className="field-label" htmlFor={label}>{label}</label>
             <textarea id={label} placeholder={placeholder} value={values[label]} onChange={handleChange} />
-            <p className="field-note"><span className="note-icon" aria-hidden="true">!</span>{hint}</p>
-            <p className="field-example"><span className="example-icon" aria-hidden="true">▣</span>{example}</p>
+            {hint && (
+              <p className="field-note">
+                <span className="note-icon" aria-hidden="true"><LightbulbIcon /></span>
+                {hint}
+              </p>
+            )}
+            <p className="field-example">
+              <span className="example-icon" aria-hidden="true"><BookOpenIcon /></span>
+              {example}
+            </p>
           </section>
         ))}
       </form>
