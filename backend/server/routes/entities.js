@@ -218,7 +218,61 @@ router.post('/projects/:projectId/engenharia', async (req, res) => {
   }
 });
 
+// GET: Buscar a Estrutura Dramática de um Projeto específico
+router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
+  try {
+    const { projectId } = req.params;
 
+    const estruturaEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ESTRUTURA_DRAMATICA',
+      },
+    });
+
+    res.json(estruturaEntity ? estruturaEntity.data : { selectedFrameworks: [], values: {} });
+  } catch (error) {
+    console.error('Erro ao buscar Estrutura Dramática:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Salvar/Atualizar a Estrutura Dramática de um Projeto (Auto-save)
+router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const estruturaData = req.body;
+
+    const existingEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ESTRUTURA_DRAMATICA',
+      },
+    });
+
+    if (existingEntity) {
+      const updated = await prisma.entity.update({
+        where: { id: existingEntity.id },
+        data: { data: estruturaData },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'ESTRUTURA_DRAMATICA',
+        title: 'Estrutura Dramática do Projeto',
+        data: estruturaData,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Estrutura Dramática:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 
