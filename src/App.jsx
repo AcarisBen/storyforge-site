@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Home from './pages/Home'
 import Engenharia from './pages/Engenharia'
 import Essencia from './pages/Essencia'
 import Identidade from './pages/Identidade'
@@ -21,23 +22,40 @@ const navigation = [
   { title: 'Verificação', items: [['Checklist', 'checklist'], ['Story Bible', 'story-bible']] },
 ]
 
-function Sidebar({ activePage, onNavigate }) {
+function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
   return (
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">✦</span><strong>StoryForge</strong></div>
-      <button className="projects-link" type="button">← <span>Meus Projetos</span></button>
+      
+      <button className="projects-link" type="button" onClick={onBackToProjects}>
+        ← <span>Meus Projetos</span>
+      </button>
+      
       <div className="project-summary">
         <div className="project-icon">✧</div>
-        <div><strong>Quokka</strong><span>Jogo Narrativo / RPG</span></div>
+        <div>
+          <strong>{currentProject?.title || 'Projeto'}</strong>
+          <span>{currentProject?.format || 'Romance / Livro'}</span>
+        </div>
       </div>
-      <div className="project-status"><span>Desenvolvimento</span><small>0% completo</small></div>
+      <div className="project-status">
+        <span>{currentProject?.status || 'Desenvolvimento'}</span>
+        <small>{currentProject?.progress || 0}% completo</small>
+      </div>
+      
       <nav className="sidebar-nav" aria-label="Navegação do projeto">
         {navigation.map((section) => (
           <div className="nav-section" key={section.title}>
             <p>{section.title}</p>
             {section.items.map(([label, id]) => (
-              <button className={activePage === id ? 'nav-item active' : 'nav-item'} type="button" key={id} onClick={() => onNavigate(id)}>
-                <span className="nav-symbol" aria-hidden="true">{activePage === id ? '✧' : '◇'}</span>{label}
+              <button 
+                className={activePage === id ? 'nav-item active' : 'nav-item'} 
+                type="button" 
+                key={id} 
+                onClick={() => onNavigate(id)}
+              >
+                <span className="nav-symbol" aria-hidden="true">{activePage === id ? '✧' : '◇'}</span>
+                {label}
               </button>
             ))}
           </div>
@@ -48,12 +66,46 @@ function Sidebar({ activePage, onNavigate }) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState('essencia')
-  const page = activePage === 'identidade' ? <Identidade /> : activePage === 'essencia' ? <Essencia /> : activePage === 'engenharia' ? <Engenharia /> : activePage === 'estrutura' ? <EstruturaDramatica /> : activePage === 'ritmo' ? <RitmoTimeline /> : activePage === 'personagens' ? <Personagens /> : activePage === 'mundo' ? <Mundo /> : activePage === 'cenas' ? <Cenas /> : activePage === 'misterios' ? <Misterios /> : activePage === 'plot-twists' ? <PlotTwists /> : activePage === 'dashboard' ? <Dashboard /> : <div className="coming-soon">Esta página será adicionada em breve.</div>
+  const [currentProject, setCurrentProject] = useState(null)
+  const [activePage, setActivePage] = useState('dashboard')
+
+  const handleSelectProject = (project) => {
+    setCurrentProject(project)
+    setActivePage('dashboard')
+  }
+
+  const handleBackToProjects = () => {
+    setCurrentProject(null)
+  }
+
+  // Se nenhum projeto foi selecionado, mostra a tela "Meus Projetos"
+  if (!currentProject) {
+    return <Home onSelectProject={handleSelectProject} />
+  }
+
+  // Quando um projeto é selecionado, mostra a dashboard e o menu do projeto
+  const page = 
+    activePage === 'identidade' ? <Identidade /> : 
+    activePage === 'essencia' ? <Essencia /> : 
+    activePage === 'engenharia' ? <Engenharia /> : 
+    activePage === 'estrutura' ? <EstruturaDramatica /> : 
+    activePage === 'ritmo' ? <RitmoTimeline /> : 
+    activePage === 'personagens' ? <Personagens /> : 
+    activePage === 'mundo' ? <Mundo /> : 
+    activePage === 'cenas' ? <Cenas /> : 
+    activePage === 'misterios' ? <Misterios /> : 
+    activePage === 'plot-twists' ? <PlotTwists /> : 
+    activePage === 'dashboard' ? <Dashboard /> : 
+    <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
     <div className="app-shell">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <Sidebar 
+        activePage={activePage} 
+        onNavigate={setActivePage} 
+        onBackToProjects={handleBackToProjects}
+        currentProject={currentProject}
+      />
       <div className="page-content">{page}</div>
     </div>
   )
