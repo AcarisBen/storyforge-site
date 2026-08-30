@@ -47,424 +47,233 @@ router.post('/projects', async (req, res) => {
   }
 });
 
-// GET: Buscar a Identidade de um Projeto específico
+// GET: Buscar Identidade
 router.get('/projects/:projectId/identity', async (req, res) => {
   try {
     const { projectId } = req.params;
-
-    const identityEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'IDENTITY',
-      },
-    });
-
-    res.json(identityEntity ? identityEntity.data : {});
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'IDENTITY' } });
+    res.json(entity ? entity.data : {});
   } catch (error) {
-    console.error('Erro ao buscar Identidade:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// PUT/POST: Salvar/Atualizar a Identidade de um Projeto (Auto-save)
+// POST: Salvar Identidade
 router.post('/projects/:projectId/identity', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const identityData = req.body;
-
-    // Procura se já existe uma entidade do tipo IDENTITY para o projeto
-    const existingEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'IDENTITY',
-      },
-    });
-
-    if (existingEntity) {
-      // Atualiza o registro existente no PostgreSQL
-      const updated = await prisma.entity.update({
-        where: { id: existingEntity.id },
-        data: { data: identityData },
-      });
+    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'IDENTITY' } });
+    if (existing) {
+      const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-
-    // Cria um novo registro se for a primeira vez
-    const created = await prisma.entity.create({
-      data: {
-        projectId,
-        type: 'IDENTITY',
-        title: 'Identidade do Projeto',
-        data: identityData,
-      },
-    });
-
+    const created = await prisma.entity.create({ data: { projectId, type: 'IDENTITY', title: 'Identidade', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    console.error('Erro ao salvar Identidade:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET: Buscar a Essência de um Projeto específico
+// GET: Buscar Essência
 router.get('/projects/:projectId/essencia', async (req, res) => {
   try {
     const { projectId } = req.params;
-
-    const essenciaEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ESSENCIA',
-      },
-    });
-
-    res.json(essenciaEntity ? essenciaEntity.data : {});
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESSENCIA' } });
+    res.json(entity ? entity.data : {});
   } catch (error) {
-    console.error('Erro ao buscar Essência:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST: Salvar/Atualizar a Essência de um Projeto (Auto-save)
+// POST: Salvar Essência
 router.post('/projects/:projectId/essencia', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const essenciaData = req.body;
-
-    const existingEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ESSENCIA',
-      },
-    });
-
-    if (existingEntity) {
-      const updated = await prisma.entity.update({
-        where: { id: existingEntity.id },
-        data: { data: essenciaData },
-      });
+    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ESSENCIA' } });
+    if (existing) {
+      const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-
-    const created = await prisma.entity.create({
-      data: {
-        projectId,
-        type: 'ESSENCIA',
-        title: 'Essência do Projeto',
-        data: essenciaData,
-      },
-    });
-
+    const created = await prisma.entity.create({ data: { projectId, type: 'ESSENCIA', title: 'Essência', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    console.error('Erro ao salvar Essência:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET: Buscar a Engenharia Narrativa de um Projeto específico
+// GET: Buscar Engenharia
 router.get('/projects/:projectId/engenharia', async (req, res) => {
   try {
     const { projectId } = req.params;
-
-    const engenhariaEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ENGENHARIA',
-      },
-    });
-
-    res.json(engenhariaEntity ? engenhariaEntity.data : {});
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ENGENHARIA' } });
+    res.json(entity ? entity.data : {});
   } catch (error) {
-    console.error('Erro ao buscar Engenharia:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST: Salvar/Atualizar a Engenharia Narrativa de um Projeto (Auto-save)
+// POST: Salvar Engenharia
 router.post('/projects/:projectId/engenharia', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const engenhariaData = req.body;
-
-    const existingEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ENGENHARIA',
-      },
-    });
-
-    if (existingEntity) {
-      const updated = await prisma.entity.update({
-        where: { id: existingEntity.id },
-        data: { data: engenhariaData },
-      });
+    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ENGENHARIA' } });
+    if (existing) {
+      const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-
-    const created = await prisma.entity.create({
-      data: {
-        projectId,
-        type: 'ENGENHARIA',
-        title: 'Engenharia Narrativa do Projeto',
-        data: engenhariaData,
-      },
-    });
-
+    const created = await prisma.entity.create({ data: { projectId, type: 'ENGENHARIA', title: 'Engenharia', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    console.error('Erro ao salvar Engenharia:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET: Buscar a Estrutura Dramática de um Projeto específico
+// GET: Buscar Estrutura Dramática
 router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   try {
     const { projectId } = req.params;
-
-    const estruturaEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ESTRUTURA_DRAMATICA',
-      },
-    });
-
-    res.json(estruturaEntity ? estruturaEntity.data : { selectedFrameworks: [], values: {} });
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    res.json(entity ? entity.data : { selectedFrameworks: [], values: {} });
   } catch (error) {
-    console.error('Erro ao buscar Estrutura Dramática:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST: Salvar/Atualizar a Estrutura Dramática de um Projeto (Auto-save)
+// POST: Salvar Estrutura Dramática
 router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const estruturaData = req.body;
-
-    const existingEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'ESTRUTURA_DRAMATICA',
-      },
-    });
-
-    if (existingEntity) {
-      const updated = await prisma.entity.update({
-        where: { id: existingEntity.id },
-        data: { data: estruturaData },
-      });
+    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    if (existing) {
+      const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-
-    const created = await prisma.entity.create({
-      data: {
-        projectId,
-        type: 'ESTRUTURA_DRAMATICA',
-        title: 'Estrutura Dramática do Projeto',
-        data: estruturaData,
-      },
-    });
-
+    const created = await prisma.entity.create({ data: { projectId, type: 'ESTRUTURA_DRAMATICA', title: 'Estrutura Dramática', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    console.error('Erro ao salvar Estrutura Dramática:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET: Buscar Ritmo & Timeline de um Projeto específico
+// GET: Buscar Ritmo & Timeline
 router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
   try {
     const { projectId } = req.params;
-
-    const timelineEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'RITMO_TIMELINE',
-      },
-    });
-
-    res.json(timelineEntity ? timelineEntity.data : {});
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    res.json(entity ? entity.data : {});
   } catch (error) {
-    console.error('Erro ao buscar Ritmo & Timeline:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST: Salvar/Atualizar Ritmo & Timeline de um Projeto (Auto-save)
+// POST: Salvar Ritmo & Timeline
 router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const timelineData = req.body;
-
-    const existingEntity = await prisma.entity.findFirst({
-      where: {
-        projectId,
-        type: 'RITMO_TIMELINE',
-      },
-    });
-
-    if (existingEntity) {
-      const updated = await prisma.entity.update({
-        where: { id: existingEntity.id },
-        data: { data: timelineData },
-      });
+    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    if (existing) {
+      const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-
-    const created = await prisma.entity.create({
-      data: {
-        projectId,
-        type: 'RITMO_TIMELINE',
-        title: 'Ritmo e Timeline do Projeto',
-        data: timelineData,
-      },
-    });
-
+    const created = await prisma.entity.create({ data: { projectId, type: 'RITMO_TIMELINE', title: 'Ritmo & Timeline', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    console.error('Erro ao salvar Ritmo & Timeline:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// ------------------- ROTAS DE PERSONAGENS -------------------
+
+// GET: Buscar todos os personagens do projeto
+router.get('/projects/:projectId/characters', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const characters = await prisma.character.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = characters.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.role || 'protagonista',
+      details: c.details || {},
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar personagens:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar um novo personagem
+router.post('/projects/:projectId/characters', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { name, type, details } = req.body;
+
+    const newChar = await prisma.character.create({
+      data: {
+        name: name || 'Novo personagem',
+        role: type || 'protagonista',
+        details: details || {},
+        projectId,
+      },
+    });
+
+    res.status(201).json({
+      id: newChar.id,
+      name: newChar.name,
+      type: newChar.role,
+      details: newChar.details,
+    });
+  } catch (error) {
+    console.error('Erro ao criar personagem no Prisma:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar personagem (Auto-save do Dossiê)
+router.put('/characters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, details } = req.body;
+
+    const updatedChar = await prisma.character.update({
+      where: { id },
+      data: {
+        name: name || 'Personagem sem nome',
+        role: type || 'protagonista',
+        details: details || {},
+      },
+    });
+
+    res.json({
+      id: updatedChar.id,
+      name: updatedChar.name,
+      type: updatedChar.role,
+      details: updatedChar.details,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar personagem no Prisma:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir personagem
+router.delete('/characters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.character.delete({
+      where: { id },
+    });
+
+    res.json({ message: 'Personagem excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar personagem no Prisma:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 export default router;

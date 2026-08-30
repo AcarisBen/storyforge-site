@@ -18,6 +18,26 @@ const apiClient = {
     const data = await response.json();
     return { data };
   },
+
+  async put(endpoint, body) {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+    const data = await response.json();
+    return { data };
+  },
+
+  async delete(endpoint) {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+    const data = await response.json();
+    return { data };
+  },
 };
 
 export default apiClient;

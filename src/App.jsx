@@ -90,7 +90,7 @@ function App() {
     activePage === 'engenharia' ? <Engenharia projectId={currentProject.id} /> :
     activePage === 'estrutura' ? <EstruturaDramatica projectId={currentProject.id} /> :
     activePage === 'ritmo' ? <RitmoTimeline projectId={currentProject.id} /> :
-    activePage === 'personagens' ? <Personagens /> : 
+    activePage === 'personagens' ? <Personagens projectId={currentProject.id} /> :
     activePage === 'mundo' ? <Mundo /> : 
     activePage === 'cenas' ? <Cenas /> : 
     activePage === 'misterios' ? <Misterios /> : 
