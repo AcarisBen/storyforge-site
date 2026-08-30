@@ -162,4 +162,201 @@ router.post('/projects/:projectId/essencia', async (req, res) => {
   }
 });
 
+// GET: Buscar a Engenharia Narrativa de um Projeto específico
+router.get('/projects/:projectId/engenharia', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const engenhariaEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ENGENHARIA',
+      },
+    });
+
+    res.json(engenhariaEntity ? engenhariaEntity.data : {});
+  } catch (error) {
+    console.error('Erro ao buscar Engenharia:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Salvar/Atualizar a Engenharia Narrativa de um Projeto (Auto-save)
+router.post('/projects/:projectId/engenharia', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const engenhariaData = req.body;
+
+    const existingEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ENGENHARIA',
+      },
+    });
+
+    if (existingEntity) {
+      const updated = await prisma.entity.update({
+        where: { id: existingEntity.id },
+        data: { data: engenhariaData },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'ENGENHARIA',
+        title: 'Engenharia Narrativa do Projeto',
+        data: engenhariaData,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Engenharia:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default router;

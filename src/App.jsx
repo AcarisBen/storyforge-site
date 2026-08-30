@@ -87,7 +87,7 @@ function App() {
   const page = 
     activePage === 'identidade' ? <Identidade projectId={currentProject.id} /> :
     activePage === 'essencia' ? <Essencia projectId={currentProject.id} /> :
-    activePage === 'engenharia' ? <Engenharia /> : 
+    activePage === 'engenharia' ? <Engenharia projectId={currentProject.id} /> :
     activePage === 'estrutura' ? <EstruturaDramatica /> : 
     activePage === 'ritmo' ? <RitmoTimeline /> : 
     activePage === 'personagens' ? <Personagens /> : 
