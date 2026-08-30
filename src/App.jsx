@@ -85,7 +85,7 @@ function App() {
 
   // Quando um projeto é selecionado, mostra a dashboard e o menu do projeto
   const page = 
-    activePage === 'identidade' ? <Identidade /> : 
+    activePage === 'identidade' ? <Identidade projectId={currentProject.id} /> :
     activePage === 'essencia' ? <Essencia /> : 
     activePage === 'engenharia' ? <Engenharia /> : 
     activePage === 'estrutura' ? <EstruturaDramatica /> : 

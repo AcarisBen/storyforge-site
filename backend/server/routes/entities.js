@@ -3,7 +3,7 @@ import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
-// GET: Buscar todos os projetos do banco
+// GET: Buscar todos os projetos
 router.get('/projects', async (req, res) => {
   try {
     const projects = await prisma.project.findMany({
@@ -16,14 +16,12 @@ router.get('/projects', async (req, res) => {
   }
 });
 
-// POST: Criar um novo projeto atrelado ao Usuário Padrão
+// POST: Criar novo projeto
 router.post('/projects', async (req, res) => {
   try {
     const { title, format } = req.body;
 
-    // 1. Busca ou cria usuário padrão para atrelar a chave estrangeira (userId)
     let defaultUser = await prisma.user.findFirst();
-
     if (!defaultUser) {
       defaultUser = await prisma.user.create({
         data: {
@@ -34,7 +32,6 @@ router.post('/projects', async (req, res) => {
       });
     }
 
-    // 2. Salva APENAS os campos exatos que existem na model Project do schema.prisma
     const newProject = await prisma.project.create({
       data: {
         title: title || 'Sem título',
@@ -46,6 +43,65 @@ router.post('/projects', async (req, res) => {
     res.status(201).json(newProject);
   } catch (error) {
     console.error('Erro ao criar projeto no Prisma:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Buscar a Identidade de um Projeto específico
+router.get('/projects/:projectId/identity', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const identityEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'IDENTITY',
+      },
+    });
+
+    res.json(identityEntity ? identityEntity.data : {});
+  } catch (error) {
+    console.error('Erro ao buscar Identidade:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT/POST: Salvar/Atualizar a Identidade de um Projeto (Auto-save)
+router.post('/projects/:projectId/identity', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const identityData = req.body;
+
+    // Procura se já existe uma entidade do tipo IDENTITY para o projeto
+    const existingEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'IDENTITY',
+      },
+    });
+
+    if (existingEntity) {
+      // Atualiza o registro existente no PostgreSQL
+      const updated = await prisma.entity.update({
+        where: { id: existingEntity.id },
+        data: { data: identityData },
+      });
+      return res.json(updated.data);
+    }
+
+    // Cria um novo registro se for a primeira vez
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'IDENTITY',
+        title: 'Identidade do Projeto',
+        data: identityData,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Identidade:', error);
     res.status(500).json({ error: error.message });
   }
 });
