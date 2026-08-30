@@ -274,7 +274,61 @@ router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   }
 });
 
+// GET: Buscar Ritmo & Timeline de um Projeto específico
+router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
+  try {
+    const { projectId } = req.params;
 
+    const timelineEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'RITMO_TIMELINE',
+      },
+    });
+
+    res.json(timelineEntity ? timelineEntity.data : {});
+  } catch (error) {
+    console.error('Erro ao buscar Ritmo & Timeline:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Salvar/Atualizar Ritmo & Timeline de um Projeto (Auto-save)
+router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const timelineData = req.body;
+
+    const existingEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'RITMO_TIMELINE',
+      },
+    });
+
+    if (existingEntity) {
+      const updated = await prisma.entity.update({
+        where: { id: existingEntity.id },
+        data: { data: timelineData },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'RITMO_TIMELINE',
+        title: 'Ritmo e Timeline do Projeto',
+        data: timelineData,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Ritmo & Timeline:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 
