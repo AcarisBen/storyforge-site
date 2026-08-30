@@ -106,4 +106,60 @@ router.post('/projects/:projectId/identity', async (req, res) => {
   }
 });
 
+// GET: Buscar a Essência de um Projeto específico
+router.get('/projects/:projectId/essencia', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const essenciaEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ESSENCIA',
+      },
+    });
+
+    res.json(essenciaEntity ? essenciaEntity.data : {});
+  } catch (error) {
+    console.error('Erro ao buscar Essência:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Salvar/Atualizar a Essência de um Projeto (Auto-save)
+router.post('/projects/:projectId/essencia', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const essenciaData = req.body;
+
+    const existingEntity = await prisma.entity.findFirst({
+      where: {
+        projectId,
+        type: 'ESSENCIA',
+      },
+    });
+
+    if (existingEntity) {
+      const updated = await prisma.entity.update({
+        where: { id: existingEntity.id },
+        data: { data: essenciaData },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'ESSENCIA',
+        title: 'Essência do Projeto',
+        data: essenciaData,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Essência:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
