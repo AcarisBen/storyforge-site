@@ -141,3 +141,30 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+
+# IDEs & Editor Configuration
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS Generated Files (Windows / macOS)
+Thumbs.db
+Thumbs.db:encrypt_*
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Archivos de prueba temporales (para no subir scripts como teste.js)
+teste.js
+test-*.js
+
+# Ignorar archivos .env en subcarpetas (backend/.env, etc.)
+**/.env
+**/.env.local
+**/.env.*.local
