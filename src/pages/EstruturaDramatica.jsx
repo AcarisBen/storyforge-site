@@ -116,6 +116,53 @@ const freytagStages = [
   ['Resolução', 'O novo normal e equilíbrio final.'],
 ];
 
+// Funções auxiliares para estilização colorida dos cards
+function getFrameworkCardStyle(name, isSelected) {
+  const norm = name.toLowerCase();
+  if (norm.includes('3 atos')) {
+    return isSelected
+      ? 'border-purple-500 bg-purple-950/40 text-purple-200'
+      : 'border-purple-900/30 bg-[#181824] hover:border-purple-600/60 text-gray-400';
+  }
+  if (norm.includes('8 sequências') || norm.includes('sequencias')) {
+    return isSelected
+      ? 'border-blue-500 bg-blue-950/40 text-blue-200'
+      : 'border-blue-900/30 bg-[#181824] hover:border-blue-600/60 text-gray-400';
+  }
+  if (norm.includes('jornada')) {
+    return isSelected
+      ? 'border-amber-500 bg-amber-950/40 text-amber-200'
+      : 'border-amber-900/30 bg-[#181824] hover:border-amber-600/60 text-gray-400';
+  }
+  if (norm.includes('story circle')) {
+    return isSelected
+      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200'
+      : 'border-emerald-900/30 bg-[#181824] hover:border-emerald-600/60 text-gray-400';
+  }
+  if (norm.includes('save the cat')) {
+    return isSelected
+      ? 'border-orange-500 bg-orange-950/40 text-orange-200'
+      : 'border-orange-900/30 bg-[#181824] hover:border-orange-600/60 text-gray-400';
+  }
+  if (norm.includes('freytag')) {
+    return isSelected
+      ? 'border-red-500 bg-red-950/40 text-red-200'
+      : 'border-red-900/30 bg-[#181824] hover:border-red-600/60 text-gray-400';
+  }
+  return isSelected ? 'border-purple-500 bg-purple-950/40' : 'border-gray-800 bg-[#181824]';
+}
+
+function getCheckBadgeStyle(name) {
+  const norm = name.toLowerCase();
+  if (norm.includes('3 atos')) return 'bg-purple-600 border-purple-400 text-white';
+  if (norm.includes('8 sequências') || norm.includes('sequencias')) return 'bg-blue-600 border-blue-400 text-white';
+  if (norm.includes('jornada')) return 'bg-amber-600 border-amber-400 text-white';
+  if (norm.includes('story circle')) return 'bg-emerald-600 border-emerald-400 text-white';
+  if (norm.includes('save the cat')) return 'bg-orange-600 border-orange-400 text-white';
+  if (norm.includes('freytag')) return 'bg-red-600 border-red-400 text-white';
+  return 'bg-purple-600 border-purple-400 text-white';
+}
+
 export default function EstruturaDramatica({ projectId }) {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isGuideOpen, setIsGuideOpen] = useState(true);
@@ -249,7 +296,7 @@ export default function EstruturaDramatica({ projectId }) {
 
       <section className="module-guide">
         <button
-          className="guide-toggle"
+          className="guide-toggle cursor-pointer"
           type="button"
           aria-expanded={isGuideOpen}
           aria-controls="module-guide-content"
@@ -263,7 +310,7 @@ export default function EstruturaDramatica({ projectId }) {
             <nav className="guide-tabs" aria-label="Guia do módulo">
               {Object.entries(tabs).map(([label, tab]) => (
                 <button
-                  className={activeTab === label ? 'guide-tab active' : 'guide-tab'}
+                  className={activeTab === label ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
                   type="button"
                   key={label}
                   onClick={() => setActiveTab(label)}
@@ -277,26 +324,37 @@ export default function EstruturaDramatica({ projectId }) {
         )}
       </section>
 
-      <p className="framework-intro">Selecione um ou mais frameworks estruturais. Você pode usar apenas um ou combinar vários — não existe resposta única.</p>
-      
-      <section className="framework-grid" aria-label="Frameworks estruturais">
+      <p className="framework-intro mb-4">Selecione um ou mais frameworks estruturais. Você pode usar apenas um ou combinar vários — não existe resposta única.</p>
+
+      {/* CARDS DOS FRAMEWORKS COM AS CORES RESPECTIVAS */}
+      <section className="framework-grid grid grid-cols-1 md:grid-cols-2 gap-4 mb-8" aria-label="Frameworks estruturais">
         {frameworks.map(([name, summary, beats, description]) => {
           const isSelected = selectedFrameworks.includes(name);
+          const cardStyle = getFrameworkCardStyle(name, isSelected);
+          const checkStyle = getCheckBadgeStyle(name);
+
           return (
             <button
-              className={isSelected ? 'framework-card selected' : 'framework-card'}
+              className={`framework-card p-5 rounded-xl border-2 transition-all duration-200 text-left flex justify-between items-start cursor-pointer shadow-lg ${cardStyle}`}
               type="button"
               key={name}
               aria-pressed={isSelected}
               onClick={() => toggleFramework(name)}
             >
-              <span className="framework-copy">
-                <strong>{name}</strong>
-                <span>{summary}</span>
-                <small>{beats}</small>
-                <em>{description}</em>
+              <span className="framework-copy space-y-1 pr-4">
+                <strong className="block text-base font-bold text-white">{name}</strong>
+                <span className="block text-xs font-medium opacity-90">{summary}</span>
+                <small className="block text-[11px] opacity-75 font-mono">{beats}</small>
+                <em className="block text-xs not-italic text-gray-300 mt-2 leading-relaxed">{description}</em>
               </span>
-              <span className="framework-check" aria-hidden="true">{isSelected ? '✓' : ''}</span>
+
+              <span
+                className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-bold shrink-0 transition-all ${
+                  isSelected ? checkStyle : 'border-gray-700 bg-gray-900/60 text-transparent'
+                }`}
+              >
+                ✓
+              </span>
             </button>
           );
         })}

@@ -3,6 +3,10 @@ import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
+// ==========================================
+// PROJETOS
+// ==========================================
+
 // GET: Buscar todos os projetos
 router.get('/projects', async (req, res) => {
   try {
@@ -47,7 +51,11 @@ router.post('/projects', async (req, res) => {
   }
 });
 
-// GET: Buscar Identidade
+// ==========================================
+// CONFIGURAÇÕES DO PROJETO (Identidade, Essência, Engenharia)
+// ==========================================
+
+// GET/POST Identidade
 router.get('/projects/:projectId/identity', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -58,7 +66,6 @@ router.get('/projects/:projectId/identity', async (req, res) => {
   }
 });
 
-// POST: Salvar Identidade
 router.post('/projects/:projectId/identity', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -74,7 +81,7 @@ router.post('/projects/:projectId/identity', async (req, res) => {
   }
 });
 
-// GET: Buscar Essência
+// GET/POST Essência
 router.get('/projects/:projectId/essencia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -85,7 +92,6 @@ router.get('/projects/:projectId/essencia', async (req, res) => {
   }
 });
 
-// POST: Salvar Essência
 router.post('/projects/:projectId/essencia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -101,7 +107,7 @@ router.post('/projects/:projectId/essencia', async (req, res) => {
   }
 });
 
-// GET: Buscar Engenharia
+// GET/POST Engenharia
 router.get('/projects/:projectId/engenharia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -112,7 +118,6 @@ router.get('/projects/:projectId/engenharia', async (req, res) => {
   }
 });
 
-// POST: Salvar Engenharia
 router.post('/projects/:projectId/engenharia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -128,12 +133,55 @@ router.post('/projects/:projectId/engenharia', async (req, res) => {
   }
 });
 
-// GET: Buscar Estrutura Dramática
+// ==========================================
+// ESTRUTURA DRAMÁTICA
+// ==========================================
+
+// GET: Para o Módulo "Estrutura Dramática" (Retorna o objeto completo para edição)
 router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   try {
     const { projectId } = req.params;
     const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
     res.json(entity ? entity.data : { selectedFrameworks: [], values: {} });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Para o Apoio Visual da "Escrita" (Converte o objeto gravado em lista de Cards)
+router.get('/projects/:projectId/estrutura-dramatica/cards', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    if (!entity || !entity.data) return res.json([]);
+
+    const { values = {} } = entity.data;
+    const cards = [];
+
+    const frameworkCategories = [
+      { key: 'acts', name: '3 Atos' },
+      { key: 'sequences', name: '8 Sequências' },
+      { key: 'hero', name: 'Jornada do Herói' },
+      { key: 'storyCircle', name: 'Story Circle' },
+      { key: 'saveTheCat', name: 'Save the Cat' },
+      { key: 'freytag', name: 'Freytag' },
+    ];
+
+    frameworkCategories.forEach(({ key, name }) => {
+      const categoryValues = values[key] || {};
+      Object.entries(categoryValues).forEach(([stepName, textContent]) => {
+        if (textContent && textContent.trim() !== '') {
+          cards.push({
+            id: `${entity.id}-${key}-${stepName}`,
+            title: stepName,
+            type: name,
+            descricao: textContent.trim(),
+          });
+        }
+      });
+    });
+
+    res.json(cards);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -155,12 +203,48 @@ router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   }
 });
 
-// GET: Buscar Ritmo & Timeline
+
+// ==========================================
+// RITMO & TIMELINE
+// ==========================================
+
+// GET: Para o Módulo "Ritmo & Timeline" (Retorna o objeto completo para edição)
 router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
   try {
     const { projectId } = req.params;
     const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
     res.json(entity ? entity.data : {});
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Para o Apoio Visual da "Escrita" (Converte os eventos salvos em Cards)
+router.get('/projects/:projectId/ritmo-timeline/cards', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    if (!entity || !entity.data) return res.json([]);
+
+    const timelineData = entity.data;
+    const cards = [];
+
+    Object.entries(timelineData).forEach(([milestoneName, eventList]) => {
+      if (Array.isArray(eventList)) {
+        eventList.forEach((evt) => {
+          if (evt.title || evt.description) {
+            cards.push({
+              id: evt.id || `${entity.id}-${milestoneName}-${Math.random()}`,
+              title: evt.title || 'Evento sem título',
+              type: milestoneName,
+              descricao: evt.description || '',
+            });
+          }
+        });
+      }
+    });
+
+    res.json(cards);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -182,9 +266,11 @@ router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE PERSONAGENS -------------------
 
-// GET: Buscar todos os personagens do projeto
+// ==========================================
+// PERSONAGENS
+// ==========================================
+
 router.get('/projects/:projectId/characters', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -207,7 +293,6 @@ router.get('/projects/:projectId/characters', async (req, res) => {
   }
 });
 
-// POST: Criar um novo personagem
 router.post('/projects/:projectId/characters', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -234,7 +319,6 @@ router.post('/projects/:projectId/characters', async (req, res) => {
   }
 });
 
-// PUT: Atualizar personagem (Auto-save do Dossiê)
 router.put('/characters/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -261,14 +345,10 @@ router.put('/characters/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir personagem
 router.delete('/characters/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.character.delete({
-      where: { id },
-    });
-
+    await prisma.character.delete({ where: { id } });
     res.json({ message: 'Personagem excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar personagem no Prisma:', error);
@@ -276,9 +356,10 @@ router.delete('/characters/:id', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE MUNDO -------------------
+// ==========================================
+// MUNDO
+// ==========================================
 
-// GET: Buscar todos os elementos do mundo de um projeto
 router.get('/projects/:projectId/world', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -302,13 +383,10 @@ router.get('/projects/:projectId/world', async (req, res) => {
   }
 });
 
-// POST: Criar elemento do mundo
 router.post('/projects/:projectId/world', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, type, customType, description } = req.body;
-
-    // Se o tipo for "Outros" e houver um texto customizado, usa o customType
     const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
 
     const newElement = await prisma.entity.create({
@@ -337,12 +415,10 @@ router.post('/projects/:projectId/world', async (req, res) => {
   }
 });
 
-// PUT: Atualizar elemento do mundo
 router.put('/world/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, customType, description } = req.body;
-
     const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
 
     const updated = await prisma.entity.update({
@@ -370,7 +446,6 @@ router.put('/world/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir elemento do mundo
 router.delete('/world/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -382,9 +457,10 @@ router.delete('/world/:id', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE CENAS -------------------
+// ==========================================
+// CENAS
+// ==========================================
 
-// GET: Buscar todas as cenas de um projeto
 router.get('/projects/:projectId/scenes', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -406,7 +482,6 @@ router.get('/projects/:projectId/scenes', async (req, res) => {
   }
 });
 
-// POST: Criar uma nova cena
 router.post('/projects/:projectId/scenes', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -432,7 +507,6 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
   }
 });
 
-// PUT: Atualizar cena (Auto-save ao digitar)
 router.put('/scenes/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -457,7 +531,6 @@ router.put('/scenes/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir cena
 router.delete('/scenes/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -469,9 +542,10 @@ router.delete('/scenes/:id', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE MISTÉRIOS -------------------
+// ==========================================
+// MISTÉRIOS
+// ==========================================
 
-// GET: Buscar todos os mistérios do projeto
 router.get('/projects/:projectId/mysteries', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -493,7 +567,6 @@ router.get('/projects/:projectId/mysteries', async (req, res) => {
   }
 });
 
-// POST: Criar um novo mistério
 router.post('/projects/:projectId/mysteries', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -519,7 +592,6 @@ router.post('/projects/:projectId/mysteries', async (req, res) => {
   }
 });
 
-// PUT: Atualizar mistério (Auto-save)
 router.put('/mysteries/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -544,7 +616,6 @@ router.put('/mysteries/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir mistério
 router.delete('/mysteries/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -556,9 +627,10 @@ router.delete('/mysteries/:id', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE PLOT TWISTS -------------------
+// ==========================================
+// PLOT TWISTS
+// ==========================================
 
-// GET: Buscar todos os plot twists do projeto
 router.get('/projects/:projectId/twists', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -580,7 +652,6 @@ router.get('/projects/:projectId/twists', async (req, res) => {
   }
 });
 
-// POST: Criar um novo plot twist
 router.post('/projects/:projectId/twists', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -606,7 +677,6 @@ router.post('/projects/:projectId/twists', async (req, res) => {
   }
 });
 
-// PUT: Atualizar plot twist (Auto-save)
 router.put('/twists/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -631,7 +701,6 @@ router.put('/twists/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir plot twist
 router.delete('/twists/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -643,9 +712,10 @@ router.delete('/twists/:id', async (req, res) => {
   }
 });
 
-// ------------------- ROTAS DE ESCRITA / CAPÍTULOS -------------------
+// ==========================================
+// ESCRITA / CAPÍTULOS
+// ==========================================
 
-// GET: Buscar todos os capítulos de um projeto
 router.get('/projects/:projectId/chapters', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -668,59 +738,6 @@ router.get('/projects/:projectId/chapters', async (req, res) => {
   }
 });
 
-// GET: Estrutura Dramática do Projeto (busca DRAMATIC_STRUCTURE e STRUCTURE_POINT)
-router.get('/projects/:projectId/structure', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const items = await prisma.entity.findMany({
-      where: {
-        projectId,
-        type: { in: ['DRAMATIC_STRUCTURE', 'STRUCTURE_POINT'] },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const formatted = items.map((i) => ({
-      id: i.id,
-      title: i.title || i.data?.beat || i.data?.name || i.data?.act || 'Ponto Estrutural',
-      type: i.data?.act || i.data?.stage || 'Estrutura',
-      ...(i.data || {}),
-    }));
-
-    res.json(formatted);
-  } catch (error) {
-    console.error('Erro ao buscar estrutura dramática:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET: Ritmo e Timeline do Projeto (busca PACING_TIMELINE, TIMELINE_EVENT e RHYTHM_SCENE)
-router.get('/projects/:projectId/pacing', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const items = await prisma.entity.findMany({
-      where: {
-        projectId,
-        type: { in: ['PACING_TIMELINE', 'TIMELINE_EVENT', 'RHYTHM_SCENE'] },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const formatted = items.map((i) => ({
-      id: i.id,
-      title: i.title || i.data?.sceneTitle || i.data?.name || 'Evento da Timeline',
-      type: i.data?.intensity ? `Intensidade: ${i.data.intensity}` : i.data?.pace || 'Timeline',
-      ...(i.data || {}),
-    }));
-
-    res.json(formatted);
-  } catch (error) {
-    console.error('Erro ao buscar ritmo & timeline:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST: Criar novo capítulo
 router.post('/projects/:projectId/chapters', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -747,7 +764,6 @@ router.post('/projects/:projectId/chapters', async (req, res) => {
   }
 });
 
-// PUT: Atualizar capítulo (Auto-save do Manuscrito)
 router.put('/chapters/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -773,7 +789,6 @@ router.put('/chapters/:id', async (req, res) => {
   }
 });
 
-// DELETE: Excluir capítulo
 router.delete('/chapters/:id', async (req, res) => {
   try {
     const { id } = req.params;

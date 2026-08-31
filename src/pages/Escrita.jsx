@@ -28,6 +28,17 @@ const guideTabs = {
   ),
 };
 
+function getFrameworkBadgeStyle(type = '') {
+  const norm = String(type).toLowerCase().trim();
+  if (norm.includes('3 atos')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  if (norm.includes('8 sequências') || norm.includes('sequencias')) return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+  if (norm.includes('jornada')) return 'bg-amber-900/60 text-amber-300 border-amber-500/50';
+  if (norm.includes('story circle')) return 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50';
+  if (norm.includes('save the cat')) return 'bg-orange-900/60 text-orange-300 border-orange-500/50';
+  if (norm.includes('freytag')) return 'bg-red-900/60 text-red-300 border-red-500/50';
+  return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
+}
+
 function EscritaGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
@@ -116,7 +127,7 @@ export default function Escrita({ projectId, onNavigate }) {
     twists: [],
   });
 
-  // Carregar Capítulos e Dados de Apoio
+  // Carregar Capítulos e Dados de Apoio (Rotas 100% Padronizadas e Protegidas)
   useEffect(() => {
     if (!projectId) return;
 
@@ -137,8 +148,8 @@ export default function Escrita({ projectId, onNavigate }) {
           apiClient.get(`/entities/projects/${projectId}/chapters`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/world`).catch(() => ({ data: [] })),
-          apiClient.get(`/entities/projects/${projectId}/structure`).catch(() => ({ data: [] })),
-          apiClient.get(`/entities/projects/${projectId}/pacing`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/estrutura-dramatica/cards`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/ritmo-timeline/cards`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/mysteries`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
@@ -168,16 +179,16 @@ export default function Escrita({ projectId, onNavigate }) {
           })),
           estrutura: (resStruct.data || []).map((s) => ({
             id: s.id,
-            title: s.title || s.beat || s.name || 'Ponto Estrutural',
-            type: s.act || s.stage || s.type || 'Estrutura',
-            ...s,
+            title: s.title,
+            type: s.type,
+            descricao: s.descricao,
             pageKey: 'estrutura',
           })),
           ritmo: (resPacing.data || []).map((p) => ({
             id: p.id,
-            title: p.title || p.sceneTitle || p.name || 'Evento da Timeline',
-            type: p.intensity ? `Intensidade: ${p.intensity}` : p.pace || p.type || 'Timeline',
-            ...p,
+            title: p.title,
+            type: p.type,
+            descricao: p.descricao,
             pageKey: 'ritmo',
           })),
           cenas: (resScenes.data || []).map((s) => ({
@@ -209,6 +220,7 @@ export default function Escrita({ projectId, onNavigate }) {
     fetchData();
   }, [projectId]);
 
+  
   // Progresso
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
@@ -363,6 +375,8 @@ export default function Escrita({ projectId, onNavigate }) {
 
       // Estrutura Dramática
       act: 'Ato',
+      descricao: 'Descrição',
+    description: 'Descrição',
       beat: 'Ponto (Beat)',
       stage: 'Estágio',
       objective: 'Objetivo',
@@ -371,6 +385,8 @@ export default function Escrita({ projectId, onNavigate }) {
 
       // Ritmo e Timeline
       pacing: 'Ritmo',
+      descricao: 'Descrição',
+    description: 'Descrição',
       intensity: 'Intensidade',
       time: 'Momento/Tempo',
       duration: 'Duração',
@@ -670,6 +686,8 @@ export default function Escrita({ projectId, onNavigate }) {
                               className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
                                 activeDrawer === 'personagens'
                                   ? getCharacterBadgeStyle(item.type)
+                                  : activeDrawer === 'estrutura'
+                                  ? getFrameworkBadgeStyle(item.type)
                                   : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
                               }`}
                             >
