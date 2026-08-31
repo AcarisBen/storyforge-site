@@ -91,7 +91,7 @@ function App() {
     activePage === 'estrutura' ? <EstruturaDramatica projectId={currentProject.id} /> :
     activePage === 'ritmo' ? <RitmoTimeline projectId={currentProject.id} /> :
     activePage === 'personagens' ? <Personagens projectId={currentProject.id} /> :
-    activePage === 'mundo' ? <Mundo /> : 
+    activePage === 'mundo' ? <Mundo projectId={currentProject.id} /> :
     activePage === 'cenas' ? <Cenas /> : 
     activePage === 'misterios' ? <Misterios /> : 
     activePage === 'plot-twists' ? <PlotTwists /> : 

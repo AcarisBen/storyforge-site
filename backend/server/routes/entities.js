@@ -276,4 +276,110 @@ router.delete('/characters/:id', async (req, res) => {
   }
 });
 
+// ------------------- ROTAS DE MUNDO -------------------
+
+// GET: Buscar todos os elementos do mundo de um projeto
+router.get('/projects/:projectId/world', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const elements = await prisma.entity.findMany({
+      where: { projectId, type: 'WORLD_ELEMENT' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = elements.map((e) => ({
+      id: e.id,
+      name: e.title,
+      type: e.data?.elementType || 'País',
+      customType: e.data?.customType || '',
+      description: e.data?.description || '',
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar elementos do mundo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar elemento do mundo
+router.post('/projects/:projectId/world', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { name, type, customType, description } = req.body;
+
+    // Se o tipo for "Outros" e houver um texto customizado, usa o customType
+    const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
+
+    const newElement = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'WORLD_ELEMENT',
+        title: name || 'Sem nome',
+        data: { 
+          elementType: finalType, 
+          customType: type === 'Outros' ? customType.trim() : '',
+          description: description || '' 
+        },
+      },
+    });
+
+    res.status(201).json({
+      id: newElement.id,
+      name: newElement.title,
+      type: newElement.data.elementType,
+      customType: newElement.data.customType,
+      description: newElement.data.description,
+    });
+  } catch (error) {
+    console.error('Erro ao criar elemento do mundo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar elemento do mundo
+router.put('/world/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, customType, description } = req.body;
+
+    const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: name || 'Sem nome',
+        data: { 
+          elementType: finalType, 
+          customType: type === 'Outros' ? customType.trim() : '',
+          description: description || '' 
+        },
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      name: updated.title,
+      type: updated.data.elementType,
+      customType: updated.data.customType,
+      description: updated.data.description,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar elemento do mundo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir elemento do mundo
+router.delete('/world/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Elemento excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar elemento do mundo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
