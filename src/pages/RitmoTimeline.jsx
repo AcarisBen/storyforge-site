@@ -140,6 +140,73 @@ export default function RitmoTimeline({ projectId }) {
     }));
   }
 
+// Função auxiliar para definir as cores dos 7 marcos narrativos
+function getMilestoneTheme(name) {
+  const norm = String(name).toLowerCase();
+  if (norm.includes('incitante')) {
+    return {
+      cardBorder: 'border-purple-900/50 hover:border-purple-600/70',
+      numberBg: 'bg-purple-950 text-purple-300 border-purple-800/60',
+      badge: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
+      button: 'bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 border-purple-700/50'
+    };
+  }
+  if (norm.includes('1º ponto') || norm.includes('virada')) {
+    return {
+      cardBorder: 'border-blue-900/50 hover:border-blue-600/70',
+      numberBg: 'bg-blue-950 text-blue-300 border-blue-800/60',
+      badge: 'bg-blue-900/60 text-blue-300 border-blue-500/50',
+      button: 'bg-blue-900/40 hover:bg-blue-800/60 text-blue-200 border-blue-700/50'
+    };
+  }
+  if (norm.includes('midpoint')) {
+    return {
+      cardBorder: 'border-cyan-900/50 hover:border-cyan-600/70',
+      numberBg: 'bg-cyan-950 text-cyan-300 border-cyan-800/60',
+      badge: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/50',
+      button: 'bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 border-cyan-700/50'
+    };
+  }
+  if (norm.includes('crise')) {
+    return {
+      cardBorder: 'border-amber-900/50 hover:border-amber-600/70',
+      numberBg: 'bg-amber-950 text-amber-300 border-amber-800/60',
+      badge: 'bg-amber-900/60 text-amber-300 border-amber-500/50',
+      button: 'bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border-amber-700/50'
+    };
+  }
+  if (norm.includes('clímax') || norm.includes('climax')) {
+    return {
+      cardBorder: 'border-red-900/50 hover:border-red-600/70',
+      numberBg: 'bg-red-950 text-red-300 border-red-800/60',
+      badge: 'bg-red-900/60 text-red-300 border-red-500/50',
+      button: 'bg-red-900/40 hover:bg-red-800/60 text-red-200 border-red-700/50'
+    };
+  }
+  if (norm.includes('resolução') || norm.includes('resolucao')) {
+    return {
+      cardBorder: 'border-emerald-900/50 hover:border-emerald-600/70',
+      numberBg: 'bg-emerald-950 text-emerald-300 border-emerald-800/60',
+      badge: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50',
+      button: 'bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-200 border-emerald-700/50'
+    };
+  }
+  if (norm.includes('epílogo') || norm.includes('epilogo')) {
+    return {
+      cardBorder: 'border-pink-900/50 hover:border-pink-600/70',
+      numberBg: 'bg-pink-950 text-pink-300 border-pink-800/60',
+      badge: 'bg-pink-900/60 text-pink-300 border-pink-500/50',
+      button: 'bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 border-pink-700/50'
+    };
+  }
+  return {
+    cardBorder: 'border-gray-800',
+    numberBg: 'bg-gray-800 text-gray-300',
+    badge: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
+    button: 'bg-purple-900/40 text-purple-200'
+  };
+}
+
   return (
     <main className="module-page timeline-page">
       <header className="module-header flex justify-between items-center">
@@ -179,20 +246,33 @@ export default function RitmoTimeline({ projectId }) {
       
       <section className="timeline-list" aria-label="Marcos narrativos">
         {milestones.map(([name, description], index) => {
-          const milestoneEvents = events[name] || [];
-          return (
-            <article className="timeline-milestone" key={name}>
-              <header className="milestone-header">
-                <div className="milestone-title">
-                  <span className="milestone-number">{index + 1}</span>
-                  <strong>{name}</strong>
-                  {milestoneEvents.length > 0 && (
-                    <small>{milestoneEvents.length} evento{milestoneEvents.length > 1 ? 's' : ''}</small>
-                  )}
-                </div>
-                <button className="add-event-button cursor-pointer" type="button" onClick={() => openEventForm(name)}>+ Evento</button>
-              </header>
-              <p className="milestone-description">{description}</p>
+  const milestoneEvents = events[name] || [];
+  const theme = getMilestoneTheme(name);
+
+  return (
+    <article className={`timeline-milestone bg-[#14141e] border rounded-xl p-5 mb-4 transition-all ${theme.cardBorder}`} key={name}>
+      <header className="milestone-header flex justify-between items-center mb-2">
+        <div className="milestone-title flex items-center gap-2">
+          <span className={`w-6 h-6 rounded-full border flex items-center justify-center font-bold text-xs ${theme.numberBg}`}>
+            {index + 1}
+          </span>
+          <strong className="text-white text-base font-bold">{name}</strong>
+          {milestoneEvents.length > 0 && (
+            <small className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${theme.badge}`}>
+              {milestoneEvents.length} evento{milestoneEvents.length > 1 ? 's' : ''}
+            </small>
+          )}
+        </div>
+        <button 
+          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${theme.button}`} 
+          type="button" 
+          onClick={() => openEventForm(name)}
+        >
+          + Evento
+        </button>
+      </header>
+
+      <p className="milestone-description text-gray-400 text-xs mb-3">{description}</p>
               
               {openMilestone === name && (
                 <div className="event-form">

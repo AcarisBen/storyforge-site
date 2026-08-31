@@ -28,6 +28,19 @@ const guideTabs = {
   ),
 };
 
+// Função auxiliar para aplicar as 7 cores do Ritmo no Apoio Visual
+function getTimelineBadgeStyle(type = '') {
+  const norm = String(type).toLowerCase();
+  if (norm.includes('incitante')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  if (norm.includes('1º ponto') || norm.includes('virada')) return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+  if (norm.includes('midpoint')) return 'bg-cyan-900/60 text-cyan-300 border-cyan-500/50';
+  if (norm.includes('crise')) return 'bg-amber-900/60 text-amber-300 border-amber-500/50';
+  if (norm.includes('clímax') || norm.includes('climax')) return 'bg-red-900/60 text-red-300 border-red-500/50';
+  if (norm.includes('resolução') || norm.includes('resolucao')) return 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50';
+  if (norm.includes('epílogo') || norm.includes('epilogo')) return 'bg-pink-900/60 text-pink-300 border-pink-500/50';
+  return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
+}
+
 function getFrameworkBadgeStyle(type = '') {
   const norm = String(type).toLowerCase().trim();
   if (norm.includes('3 atos')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
@@ -682,18 +695,20 @@ export default function Escrita({ projectId, onNavigate }) {
                             {displayName}
                           </h4>
                           {item.type && (
-                            <span
-                              className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
-                                activeDrawer === 'personagens'
-                                  ? getCharacterBadgeStyle(item.type)
-                                  : activeDrawer === 'estrutura'
-                                  ? getFrameworkBadgeStyle(item.type)
-                                  : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
-                              }`}
-                            >
-                              {item.type}
-                            </span>
-                          )}
+  <span
+    className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
+      activeDrawer === 'personagens'
+        ? getCharacterBadgeStyle(item.type)
+        : activeDrawer === 'estrutura'
+        ? getFrameworkBadgeStyle(item.type)
+        : activeDrawer === 'ritmo'
+        ? getTimelineBadgeStyle(item.type)
+        : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
+    }`}
+  >
+    {item.type}
+  </span>
+)}
                         </div>
                       </div>
 
