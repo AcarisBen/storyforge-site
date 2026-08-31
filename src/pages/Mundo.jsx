@@ -15,6 +15,69 @@ const guideTabs = {
   Perguntas: <ul><li>Como o mundo reflete o tema da história?</li><li>Quais regras governam os sistemas do mundo?</li><li>Que conflitos existem entre as facções?</li></ul>,
 };
 
+function getWorldTheme(type = '') {
+  const norm = String(type).toLowerCase().trim();
+
+  switch (norm) {
+    case 'planeta':
+      return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+    case 'mapa':
+      return 'bg-sky-900/60 text-sky-300 border-sky-500/50';
+    case 'país':
+    case 'pais':
+      return 'bg-indigo-900/60 text-indigo-300 border-indigo-500/50';
+    case 'cidade':
+      return 'bg-cyan-900/60 text-cyan-300 border-cyan-500/50';
+    case 'bioma':
+      return 'bg-teal-900/60 text-teal-300 border-teal-500/50';
+    case 'clima':
+      return 'bg-blue-950/80 text-blue-200 border-blue-400/40';
+
+    case 'política':
+    case 'politica':
+      return 'bg-amber-900/60 text-amber-300 border-amber-500/50';
+    case 'economia':
+      return 'bg-yellow-900/60 text-yellow-300 border-yellow-500/50';
+    case 'religião':
+    case 'religiao':
+      return 'bg-orange-900/60 text-orange-300 border-orange-500/50';
+    case 'tecnologia':
+      return 'bg-amber-950/80 text-amber-200 border-amber-400/40';
+
+    case 'fauna':
+      return 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50';
+    case 'flora':
+      return 'bg-green-900/60 text-green-300 border-green-500/50';
+    case 'idioma':
+      return 'bg-lime-900/60 text-lime-300 border-lime-500/50';
+
+    case 'história':
+    case 'historia':
+      return 'bg-fuchsia-900/60 text-fuchsia-300 border-fuchsia-500/50';
+    case 'cronologia':
+      return 'bg-pink-900/60 text-pink-300 border-pink-500/50';
+    case 'mitologia':
+      return 'bg-rose-900/60 text-rose-300 border-rose-500/50';
+    case 'facção':
+    case 'faccao':
+      return 'bg-fuchsia-950/80 text-fuchsia-200 border-fuchsia-400/40';
+
+    case 'sistema de magia':
+      return 'bg-violet-900/60 text-violet-300 border-violet-500/50';
+    case 'sistema de poderes':
+      return 'bg-red-900/60 text-red-300 border-red-500/50';
+    case 'sistema de ciência':
+    case 'sistema de ciencia':
+      return 'bg-stone-800 text-stone-200 border-stone-500/50';
+    case 'sistema de combate':
+      return 'bg-red-950/80 text-red-200 border-red-400/40';
+
+    case 'todos':
+    default:
+      return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  }
+}
+
 function WorldGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
@@ -153,24 +216,38 @@ export default function Mundo({ projectId }) {
       <WorldGuide />
 
       <div className="world-toolbar">
-        <nav className="world-filters">
+        <nav className="world-filters flex flex-wrap gap-2">
+          {/* Botão "Todos" (Mantém a cor Roxa quando ativo) */}
           <button
-            className={filter === 'Todos' ? 'character-filter active cursor-pointer' : 'character-filter cursor-pointer'}
+            className={`px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-all ${
+              filter === 'Todos'
+                ? getWorldTheme('Todos')
+                : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:border-gray-700'
+            }`}
             type="button"
             onClick={() => setFilter('Todos')}
           >
             Todos ({elements.length})
           </button>
-          {allFilterTypes.map((type) => (
-            <button
-              className={filter === type ? 'character-filter active cursor-pointer' : 'character-filter cursor-pointer'}
-              type="button"
-              key={type}
-              onClick={() => setFilter(type)}
-            >
-              {type}{counts[type] ? ` (${counts[type]})` : ''}
-            </button>
-          ))}
+
+          {/* Botões das 21 Categorias de Mundo */}
+          {allFilterTypes.map((type) => {
+            const isSelected = filter === type;
+            const colorStyle = isSelected
+              ? getWorldTheme(type)
+              : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:border-gray-700';
+
+            return (
+              <button
+                className={`px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-all ${colorStyle}`}
+                type="button"
+                key={type}
+                onClick={() => setFilter(type)}
+              >
+                {type}{counts[type] ? ` (${counts[type]})` : ''}
+              </button>
+            );
+          })}
         </nav>
         <button className="new-character-button cursor-pointer" type="button" onClick={openCreate}>
           ＋ Novo
