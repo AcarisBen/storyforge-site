@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Home from './pages/Home'
 import Engenharia from './pages/Engenharia'
+import Escrita from './pages/Escrita';
 import Essencia from './pages/Essencia'
 import Identidade from './pages/Identidade'
 import EstruturaDramatica from './pages/EstruturaDramatica'
@@ -96,6 +97,7 @@ function App() {
     activePage === 'misterios' ? <Misterios projectId={currentProject.id} /> : 
     activePage === 'plot-twists' ? <PlotTwists projectId={currentProject.id} /> : 
     activePage === 'dashboard' ? <Dashboard /> : 
+    activePage === 'escrita' ? <Escrita /> :
     <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
