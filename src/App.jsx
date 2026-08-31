@@ -93,8 +93,8 @@ function App() {
     activePage === 'personagens' ? <Personagens projectId={currentProject.id} /> :
     activePage === 'mundo' ? <Mundo projectId={currentProject.id} /> :
     activePage === 'cenas' ? <Cenas projectId={currentProject.id} /> :
-    activePage === 'misterios' ? <Misterios /> : 
-    activePage === 'plot-twists' ? <PlotTwists /> : 
+    activePage === 'misterios' ? <Misterios projectId={currentProject.id} /> : 
+    activePage === 'plot-twists' ? <PlotTwists projectId={currentProject.id} /> : 
     activePage === 'dashboard' ? <Dashboard /> : 
     <div className="coming-soon">Esta página será adicionada em breve.</div>
 

@@ -469,4 +469,91 @@ router.delete('/scenes/:id', async (req, res) => {
   }
 });
 
+// ------------------- ROTAS DE MISTÉRIOS -------------------
+
+// GET: Buscar todos os mistérios do projeto
+router.get('/projects/:projectId/mysteries', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const mysteries = await prisma.entity.findMany({
+      where: { projectId, type: 'MYSTERY' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = mysteries.map((m) => ({
+      id: m.id,
+      title: m.title,
+      ...(m.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar mistérios:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar um novo mistério
+router.post('/projects/:projectId/mysteries', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, ...restData } = req.body;
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'MYSTERY',
+        title: title || 'Mistério sem nome',
+        data: restData || {},
+      },
+    });
+
+    res.status(201).json({
+      id: created.id,
+      title: created.title,
+      ...(created.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao criar mistério:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar mistério (Auto-save)
+router.put('/mysteries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, ...restData } = req.body;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: title || 'Mistério sem nome',
+        data: restData || {},
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      title: updated.title,
+      ...(updated.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar mistério:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir mistério
+router.delete('/mysteries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Mistério excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar mistério:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
