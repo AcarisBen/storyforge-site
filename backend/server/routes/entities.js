@@ -643,4 +643,146 @@ router.delete('/twists/:id', async (req, res) => {
   }
 });
 
+// ------------------- ROTAS DE ESCRITA / CAPÍTULOS -------------------
+
+// GET: Buscar todos os capítulos de um projeto
+router.get('/projects/:projectId/chapters', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const chapters = await prisma.entity.findMany({
+      where: { projectId, type: 'CHAPTER' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = chapters.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.data?.chapterType || 'Capítulo',
+      content: c.data?.content || '',
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar capítulos:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Estrutura Dramática do Projeto (busca DRAMATIC_STRUCTURE e STRUCTURE_POINT)
+router.get('/projects/:projectId/structure', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const items = await prisma.entity.findMany({
+      where: {
+        projectId,
+        type: { in: ['DRAMATIC_STRUCTURE', 'STRUCTURE_POINT'] },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = items.map((i) => ({
+      id: i.id,
+      title: i.title || i.data?.beat || i.data?.name || i.data?.act || 'Ponto Estrutural',
+      type: i.data?.act || i.data?.stage || 'Estrutura',
+      ...(i.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar estrutura dramática:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Ritmo e Timeline do Projeto (busca PACING_TIMELINE, TIMELINE_EVENT e RHYTHM_SCENE)
+router.get('/projects/:projectId/pacing', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const items = await prisma.entity.findMany({
+      where: {
+        projectId,
+        type: { in: ['PACING_TIMELINE', 'TIMELINE_EVENT', 'RHYTHM_SCENE'] },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = items.map((i) => ({
+      id: i.id,
+      title: i.title || i.data?.sceneTitle || i.data?.name || 'Evento da Timeline',
+      type: i.data?.intensity ? `Intensidade: ${i.data.intensity}` : i.data?.pace || 'Timeline',
+      ...(i.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar ritmo & timeline:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar novo capítulo
+router.post('/projects/:projectId/chapters', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, type, content } = req.body;
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'CHAPTER',
+        title: title || 'Novo Capítulo',
+        data: { chapterType: type || 'Capítulo', content: content || '' },
+      },
+    });
+
+    res.status(201).json({
+      id: created.id,
+      title: created.title,
+      type: created.data.chapterType,
+      content: created.data.content,
+    });
+  } catch (error) {
+    console.error('Erro ao criar capítulo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar capítulo (Auto-save do Manuscrito)
+router.put('/chapters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, type, content } = req.body;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: title || 'Novo Capítulo',
+        data: { chapterType: type || 'Capítulo', content: content || '' },
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      title: updated.title,
+      type: updated.data.chapterType,
+      content: updated.data.content,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar capítulo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir capítulo
+router.delete('/chapters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Capítulo excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar capítulo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -1,93 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import apiClient from '../api/apiClient';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
-const mockReferenceData = {
-  personagens: [
-    {
-      id: '1',
-      nome: 'Leticia',
-      type: 'Protagonista',
-      idade: '28 anos',
-      descricao: 'Jovem investigadora em busca de respostas sobre seu passado.',
-      trauma: 'Possui pavor de lugares fechados devido a um acidente na infância.',
-      motivacao: 'Descobrir quem apagou as memórias de sua família.',
-      pageKey: 'personagens',
-    },
-    {
-      id: '2',
-      nome: 'Arthur',
-      type: 'Antagonista',
-      descricao: 'Líder da Guarda Central.',
-      objetivos: 'Manter a ordem na cidade a qualquer custo.',
-      pageKey: 'personagens',
-    },
-  ],
-  mundo: [
-    {
-      id: '1',
-      name: 'Valen',
-      type: 'Cidade',
-      description: 'Cidade costeira fortificada protegida por cúpulas de energia antiga.',
-      pageKey: 'mundo',
-    },
-    {
-      id: '2',
-      name: 'Magia de Sangue',
-      type: 'Sistema de Magia',
-      description: 'Consome energia vital em troca de manipulação direta da matéria.',
-      pageKey: 'mundo',
-    },
-  ],
-  estrutura: [
-    {
-      id: '1',
-      title: 'Incidente Incitante',
-      detalhes: 'A destruição do artefato no capítulo inicial força Leticia a fugir da capital.',
-      pageKey: 'estrutura',
-    },
-    {
-      id: '2',
-      title: 'Ponto de Virada 1',
-      detalhes: 'Leticia descobre a traição direta do conselho da cidade.',
-      pageKey: 'estrutura',
-    },
-  ],
-  cenas: [
-    {
-      id: '1',
-      title: 'O Encontro na Taverna',
-      location: 'Taverna do Dragão Caolho',
-      objective: 'Obter o mapa antigo das ruínas.',
-      conflict: 'O guarda reconhece a capa de Leticia.',
-      hook: 'Alguém apaga as luzes e um tiro ecoa no recinto.',
-      pageKey: 'cenas',
-    },
-  ],
-  misterios: [
-    {
-      id: '1',
-      title: 'Quem queimou o arquivo?',
-      whoKnows: 'Apenas o arquivista e o assassino.',
-      clues: 'Cheiro de enxofre e cinzas azuis no chão.',
-      revelation: 'O próprio arquivista ateou fogo para proteger a verdade.',
-      pageKey: 'misterios',
-    },
-  ],
-  twists: [
-    {
-      id: '1',
-      title: 'O mentor era o verdadeiro vilão',
-      foreshadowing: 'Ele conhecia a linguagem proibida sem jamais ter viajado ao sul.',
-      consequence: 'O protagonista perde sua única fonte de orientação.',
-      pageKey: 'plot-twists',
-    },
-  ],
-};
-
 const guideTabs = {
   Objetivo: (
-    <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do Apoio Visual.</p>
+    <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do programa.</p>
   ),
   Dicas: (
     <ul>
@@ -162,20 +80,136 @@ function EscritaGuide() {
   );
 }
 
-export default function Escrita({ onNavigate }) {
+function getCharacterBadgeStyle(type = '') {
+  const normalized = String(type).toLowerCase().trim();
+  if (normalized.includes('protagonista')) {
+    return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  }
+  if (normalized.includes('antagonista')) {
+    return 'bg-red-900/60 text-red-300 border-red-500/50';
+  }
+  if (normalized.includes('secundario') || normalized.includes('secundário')) {
+    return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+  }
+  return 'bg-gray-800 text-gray-300 border-gray-700';
+}
+
+export default function Escrita({ projectId, onNavigate }) {
   const [chapters, setChapters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState('Capítulo');
   const [draggedId, setDraggedId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Categoria ativa no painel de apoio inferior
+  // Categoria ativa no Apoio Visual
   const [activeDrawer, setActiveDrawer] = useState('personagens');
   const [searchTerm, setSearchTerm] = useState('');
+  const [referenceData, setReferenceData] = useState({
+    personagens: [],
+    mundo: [],
+    estrutura: [],
+    ritmo: [],
+    cenas: [],
+    misterios: [],
+    twists: [],
+  });
 
-  // Novo Cálculo Ponderado da Barra de Progresso
-  // Título: Peso 1 | Tipo: Peso 1 | Conteúdo Escrito: Peso 8 (Total de 10 pontos por capítulo)
+  // Carregar Capítulos e Dados de Apoio
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        const [
+          resChapters,
+          resChars,
+          resWorld,
+          resStruct,
+          resPacing,
+          resScenes,
+          resMysteries,
+          resTwists,
+        ] = await Promise.all([
+          apiClient.get(`/entities/projects/${projectId}/chapters`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/world`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/structure`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/pacing`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/mysteries`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
+        ]);
+
+        const loadedChapters = resChapters.data || [];
+        setChapters(loadedChapters);
+        if (loadedChapters.length > 0) {
+          setSelectedId(loadedChapters[0].id);
+        }
+
+        setReferenceData({
+          personagens: (resChars.data || []).map((c) => ({
+            id: c.id,
+            nome: c.name || c.nome,
+            type: c.type || c.archetype,
+            imageUrl: c.imageUrl || c.avatarUrl || c.image || null,
+            ...(c.details || {}),
+            pageKey: 'personagens',
+          })),
+          mundo: (resWorld.data || []).map((w) => ({
+            id: w.id,
+            name: w.name,
+            type: w.type,
+            description: w.description,
+            pageKey: 'mundo',
+          })),
+          estrutura: (resStruct.data || []).map((s) => ({
+            id: s.id,
+            title: s.title || s.beat || s.name || 'Ponto Estrutural',
+            type: s.act || s.stage || s.type || 'Estrutura',
+            ...s,
+            pageKey: 'estrutura',
+          })),
+          ritmo: (resPacing.data || []).map((p) => ({
+            id: p.id,
+            title: p.title || p.sceneTitle || p.name || 'Evento da Timeline',
+            type: p.intensity ? `Intensidade: ${p.intensity}` : p.pace || p.type || 'Timeline',
+            ...p,
+            pageKey: 'ritmo',
+          })),
+          cenas: (resScenes.data || []).map((s) => ({
+            id: s.id,
+            title: s.title,
+            ...s,
+            pageKey: 'cenas',
+          })),
+          misterios: (resMysteries.data || []).map((m) => ({
+            id: m.id,
+            title: m.title,
+            ...m,
+            pageKey: 'misterios',
+          })),
+          twists: (resTwists.data || []).map((t) => ({
+            id: t.id,
+            title: t.title,
+            ...t,
+            pageKey: 'plot-twists',
+          })),
+        });
+      } catch (err) {
+        console.error('Erro ao carregar dados do manuscrito:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [projectId]);
+
+  // Progresso
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
   let currentPoints = 0;
@@ -183,17 +217,12 @@ export default function Escrita({ onNavigate }) {
   chapters.forEach((c) => {
     if (c.title && c.title.trim()) currentPoints += 1;
     if (c.type) currentPoints += 1;
-    
-    // O progresso de escrita cresce de acordo com a quantidade de texto escrita
+
     if (c.content && c.content.trim()) {
       const wordCount = c.content.trim().split(/\s+/).length;
-      if (wordCount > 300) {
-        currentPoints += 8; // Texto longo/completo
-      } else if (wordCount > 100) {
-        currentPoints += 5; // Texto em progresso
-      } else if (wordCount > 0) {
-        currentPoints += 2; // Início de texto
-      }
+      if (wordCount > 300) currentPoints += 8;
+      else if (wordCount > 100) currentPoints += 5;
+      else if (wordCount > 0) currentPoints += 2;
     }
   });
 
@@ -204,37 +233,73 @@ export default function Escrita({ onNavigate }) {
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
-  function handleAddChapter() {
-    if (!newTitle.trim()) return;
+  // Criar capítulo
+  async function handleAddChapter() {
+    if (!newTitle.trim() || !projectId) return;
 
-    const newChapter = {
-      id: crypto.randomUUID(),
-      title: newTitle.trim(),
-      type: newType,
-      content: '',
-    };
+    try {
+      const payload = {
+        title: newTitle.trim(),
+        type: newType,
+        content: '',
+      };
 
-    setChapters((prev) => [...prev, newChapter]);
-    setSelectedId(newChapter.id);
-    setNewTitle('');
-    setNewType('Capítulo');
-    setIsCreating(false);
+      const res = await apiClient.post(`/entities/projects/${projectId}/chapters`, payload);
+      const created = res.data;
+
+      setChapters((prev) => [...prev, created]);
+      setSelectedId(created.id);
+      setNewTitle('');
+      setNewType('Capítulo');
+      setIsCreating(false);
+    } catch (err) {
+      console.error('Erro ao criar capítulo:', err);
+      alert('Não foi possível criar o capítulo.');
+    }
   }
+
+  // Auto-save
+  const updateTimeoutRef = useRef({});
 
   function updateSelectedChapter(key, value) {
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
     );
+
+    if (!selectedId) return;
+
+    if (updateTimeoutRef.current[selectedId]) {
+      clearTimeout(updateTimeoutRef.current[selectedId]);
+    }
+
+    updateTimeoutRef.current[selectedId] = setTimeout(async () => {
+      try {
+        const targetChapter = chapters.find((c) => c.id === selectedId);
+        if (!targetChapter) return;
+
+        const updatedData = { ...targetChapter, [key]: value };
+        await apiClient.put(`/entities/chapters/${selectedId}`, updatedData);
+      } catch (err) {
+        console.error('Erro ao salvar capítulo automaticamente:', err);
+      }
+    }, 1000);
   }
 
-  function handleDeleteChapter(id, event) {
+  // Excluir capítulo
+  async function handleDeleteChapter(id, event) {
     event.stopPropagation();
     if (!window.confirm('Deseja excluir este capítulo?')) return;
 
-    setChapters((prev) => prev.filter((c) => c.id !== id));
-    if (selectedId === id) {
-      const remaining = chapters.filter((c) => c.id !== id);
-      setSelectedId(remaining.length > 0 ? remaining[0].id : null);
+    try {
+      await apiClient.delete(`/entities/chapters/${id}`);
+      setChapters((prev) => prev.filter((c) => c.id !== id));
+      if (selectedId === id) {
+        const remaining = chapters.filter((c) => c.id !== id);
+        setSelectedId(remaining.length > 0 ? remaining[0].id : null);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir capítulo:', err);
+      alert('Erro ao excluir o capítulo.');
     }
   }
 
@@ -253,12 +318,30 @@ export default function Escrita({ onNavigate }) {
     setDraggedId(null);
   }
 
-  // Renderiza exclusivamente os tópicos com texto preenchido
+  // Renderiza ESTRITAMENTE campos preenchidos pelo usuário
   function renderFilledFields(item) {
-    const ignoredKeys = ['id', 'name', 'nome', 'title', 'type', 'pageKey'];
+    const ignoredKeys = [
+      'id',
+      'name',
+      'nome',
+      'title',
+      'type',
+      'pageKey',
+      'projectId',
+      'createdAt',
+      'updatedAt',
+      'imageUrl',
+      'avatarUrl',
+      'image',
+      'beat',
+      'sceneTitle',
+    ];
+
     const entries = Object.entries(item).filter(
       ([key, val]) =>
         !ignoredKeys.includes(key) &&
+        val !== null &&
+        val !== undefined &&
         typeof val === 'string' &&
         val.trim() !== ''
     );
@@ -266,29 +349,50 @@ export default function Escrita({ onNavigate }) {
     if (entries.length === 0) return null;
 
     const fieldLabels = {
+      // Personagens e Mundo
       idade: 'Idade',
       descricao: 'Descrição',
       description: 'Descrição',
       trauma: 'Trauma',
       motivacao: 'Motivação',
       objetivos: 'Objetivos',
+      historia: 'História',
+      passado: 'Passado',
+      segredo: 'Segredo',
       detalhes: 'Detalhes',
+
+      // Estrutura Dramática
+      act: 'Ato',
+      beat: 'Ponto (Beat)',
+      stage: 'Estágio',
+      objective: 'Objetivo',
+      summary: 'Resumo',
+      notes: 'Notas',
+
+      // Ritmo e Timeline
+      pacing: 'Ritmo',
+      intensity: 'Intensidade',
+      time: 'Momento/Tempo',
+      duration: 'Duração',
+      impact: 'Impacto Emocional',
       location: 'Local',
-      objective: 'Objetivo da Cena',
       conflict: 'Conflito',
       hook: 'Gancho',
+
+      // Mistérios e Plot Twists
       whoKnows: 'Quem sabe',
       clues: 'Pistas',
       revelation: 'Revelação',
+      planning: 'Planejamento',
       foreshadowing: 'Foreshadowing',
       consequence: 'Consequência',
     };
 
     return (
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1.5 mt-3 text-sm">
         {entries.map(([key, val]) => (
-          <p key={key} className="text-gray-300 text-xs leading-relaxed">
-            <strong className="text-purple-400 font-semibold">
+          <p key={key} className="text-gray-300 leading-relaxed break-words">
+            <strong className="text-purple-400 font-medium">
               {fieldLabels[key] || key}:{' '}
             </strong>
             {val}
@@ -312,7 +416,7 @@ export default function Escrita({ onNavigate }) {
         </div>
       </header>
 
-      {/* Barra de Progresso do Topo */}
+      {/* Barra de Progresso */}
       <div className="w-full h-1 bg-gray-800 rounded-full mb-6 overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-purple-600 to-amber-500 transition-all duration-300"
@@ -322,9 +426,9 @@ export default function Escrita({ onNavigate }) {
 
       <EscritaGuide />
 
-      {/* Seção Principal: Lista de Capítulos e Quadro de Escrita */}
+      {/* Grid Principal */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Coluna Esquerda: Capítulos */}
+        {/* Coluna Esquerda: Lista de Capítulos */}
         <div className="md:col-span-4 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Capítulos</h2>
@@ -368,7 +472,9 @@ export default function Escrita({ onNavigate }) {
             </div>
           )}
 
-          {chapters.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-6 text-gray-500 text-xs">Carregando manuscrito...</div>
+          ) : chapters.length === 0 ? (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-6 text-center text-gray-500 text-sm">
               Nenhum capítulo criado.
             </div>
@@ -411,7 +517,7 @@ export default function Escrita({ onNavigate }) {
           )}
         </div>
 
-        {/* Coluna Direita: Editor de Escrita Limpo */}
+        {/* Coluna Direita: Editor de Escrita */}
         <div className="md:col-span-8">
           {selectedChapter ? (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-5 space-y-4">
@@ -454,10 +560,9 @@ export default function Escrita({ onNavigate }) {
         </div>
       </div>
 
-      {/* SEÇÃO INFERIOR: APOIO VISUAL COM BOTÕES DE CATEGORIA E CARDS */}
-      <section className="mt-8 bg-[#14141e] border border-purple-900/50 rounded-xl p-5 space-y-4 shadow-2xl">
-        <div className="flex flex-wrap justify-between items-center gap-4 pb-3 border-b border-gray-800">
-          {/* Botões de Categoria do Apoio Visual */}
+      {/* SEÇÃO INFERIOR: APOIO VISUAL */}
+      <section className="mt-8 bg-[#14141e] border border-purple-900/50 rounded-xl p-6 space-y-5 shadow-2xl">
+        <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-gray-800">
           <div className="flex items-center gap-2 flex-wrap text-xs">
             <span className="text-gray-400 font-bold mr-2 uppercase tracking-wider text-[11px]">
               Apoio Visual:
@@ -465,7 +570,8 @@ export default function Escrita({ onNavigate }) {
             {[
               ['Personagens', 'personagens', '👤'],
               ['Mundo', 'mundo', '🌍'],
-              ['Estrutura', 'estrutura', '🏛'],
+              ['Estrutura Dramática', 'estrutura', '🏛'],
+              ['Ritmo & Timeline', 'ritmo', '⏳'],
               ['Cenas', 'cenas', '🎬'],
               ['Mistérios', 'misterios', '🔍'],
               ['Plot Twists', 'twists', '⚡'],
@@ -491,7 +597,7 @@ export default function Escrita({ onNavigate }) {
               <input
                 type="text"
                 placeholder="Filtrar elemento..."
-                className="bg-[#1c1c28] border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-600 w-44"
+                className="bg-[#1c1c28] border border-gray-800 rounded-lg px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-600 w-48"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -499,7 +605,7 @@ export default function Escrita({ onNavigate }) {
             {activeDrawer && (
               <button
                 type="button"
-                className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer px-2.5 py-1 rounded-md bg-gray-800/50"
+                className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md bg-gray-800/50 hover:bg-gray-800"
                 onClick={() => setActiveDrawer(null)}
               >
                 ✕ Ocultar Painel
@@ -508,51 +614,79 @@ export default function Escrita({ onNavigate }) {
           </div>
         </div>
 
-        {/* Exibição em Grid dos Cards preenchidos na categoria ativa */}
+        {/* Renderização dos Cards */}
         {activeDrawer ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto pr-1">
-            {mockReferenceData[activeDrawer]
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            {referenceData[activeDrawer]
               ?.filter((item) =>
                 (item.name || item.nome || item.title || '')
                   .toLowerCase()
                   .includes(searchTerm.toLowerCase())
               )
-              .map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-[#1a1a26] border border-gray-800 p-4 rounded-xl space-y-2 hover:border-purple-700/60 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="text-purple-200 font-bold text-sm">
-                        {item.name || item.nome || item.title}
-                      </h4>
-                      {item.type && (
-                        <span className="bg-purple-950/80 text-purple-300 border border-purple-800/40 px-2 py-0.5 rounded text-[10px] font-medium">
-                          {item.type}
-                        </span>
+              .map((item) => {
+                const displayName = item.name || item.nome || item.title || 'Sem título';
+                const initial = displayName.charAt(0).toUpperCase();
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-[#1a1a26] border border-gray-800/80 p-5 rounded-xl space-y-3 hover:border-purple-700/60 transition-all flex flex-col justify-between shadow-md relative group"
+                  >
+                    <div>
+                      {item.pageKey && onNavigate && (
+                        <button
+                          type="button"
+                          title="Visualizar no módulo completo"
+                          onClick={() => onNavigate(item.pageKey)}
+                          className="absolute top-4 right-4 text-gray-500 hover:text-purple-300 text-base cursor-pointer p-1 transition-colors"
+                        >
+                          👁
+                        </button>
                       )}
+
+                      <div className="flex items-start gap-3 pr-6 mb-2">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={displayName}
+                            className="w-11 h-11 rounded-full object-cover border border-purple-500/50 shrink-0"
+                          />
+                        ) : activeDrawer === 'personagens' ? (
+                          <div
+                            className={`w-11 h-11 rounded-full border flex items-center justify-center font-bold text-base shrink-0 ${getCharacterBadgeStyle(
+                              item.type
+                            )}`}
+                          >
+                            {initial}
+                          </div>
+                        ) : null}
+
+                        <div className="overflow-hidden">
+                          <h4 className="text-purple-200 font-bold text-base leading-tight truncate">
+                            {displayName}
+                          </h4>
+                          {item.type && (
+                            <span
+                              className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
+                                activeDrawer === 'personagens'
+                                  ? getCharacterBadgeStyle(item.type)
+                                  : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
+                              }`}
+                            >
+                              {item.type}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {renderFilledFields(item)}
                     </div>
-
-                    {renderFilledFields(item)}
                   </div>
+                );
+              })}
 
-                  {/* Botão para ir diretamente para a página correspondente */}
-                  {item.pageKey && onNavigate && (
-                    <button
-                      type="button"
-                      onClick={() => onNavigate(item.pageKey)}
-                      className="mt-3 w-full bg-[#222234] hover:bg-purple-800 text-purple-300 hover:text-white border border-purple-900/50 py-1 px-2 rounded text-[11px] font-medium transition-all cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <span>Ir para módulo</span>
-                      <span>→</span>
-                    </button>
-                  )}
-                </div>
-              ))}
-
-            {mockReferenceData[activeDrawer]?.length === 0 && (
-              <div className="col-span-full text-center text-gray-500 text-xs py-8">
+            {referenceData[activeDrawer]?.length === 0 && (
+              <div className="col-span-full text-center text-gray-500 text-sm py-12">
                 Nenhum elemento cadastrado nesta categoria ainda.
               </div>
             )}

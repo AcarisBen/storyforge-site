@@ -97,7 +97,9 @@ function App() {
     activePage === 'misterios' ? <Misterios projectId={currentProject.id} /> : 
     activePage === 'plot-twists' ? <PlotTwists projectId={currentProject.id} /> : 
     activePage === 'dashboard' ? <Dashboard /> : 
-    activePage === 'escrita' ? <Escrita /> :
+    activePage === 'escrita' ? (
+  <Escrita projectId={currentProject.id} onNavigate={setActivePage} />
+) :
     <div className="coming-soon">Esta página será adicionada em breve.</div>
 
   return (
