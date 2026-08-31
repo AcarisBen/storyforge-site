@@ -382,4 +382,91 @@ router.delete('/world/:id', async (req, res) => {
   }
 });
 
+// ------------------- ROTAS DE CENAS -------------------
+
+// GET: Buscar todas as cenas de um projeto
+router.get('/projects/:projectId/scenes', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const scenes = await prisma.entity.findMany({
+      where: { projectId, type: 'SCENE' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = scenes.map((s) => ({
+      id: s.id,
+      title: s.title,
+      ...(s.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar cenas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar uma nova cena
+router.post('/projects/:projectId/scenes', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, ...restData } = req.body;
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'SCENE',
+        title: title || 'Cena sem título',
+        data: restData || {},
+      },
+    });
+
+    res.status(201).json({
+      id: created.id,
+      title: created.title,
+      ...(created.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao criar cena:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar cena (Auto-save ao digitar)
+router.put('/scenes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, ...restData } = req.body;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: title || 'Cena sem título',
+        data: restData || {},
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      title: updated.title,
+      ...(updated.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar cena:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir cena
+router.delete('/scenes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Cena excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir cena:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

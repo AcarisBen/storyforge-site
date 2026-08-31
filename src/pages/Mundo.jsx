@@ -195,8 +195,8 @@ export default function Mundo({ projectId }) {
             ))}
           </select>
 
-          {/* Campo Extra de Tipo Customizado (Visível apenas se o usuário escolher 'Outros') */}
-          {draft.type === 'Outros' && (
+          {/* Campo Extra de Tipo Customizado (Visível apenas se o usuário escolher 'Outro') */}
+          {draft.type === 'Outro' && (
             <input
               type="text"
               placeholder="Digite seu tipo personalizado (ex: Artefato, Guilda, Constelação)..."

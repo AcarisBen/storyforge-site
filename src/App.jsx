@@ -92,7 +92,7 @@ function App() {
     activePage === 'ritmo' ? <RitmoTimeline projectId={currentProject.id} /> :
     activePage === 'personagens' ? <Personagens projectId={currentProject.id} /> :
     activePage === 'mundo' ? <Mundo projectId={currentProject.id} /> :
-    activePage === 'cenas' ? <Cenas /> : 
+    activePage === 'cenas' ? <Cenas projectId={currentProject.id} /> :
     activePage === 'misterios' ? <Misterios /> : 
     activePage === 'plot-twists' ? <PlotTwists /> : 
     activePage === 'dashboard' ? <Dashboard /> : 
