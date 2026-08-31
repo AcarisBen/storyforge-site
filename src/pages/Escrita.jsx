@@ -87,7 +87,7 @@ const mockReferenceData = {
 
 const guideTabs = {
   Objetivo: (
-    <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do programa.</p>
+    <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do Apoio Visual.</p>
   ),
   Dicas: (
     <ul>
