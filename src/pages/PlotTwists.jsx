@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
+import apiClient from '../api/apiClient';
 
 const guideTabs = {
   Objetivo: <p>Construir reviravoltas que surpreendem mas que parecem inevitáveis em retrospecto.</p>,
   Dicas: <ul><li>Um bom plot twist muda o significado de tudo que veio antes.</li><li>Foreshadowing deve ser sutil o suficiente para não ser óbvio, mas claro em retrospecto.</li><li>A consequência do twist deve ser mais importante que o próprio twist.</li></ul>,
   Exemplos: <ul><li>Twist: “O mentor é o vilão.” — Foreshadowing: “Ele sabia demais sobre o inimigo.”</li><li>Consequência: “O protagonista precisa encontrar uma nova fonte de sabedoria.”</li></ul>,
   Perguntas: <ul><li>O que o público acredita que é verdade e não é?</li><li>Onde você planta as sementes do twist?</li><li>Como a revelação muda a história daqui para frente?</li></ul>,
-}
+};
 
 const fields = [
   ['title', 'Título', 'input', 'Nome do plot twist...'],
@@ -13,17 +14,17 @@ const fields = [
   ['foreshadowing', 'Foreshadowing', 'textarea', 'Quais pistas antecipam a revelação...'],
   ['revelationMoment', 'Momento da Revelação', 'textarea', 'Quando e como o público descobre a verdade...'],
   ['consequence', 'Consequência', 'textarea', 'Como a revelação muda a história...'],
-]
+];
 
-const blankTwist = () => Object.fromEntries(fields.map(([key]) => [key, '']))
+const blankTwist = () => Object.fromEntries(fields.map(([key]) => [key, '']));
 
 function TwistGuide() {
-  const [activeTab, setActiveTab] = useState('Objetivo')
-  const [isOpen, setIsOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <section className="module-guide character-guide">
       <button
-        className="guide-toggle"
+        className="guide-toggle cursor-pointer"
         type="button"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((value) => !value)}
@@ -36,7 +37,7 @@ function TwistGuide() {
           <nav className="guide-tabs" aria-label="Guia do módulo">
             {Object.keys(guideTabs).map((tab) => (
               <button
-                className={activeTab === tab ? 'guide-tab active' : 'guide-tab'}
+                className={activeTab === tab ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
                 type="button"
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -52,16 +53,15 @@ function TwistGuide() {
         </div>
       )}
     </section>
-  )
+  );
 }
 
-// 👉 Export nomeado, não default
 export function ForeshadowingGuide() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <section className="module-guide foreshadowing-guide">
       <button
-        className="guide-toggle"
+        className="guide-toggle cursor-pointer"
         type="button"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
@@ -93,10 +93,11 @@ export function ForeshadowingGuide() {
         </div>
       )}
     </section>
-  )
+  );
 }
 
-function TwistForm({ twist, onChange, onSave, onCancel, editing }) {
+// Formulário simples para criação de um novo Plot Twist
+function TwistCreateForm({ twist, onChange, onSave, onCancel }) {
   return (
     <div className="twist-form">
       {fields.map(([key, label, type, placeholder]) => (
@@ -105,52 +106,156 @@ function TwistForm({ twist, onChange, onSave, onCancel, editing }) {
           {type === 'textarea' ? (
             <textarea
               placeholder={placeholder}
-              value={twist[key]}
+              value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
             />
           ) : (
             <input
-              autoFocus
+              autoFocus={key === 'title'}
               placeholder={placeholder}
-              value={twist[key]}
+              value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
             />
           )}
         </label>
       ))}
       <div className="twist-form-actions">
-        <button className="event-save" type="button" onClick={onSave}>
-          {editing ? 'Salvar alterações' : 'Concluir'}
+        <button className="event-save cursor-pointer" type="button" onClick={onSave}>
+          Criar Plot Twist
         </button>
-        <button className="event-cancel" type="button" onClick={onCancel}>Cancelar</button>
+        <button className="event-cancel cursor-pointer" type="button" onClick={onCancel}>
+          Cancelar
+        </button>
       </div>
     </div>
-  )
+  );
 }
 
-function PlotTwists() {
-  const [twists, setTwists] = useState([])
-  const [isCreating, setIsCreating] = useState(false)
-  const [draft, setDraft] = useState(blankTwist())
-  const [editingId, setEditingId] = useState(null)
-  const [expandedId, setExpandedId] = useState(null)
+// Formulário Inline para edição direta (Auto-save) ao expandir
+function TwistInlineForm({ twist, onChange }) {
+  return (
+    <div className="twist-form">
+      {fields.map(([key, label, type, placeholder]) => (
+        <label key={key}>
+          <span>{label}</span>
+          {type === 'textarea' ? (
+            <textarea
+              placeholder={placeholder}
+              value={twist[key] || ''}
+              onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+            />
+          ) : (
+            <input
+              placeholder={placeholder}
+              value={twist[key] || ''}
+              onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+            />
+          )}
+        </label>
+      ))}
+    </div>
+  );
+}
 
-  function openCreate() { setDraft(blankTwist()); setEditingId(null); setIsCreating(true) }
-  function saveTwist() {
-    if (!draft.title.trim()) return
-    if (editingId) {
-      setTwists((current) =>
-        current.map((twist) =>
-          twist.id === editingId ? { ...twist, ...draft, title: draft.title.trim() } : twist
-        )
-      )
-    } else {
-      setTwists((current) => [...current, { id: crypto.randomUUID(), ...draft, title: draft.title.trim() }])
-    }
-    setDraft(blankTwist()); setEditingId(null); setIsCreating(false); setExpandedId(null)
+export default function PlotTwists({ projectId }) {
+  const [twists, setTwists] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [draft, setDraft] = useState(blankTwist());
+  const [expandedId, setExpandedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar Plot Twists do banco
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchTwists = async () => {
+      try {
+        setLoading(true);
+        const res = await apiClient.get(`/entities/projects/${projectId}/twists`);
+        setTwists(res.data || []);
+      } catch (err) {
+        console.error('Erro ao buscar plot twists:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTwists();
+  }, [projectId]);
+
+  // Barra de Progresso baseada nos 5 tópicos por item
+  const totalPossibleTopics = twists.length * fields.length;
+  let filledTopicsCount = 0;
+
+  twists.forEach((t) => {
+    fields.forEach(([key]) => {
+      if (t[key] && typeof t[key] === 'string' && t[key].trim() !== '') {
+        filledTopicsCount += 1;
+      }
+    });
+  });
+
+  const progressPercentage = totalPossibleTopics > 0
+    ? Math.round((filledTopicsCount / totalPossibleTopics) * 100)
+    : 0;
+
+  function openCreate() {
+    setDraft(blankTwist());
+    setIsCreating(true);
   }
-  function editTwist(twist) { setDraft({ ...twist }); setEditingId(twist.id); setIsCreating(false); setExpandedId(twist.id) }
-  function deleteTwist(id) { setTwists((current) => current.filter((twist) => twist.id !== id)); if (expandedId === id) setExpandedId(null) }
+
+  // Salvar novo Plot Twist no PostgreSQL
+  async function saveTwist() {
+    if (!draft.title.trim() || !projectId) return;
+
+    try {
+      const res = await apiClient.post(`/entities/projects/${projectId}/twists`, draft);
+      setTwists((prev) => [...prev, res.data]);
+      setExpandedId(res.data.id);
+      setIsCreating(false);
+      setDraft(blankTwist());
+    } catch (err) {
+      console.error('Erro ao criar plot twist:', err);
+      alert('Não foi possível criar o plot twist.');
+    }
+  }
+
+  // Auto-save com debounce ao alterar campos de um item expandido
+  const updateTimeoutRef = useRef({});
+
+  function updateTwist(id, changes) {
+    setTwists((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...changes } : t))
+    );
+
+    if (updateTimeoutRef.current[id]) {
+      clearTimeout(updateTimeoutRef.current[id]);
+    }
+
+    updateTimeoutRef.current[id] = setTimeout(async () => {
+      try {
+        const currentTwist = twists.find((t) => t.id === id);
+        const updatedData = { ...currentTwist, ...changes };
+        await apiClient.put(`/entities/twists/${id}`, updatedData);
+      } catch (err) {
+        console.error('Erro ao salvar plot twist automaticamente:', err);
+      }
+    }, 1000);
+  }
+
+  // Deletar Plot Twist no banco
+  async function deleteTwist(id) {
+    if (!window.confirm('Tem certeza que deseja excluir este plot twist?')) return;
+
+    try {
+      await apiClient.delete(`/entities/twists/${id}`);
+      setTwists((prev) => prev.filter((t) => t.id !== id));
+      if (expandedId === id) setExpandedId(null);
+    } catch (err) {
+      console.error('Erro ao excluir plot twist:', err);
+      alert('Erro ao excluir o plot twist.');
+    }
+  }
 
   return (
     <main className="characters-page plot-twists-page">
@@ -160,6 +265,25 @@ function PlotTwists() {
           <p>Planejamento de reviravoltas com foreshadowing e consequências.</p>
         </div>
       </header>
+
+      {/* Barra de Progresso Dinâmica no topo */}
+      <section className="bg-[#181822] p-4 rounded-xl border border-gray-800 mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+            Progresso Geral dos Plot Twists
+          </span>
+          <span className="text-sm font-bold text-purple-400">
+            {progressPercentage}% ({filledTopicsCount}/{totalPossibleTopics} tópicos)
+          </span>
+        </div>
+        <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-300 rounded-full"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+      </section>
+
       <TwistGuide />
       <ForeshadowingGuide />
 
@@ -171,7 +295,7 @@ function PlotTwists() {
       </div>
 
       {isCreating && (
-        <TwistForm
+        <TwistCreateForm
           twist={draft}
           onChange={setDraft}
           onSave={saveTwist}
@@ -179,7 +303,9 @@ function PlotTwists() {
         />
       )}
 
-      {twists.length === 0 && !isCreating ? (
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">Carregando plot twists...</div>
+      ) : twists.length === 0 && !isCreating ? (
         <div className="empty-characters plot-empty">
           <span aria-hidden="true">ϟ</span>
           <p>Nenhum plot twist planejado ainda.</p>
@@ -188,24 +314,32 @@ function PlotTwists() {
         <div className="twists-list">
           {twists.map((twist) => (
             <article className="twist-card" key={twist.id}>
-              <header className="twist-card-header">
-                <h2>
+              <header className="twist-card-header flex items-center justify-between">
+                {/* O título agora funciona como botão estendido para expansão */}
+                <h2
+                  className="cursor-pointer flex-1 flex items-center gap-2 select-none"
+                  onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
+                >
                   <span aria-hidden="true">ϟ</span>
-                  {twist.title}
+                  {twist.title || 'Plot Twist sem título'}
                 </h2>
-                <div>
+
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      expandedId === twist.id ? setExpandedId(null) : editTwist(twist)
-                    }
+                    className="cursor-pointer"
+                    onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
                   >
-                    {expandedId === twist.id ? 'Concluir' : 'Editar'}
+                    {expandedId === twist.id ? '⌃' : '⌄'}
                   </button>
                   <button
                     type="button"
+                    className="cursor-pointer"
                     aria-label={`Excluir ${twist.title}`}
-                    onClick={() => deleteTwist(twist.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteTwist(twist.id);
+                    }}
                   >
                     ♜
                   </button>
@@ -213,15 +347,15 @@ function PlotTwists() {
               </header>
 
               {expandedId === twist.id ? (
-                <TwistForm
-                  twist={draft}
-                  onChange={setDraft}
-                  onSave={saveTwist}
-                  onCancel={() => setExpandedId(null)}
-                  editing
+                <TwistInlineForm
+                  twist={twist}
+                  onChange={(changes) => updateTwist(twist.id, changes)}
                 />
               ) : (
-                <div className="twist-summary">
+                <div
+                  className="twist-summary cursor-pointer"
+                  onClick={() => setExpandedId(twist.id)}
+                >
                   <div>
                     <span>Planejamento</span>
                     <p>{twist.planning || 'Não informado.'}</p>
@@ -245,7 +379,5 @@ function PlotTwists() {
         </div>
       )}
     </main>
-  )
+  );
 }
-
-export default PlotTwists

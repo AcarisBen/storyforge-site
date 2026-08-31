@@ -556,4 +556,91 @@ router.delete('/mysteries/:id', async (req, res) => {
   }
 });
 
+// ------------------- ROTAS DE PLOT TWISTS -------------------
+
+// GET: Buscar todos os plot twists do projeto
+router.get('/projects/:projectId/twists', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const twists = await prisma.entity.findMany({
+      where: { projectId, type: 'PLOT_TWIST' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = twists.map((t) => ({
+      id: t.id,
+      title: t.title,
+      ...(t.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar plot twists:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Criar um novo plot twist
+router.post('/projects/:projectId/twists', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, ...restData } = req.body;
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'PLOT_TWIST',
+        title: title || 'Plot Twist sem título',
+        data: restData || {},
+      },
+    });
+
+    res.status(201).json({
+      id: created.id,
+      title: created.title,
+      ...(created.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao criar plot twist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Atualizar plot twist (Auto-save)
+router.put('/twists/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, ...restData } = req.body;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: title || 'Plot Twist sem título',
+        data: restData || {},
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      title: updated.title,
+      ...(updated.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar plot twist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE: Excluir plot twist
+router.delete('/twists/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Plot twist excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar plot twist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
