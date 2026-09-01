@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -12,6 +12,7 @@ import {
   SelectionMode,
   ReactFlowProvider,
   NodeResizer,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import apiClient from '../api/apiClient';
@@ -28,8 +29,7 @@ function getEntityBadgeTheme(type = '') {
 }
 
 // -----------------------------------------------------------------
-// 1. CONECTORES ROXOS EM ÓRBITA EXTERNA (8 PONTOS COMPLETOS & FUNCIONAIS)
-// Cada conector aceita tanto ser ORIGEM (source) quanto DESTINO (target)
+// 1. CONECTORES ROXOS EM ÓRBITA EXTERNA (8 PONTOS COMPLETOS)
 // -----------------------------------------------------------------
 function ExternalHandles({ strokeColor = '#a855f7' }) {
   const handleStyle = {
@@ -44,35 +44,27 @@ function ExternalHandles({ strokeColor = '#a855f7' }) {
 
   return (
     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      {/* Topo */}
       <Handle type="target" position={Position.Top} id="top-t" style={{ ...handleStyle, top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Top} id="top-s" style={{ ...handleStyle, top: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Direita */}
       <Handle type="target" position={Position.Right} id="right-t" style={{ ...handleStyle, right: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Right} id="right-s" style={{ ...handleStyle, right: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Baixo */}
       <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ ...handleStyle, bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ ...handleStyle, bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Esquerda */}
       <Handle type="target" position={Position.Left} id="left-t" style={{ ...handleStyle, left: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Left} id="left-s" style={{ ...handleStyle, left: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Canto Superior Esquerdo */}
       <Handle type="target" position={Position.Top} id="top-left-t" style={{ ...handleStyle, left: '-22px', top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Top} id="top-left-s" style={{ ...handleStyle, left: '-22px', top: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Canto Superior Direito */}
       <Handle type="target" position={Position.Top} id="top-right-t" style={{ ...handleStyle, right: '-22px', top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Top} id="top-right-s" style={{ ...handleStyle, right: '-22px', top: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Canto Inferior Esquerdo */}
       <Handle type="target" position={Position.Bottom} id="bottom-left-t" style={{ ...handleStyle, left: '-22px', bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Bottom} id="bottom-left-s" style={{ ...handleStyle, left: '-22px', bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* Canto Inferior Direito */}
       <Handle type="target" position={Position.Bottom} id="bottom-right-t" style={{ ...handleStyle, right: '-22px', bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
       <Handle type="source" position={Position.Bottom} id="bottom-right-s" style={{ ...handleStyle, right: '-22px', bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
     </div>
@@ -126,7 +118,7 @@ function BottomLeftRotateHandle({ onRotate, selected, strokeColor }) {
 }
 
 // -----------------------------------------------------------------
-// 3. NÓ DE FORMAS CUSTOMIZADAS
+// 3. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
 // -----------------------------------------------------------------
 function CustomShapeNode({ id, data, selected }) {
   const { shapeType, label, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, rotation = 0 } = data;
@@ -150,7 +142,6 @@ function CustomShapeNode({ id, data, selected }) {
       className="group relative w-full h-full"
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
-      {/* 1. Redimensionamento em cima da borda */}
       <NodeResizer
         minWidth={30}
         minHeight={30}
@@ -159,10 +150,7 @@ function CustomShapeNode({ id, data, selected }) {
         handleClassName="h-2.5 w-2.5 bg-white border border-blue-500 rounded-none z-40"
       />
 
-      {/* 2. Rotação no canto inferior ESQUERDO */}
       <BottomLeftRotateHandle onRotate={handleRotate} selected={selected} strokeColor={strokeVal} />
-
-      {/* 3. Conectores roxos afastados a 22px (8 Pontos) */}
       <ExternalHandles strokeColor={strokeVal} />
 
       {/* TEXTO LIVRE */}
@@ -195,6 +183,32 @@ function CustomShapeNode({ id, data, selected }) {
           <span className="relative z-10 text-xs font-semibold text-white px-4 text-center select-none pointer-events-none">
             {label}
           </span>
+        </div>
+      )}
+
+      {/* TRIÂNGULO */}
+      {shapeType === 'triangle' && (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon points="50,4 96,96 4,96" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+          </svg>
+          <span className="relative z-10 text-xs font-semibold text-white px-2 pt-6 text-center select-none pointer-events-none">
+            {label}
+          </span>
+        </div>
+      )}
+
+      {/* SETA */}
+      {shapeType === 'arrow' && (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <marker id={`arrowhead-${id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill={strokeVal} />
+              </marker>
+            </defs>
+            <line x1="5" y1="50" x2="85" y2="50" stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} markerEnd={`url(#arrowhead-${id})`} />
+          </svg>
         </div>
       )}
 
@@ -252,6 +266,7 @@ function EntityCardNode({ id, data, selected }) {
 function StoryboardContent({ projectId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { screenToFlowPosition } = useReactFlow();
 
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
@@ -264,6 +279,11 @@ function StoryboardContent({ projectId }) {
   const [strokeStyle, setStrokeStyle] = useState('solid');
 
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
+
+  // Ref para controle do arraste de criação
+  const isDrawingRef = useRef(false);
+  const drawStartRef = useRef(null);
+  const activeDrawNodeIdRef = useRef(null);
 
   const [entities, setEntities] = useState({
     personagens: [],
@@ -375,34 +395,85 @@ function StoryboardContent({ projectId }) {
     [setEdges, strokeColor, strokeWidth, strokeStyle]
   );
 
-  const onPaneClick = useCallback(
-    (event) => {
-      if (selectedTool === 'select') return;
+  // -----------------------------------------------------------------
+  // CRIAÇÃO DE FORMAS COM BOTÃO ESQUERDO DO MOUSE (CLICK + ARRASTE)
+  // -----------------------------------------------------------------
+  const handleMouseDownCanvas = (event) => {
+    // Permite criar apenas com o Botão ESQUERDO (button === 0) se houver ferramenta selecionada
+    if (event.button !== 0 || selectedTool === 'select') return;
 
-      const newNode = {
-        id: `shape-${Date.now()}`,
-        type: 'customShape',
-        position: { x: event.clientX - 320, y: event.clientY - 120 },
-        style: { width: 120, height: 80 },
-        zIndex: 1,
-        data: {
-          shapeType: selectedTool,
-          label: selectedTool === 'text' ? 'Texto Livre' : '',
-          fillColor,
-          noFill,
-          strokeColor,
-          strokeWidth,
-          strokeStyle,
-          rotation: 0,
-          onUpdateRotation,
-        },
-      };
+    const startPos = screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
 
-      setNodes((nds) => [...nds, newNode]);
+    isDrawingRef.current = true;
+    drawStartRef.current = startPos;
+    const newNodeId = `shape-${Date.now()}`;
+    activeDrawNodeIdRef.current = newNodeId;
+
+    const newNode = {
+      id: newNodeId,
+      type: 'customShape',
+      position: startPos,
+      style: { width: 10, height: 10 },
+      zIndex: 1,
+      data: {
+        shapeType: selectedTool,
+        label: selectedTool === 'text' ? 'Texto Livre' : '',
+        fillColor,
+        noFill,
+        strokeColor,
+        strokeWidth,
+        strokeStyle,
+        rotation: 0,
+        onUpdateRotation,
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+  };
+
+  const handleMouseMoveCanvas = (event) => {
+    if (!isDrawingRef.current || !drawStartRef.current || !activeDrawNodeIdRef.current) return;
+
+    const currentPos = screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    const startX = drawStartRef.current.x;
+    const startY = drawStartRef.current.y;
+
+    const width = Math.max(20, Math.abs(currentPos.x - startX));
+    const height = Math.max(20, Math.abs(currentPos.y - startY));
+
+    const newX = currentPos.x < startX ? startX - width : startX;
+    const newY = currentPos.y < startY ? startY - height : startY;
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === activeDrawNodeIdRef.current) {
+          return {
+            ...node,
+            position: { x: newX, y: newY },
+            style: { width, height },
+          };
+        }
+        return node;
+      })
+    );
+  };
+
+  const handleMouseUpCanvas = () => {
+    if (isDrawingRef.current) {
+      isDrawingRef.current = false;
+      drawStartRef.current = null;
+      activeDrawNodeIdRef.current = null;
+      // Retorna para o modo 'selecionar' após concluir a criação
       setSelectedTool('select');
-    },
-    [selectedTool, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, onUpdateRotation, setNodes]
-  );
+    }
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -474,7 +545,7 @@ function StoryboardContent({ projectId }) {
       {/* PAINEL ESQUERDO */}
       <aside
         className={`relative z-20 h-full bg-[#12121a]/95 backdrop-blur border-r border-gray-800/80 transition-all duration-300 flex flex-col shrink-0 ${
-          isLeftPanelOpen ? 'w-64' : 'w-12'
+          isLeftPanelOpen ? 'w-72' : 'w-12'
         }`}
       >
         <button
@@ -486,54 +557,58 @@ function StoryboardContent({ projectId }) {
         </button>
 
         {isLeftPanelOpen ? (
-          <div className="p-4 space-y-6 overflow-y-auto h-full custom-scrollbar">
+          <div className="p-5 space-y-6 overflow-y-auto h-full custom-scrollbar">
             <div>
-              <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ferramentas</h3>
-              <div className="grid grid-cols-3 gap-2">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">FERRAMENTAS</h3>
+              <div className="grid grid-cols-4 gap-2.5">
                 {[
-                  { id: 'select', label: 'Selecionar', icon: '↖' },
+                  { id: 'select', label: 'Selecionar', icon: '➾' },
                   { id: 'rectangle', label: 'Retângulo', icon: '▭' },
                   { id: 'circle', label: 'Círculo', icon: '◯' },
                   { id: 'diamond', label: 'Losango', icon: '◇' },
+                  { id: 'triangle', label: 'Triângulo', icon: '△' },
                   { id: 'text', label: 'Texto', icon: 'T' },
+                  { id: 'arrow', label: 'Seta', icon: '➔' },
                 ].map((tool) => (
                   <button
                     key={tool.id}
                     type="button"
                     onClick={() => setSelectedTool(tool.id)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border text-[11px] font-medium transition-all cursor-pointer ${
+                    className={`w-14 h-16 flex flex-col items-center justify-center rounded-2xl border transition-all cursor-pointer ${
                       selectedTool === tool.id
-                        ? 'bg-purple-950/80 border-purple-500 text-purple-200'
-                        : 'bg-[#181824] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                        ? 'bg-purple-950/80 border-purple-500 text-purple-200 ring-1 ring-purple-500'
+                        : 'bg-[#181824] border-gray-800/90 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                     }`}
                   >
-                    <span className="text-base mb-0.5">{tool.icon}</span>
-                    <span>{tool.label}</span>
+                    <span className="text-xl mb-1">{tool.icon}</span>
+                    <span className="text-[10px] font-medium tracking-tight leading-none">{tool.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* FORMATAÇÃO */}
-            <div className="space-y-4 pt-4 border-t border-gray-800/60">
-              <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Formatação</h3>
+            <div className="space-y-5 pt-4 border-t border-gray-800/60">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">FORMATAÇÃO</h3>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={fillColor}
-                    disabled={noFill}
-                    onChange={(e) => {
-                      setFillColor(e.target.value);
-                      updateSelectedNodesStyle('fillColor', e.target.value);
-                    }}
-                    className="w-8 h-8 rounded border border-gray-700 cursor-pointer bg-transparent"
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="relative w-9 h-9 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#1a1d24]">
+                    <input
+                      type="color"
+                      value={fillColor}
+                      disabled={noFill}
+                      onChange={(e) => {
+                        setFillColor(e.target.value);
+                        updateSelectedNodesStyle('fillColor', e.target.value);
+                      }}
+                      className="absolute -top-2 -left-2 w-14 h-14 cursor-pointer bg-transparent border-none"
+                    />
+                  </div>
                   <span className="text-xs font-mono text-gray-400">{noFill ? 'Nenhum' : fillColor}</span>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer pt-1">
+                <label className="flex items-center gap-2.5 text-xs text-gray-300 cursor-pointer pt-1">
                   <input
                     type="checkbox"
                     checked={noFill}
@@ -541,29 +616,31 @@ function StoryboardContent({ projectId }) {
                       setNoFill(e.target.checked);
                       updateSelectedNodesStyle('noFill', e.target.checked);
                     }}
-                    className="rounded accent-purple-600"
+                    className="w-4 h-4 rounded accent-purple-600 bg-[#181824] border-gray-700"
                   />
                   Sem preenchimento
                 </label>
               </div>
 
-              <div className="space-y-1.5 pt-2">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-300 block">Cor da Borda</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={strokeColor}
-                    onChange={(e) => {
-                      setStrokeColor(e.target.value);
-                      updateSelectedNodesStyle('strokeColor', e.target.value);
-                    }}
-                    className="w-8 h-8 rounded border border-gray-700 cursor-pointer bg-transparent"
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="relative w-9 h-9 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#7C3AED]">
+                    <input
+                      type="color"
+                      value={strokeColor}
+                      onChange={(e) => {
+                        setStrokeColor(e.target.value);
+                        updateSelectedNodesStyle('strokeColor', e.target.value);
+                      }}
+                      className="absolute -top-2 -left-2 w-14 h-14 cursor-pointer bg-transparent border-none"
+                    />
+                  </div>
                   <span className="text-xs font-mono text-gray-400">{strokeColor}</span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 pt-2">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-300 block">Espessura da Borda</label>
                 <select
                   value={strokeWidth}
@@ -571,15 +648,18 @@ function StoryboardContent({ projectId }) {
                     setStrokeWidth(e.target.value);
                     updateSelectedNodesStyle('strokeWidth', e.target.value);
                   }}
-                  className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2 text-xs text-gray-300"
+                  className="w-full bg-[#14141f] border border-purple-500/80 rounded-xl p-2.5 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
                 >
+                  <option value="0px">Nenhuma (0px)</option>
                   <option value="1px">Fina (1px)</option>
                   <option value="2px">Média (2px)</option>
-                  <option value="4px">Espessa (4px)</option>
+                  <option value="3px">Grossa (3px)</option>
+                  <option value="4px">Muito grossa (4px)</option>
+                  <option value="6px">Extra grossa (6px)</option>
                 </select>
               </div>
 
-              <div className="space-y-1.5 pt-2">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-300 block">Estilo da Borda</label>
                 <select
                   value={strokeStyle}
@@ -587,7 +667,7 @@ function StoryboardContent({ projectId }) {
                     setStrokeStyle(e.target.value);
                     updateSelectedNodesStyle('strokeStyle', e.target.value);
                   }}
-                  className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2 text-xs text-gray-300"
+                  className="w-full bg-[#14141f] border border-gray-800 rounded-xl p-2.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
                 >
                   <option value="solid">Sólida</option>
                   <option value="dashed">Tracejada</option>
@@ -595,20 +675,20 @@ function StoryboardContent({ projectId }) {
                 </select>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-gray-800/60">
-                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Camadas</h3>
+              <div className="space-y-2 pt-3 border-t border-gray-800/60">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">CAMADAS</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => changeZIndex('front')}
-                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 cursor-pointer"
+                    className="p-2.5 rounded-xl bg-[#181824] border border-gray-800 text-xs text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
                   >
                     ▲ Frente
                   </button>
                   <button
                     type="button"
                     onClick={() => changeZIndex('back')}
-                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 cursor-pointer"
+                    className="p-2.5 rounded-xl bg-[#181824] border border-gray-800 text-xs text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
                   >
                     ▼ Trás
                   </button>
@@ -623,8 +703,13 @@ function StoryboardContent({ projectId }) {
         )}
       </aside>
 
-      {/* CANVAS CENTRAL */}
-      <div className="flex-1 h-full relative">
+      {/* CANVAS CENTRAL COM AÇÕES INVERTIDAS DO MOUSE */}
+      <div
+        className="flex-1 h-full relative"
+        onMouseDown={handleMouseDownCanvas}
+        onMouseMove={handleMouseMoveCanvas}
+        onMouseUp={handleMouseUpCanvas}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -632,10 +717,10 @@ function StoryboardContent({ projectId }) {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onPaneClick={onPaneClick}
           selectionMode={SelectionMode.Partial}
           panOnScroll
-          selectionOnDrag
+          panOnDrag={[2]} /* [2] força o Pan/Arraste da tela unicamente para o BOTÃO DIREITO do mouse */
+          selectionOnDrag={selectedTool === 'select'}
           fitView
           className="bg-[#0a0a0f]"
         >
