@@ -14,6 +14,7 @@ import PlotTwists from './pages/PlotTwists'
 import Dashboard from './pages/Dashboard'
 import Checklist from './pages/Checklist';
 import StoryBible from './pages/StoryBible';
+import Storyboard from './pages/Storyboard';
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -101,6 +102,7 @@ function App() {
     activePage === 'checklist' ? <Checklist projectId={currentProject.id} /> : 
     activePage === 'story-bible' ? <StoryBible projectId={currentProject.id} /> :
     activePage === 'dashboard' ? <Dashboard /> : 
+    activePage === 'storyboard' ? <Storyboard projectId={currentProject.id} /> :
     activePage === 'escrita' ? (
       <Escrita projectId={currentProject.id} onNavigate={setActivePage} />
     ) :
