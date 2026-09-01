@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../config/prisma.js';
 
+
 const router = express.Router();
 
 // ==========================================
@@ -796,6 +797,53 @@ router.delete('/chapters/:id', async (req, res) => {
     res.json({ message: 'Capítulo excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar capítulo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// CHECKLIST DE DESENVOLVIMENTO
+// ==========================================
+
+// GET: Buscar estado do Checklist
+router.get('/projects/:projectId/checklist', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({
+      where: { projectId, type: 'CHECKLIST' },
+    });
+    res.json(entity ? entity.data : {});
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Salvar estado do Checklist
+router.post('/projects/:projectId/checklist', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const existing = await prisma.entity.findFirst({
+      where: { projectId, type: 'CHECKLIST' },
+    });
+
+    if (existing) {
+      const updated = await prisma.entity.update({
+        where: { id: existing.id },
+        data: { data: req.body },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'CHECKLIST',
+        title: 'Checklist de Desenvolvimento',
+        data: req.body,
+      },
+    });
+    res.status(201).json(created.data);
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
