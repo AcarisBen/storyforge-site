@@ -11,11 +11,12 @@ import {
   Position,
   SelectionMode,
   ReactFlowProvider,
+  NodeResizer,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import apiClient from '../api/apiClient';
 
-// Helper de cores para os Badges
+// Helper de cores para Badges de Entidades
 function getEntityBadgeTheme(type = '') {
   const norm = String(type).toLowerCase();
   if (norm.includes('protagonista')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
@@ -26,67 +27,195 @@ function getEntityBadgeTheme(type = '') {
   return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
 }
 
-// 1. Âncoras de Conexão nos 8 pontos (só aparecem no hover)
-function ConnectionHandles({ strokeColor = '#a855f7' }) {
+// -----------------------------------------------------------------
+// 1. CONECTORES ROXOS EM ÓRBITA EXTERNA (AFASTADOS 20PX DA BORDA)
+// -----------------------------------------------------------------
+function ExternalHandles({ strokeColor = '#a855f7' }) {
   const handleStyle = {
-    width: '8px',
-    height: '8px',
+    width: '12px',
+    height: '12px',
     backgroundColor: strokeColor,
     borderColor: '#ffffff',
-    borderWidth: '1px',
+    borderWidth: '2px',
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <Handle type="target" position={Position.Top} id="top" style={{ ...handleStyle, top: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Right} id="right" style={{ ...handleStyle, right: '-4px' }} className="pointer-events-auto" />
-      <Handle type="target" position={Position.Bottom} id="bottom" style={{ ...handleStyle, bottom: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Left} id="left" style={{ ...handleStyle, left: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Top} id="top-left" style={{ ...handleStyle, left: '-4px', top: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Top} id="top-right" style={{ ...handleStyle, right: '-4px', top: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Bottom} id="bottom-left" style={{ ...handleStyle, left: '-4px', bottom: '-4px' }} className="pointer-events-auto" />
-      <Handle type="source" position={Position.Bottom} id="bottom-right" style={{ ...handleStyle, right: '-4px', bottom: '-4px' }} className="pointer-events-auto" />
+    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
+      {/* 4 Pontos Cardeais (Afastados 20px) */}
+      <Handle type="target" position={Position.Top} id="top" style={{ ...handleStyle, top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Right} id="right" style={{ ...handleStyle, right: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="target" position={Position.Bottom} id="bottom" style={{ ...handleStyle, bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Left} id="left" style={{ ...handleStyle, left: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+
+      {/* 4 Diagonais (Afastadas 20px) */}
+      <Handle type="source" position={Position.Top} id="top-left" style={{ ...handleStyle, left: '-20px', top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Top} id="top-right" style={{ ...handleStyle, right: '-20px', top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-left" style={{ ...handleStyle, left: '-20px', bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-right" style={{ ...handleStyle, right: '-20px', bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
     </div>
   );
 }
 
-// 2. Nó de Forma Geométrica (Sem Quadro Branco)
-function CustomShapeNode({ data, selected }) {
-  const { shapeType, label, fillColor, noFill, strokeColor, strokeWidth, strokeStyle } = data;
-  const borderStyleCss = strokeStyle === 'dashed' ? 'dashed' : strokeStyle === 'dotted' ? 'dotted' : 'solid';
+// -----------------------------------------------------------------
+// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR DIREITO INTERNO
+// -----------------------------------------------------------------
+function BottomRightRotateHandle({ onRotate, selected, strokeColor }) {
+  if (!selected) return null;
 
-  const containerStyle = {
-    backgroundColor: noFill ? 'transparent' : fillColor || '#181824',
-    borderColor: strokeColor || '#7C3AED',
-    borderWidth: strokeWidth || '2px',
-    borderStyle: borderStyleCss,
+  const handleMouseDown = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const onMouseMove = (moveEvent) => {
+      const nodeElem = e.target.closest('.react-flow__node');
+      if (!nodeElem) return;
+
+      const rect = nodeElem.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const radians = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
+      let degrees = Math.round(radians * (180 / Math.PI)) - 45;
+      if (degrees < 0) degrees += 360;
+
+      onRotate(degrees);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   };
 
-  const shapeClasses =
-    shapeType === 'circle'
-      ? 'rounded-full'
-      : shapeType === 'diamond'
-      ? 'rotate-45 scale-90'
-      : 'rounded-xl';
-
   return (
-    <div className={`group relative min-w-[120px] min-h-[80px] p-4 flex items-center justify-center transition-all ${shapeClasses} ${selected ? 'ring-2 ring-purple-500 shadow-2xl' : ''}`} style={containerStyle}>
-      <ConnectionHandles strokeColor={strokeColor} />
-      <span className={`text-sm font-semibold text-white ${shapeType === 'diamond' ? '-rotate-45' : ''}`}>
-        {label || ''}
-      </span>
+    <div
+      onMouseDown={handleMouseDown}
+      className="absolute right-2 bottom-2 z-40 cursor-grab active:cursor-grabbing p-1 bg-[#14141f]/90 rounded-full border border-purple-500/80 text-purple-300 hover:scale-125 hover:bg-purple-900 transition-all shadow-lg flex items-center justify-center text-xs"
+      title="Arraste para rotacionar"
+      style={{ color: strokeColor }}
+    >
+      ↻
     </div>
   );
 }
 
-// 3. Nó para Cards da História
-function EntityCardNode({ data, selected }) {
-  const { title, type, category } = data;
+// -----------------------------------------------------------------
+// 3. NÓ DE FORMAS CUSTOMIZADAS
+// -----------------------------------------------------------------
+function CustomShapeNode({ id, data, selected }) {
+  const { shapeType, label, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, rotation = 0 } = data;
+
+  const strokeDash = strokeStyle === 'dashed' ? '6 4' : strokeStyle === 'dotted' ? '2 2' : 'none';
+  const widthNum = parseInt(strokeWidth, 10) || 2;
+  const fillVal = noFill ? 'none' : fillColor || '#181824';
+  const strokeVal = strokeColor || '#7C3AED';
+
+  const handleRotate = useCallback(
+    (deg) => {
+      if (data.onUpdateRotation) {
+        data.onUpdateRotation(id, deg);
+      }
+    },
+    [id, data]
+  );
 
   return (
-    <div className={`group relative bg-[#14141f] border border-purple-500/60 rounded-xl p-3 shadow-xl min-w-[180px] text-left space-y-1.5 transition-all ${selected ? 'ring-2 ring-purple-400' : ''}`}>
-      <ConnectionHandles strokeColor="#a855f7" />
-      <strong className="block text-sm font-bold text-white">{title}</strong>
+    <div
+      className="group relative w-full h-full"
+      style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
+    >
+      {/* 1. Redimensionamento em cima da borda */}
+      <NodeResizer
+        minWidth={30}
+        minHeight={30}
+        isVisible={selected}
+        lineClassName="border-blue-500"
+        handleClassName="h-2 w-2 bg-white border border-blue-500 rounded-none"
+      />
+
+      {/* 2. Rotação no canto inferior direito */}
+      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} strokeColor={strokeVal} />
+
+      {/* 3. Conectores roxos afastados a 20px */}
+      <ExternalHandles strokeColor={strokeVal} />
+
+      {/* TEXTO LIVRE */}
+      {shapeType === 'text' && (
+        <div className="w-full h-full flex items-center justify-center p-1">
+          <span className="text-base font-medium text-white block select-none text-center">
+            {label || 'Texto Livre'}
+          </span>
+        </div>
+      )}
+
+      {/* CÍRCULO PERFEITO */}
+      {shapeType === 'circle' && (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <ellipse cx="50" cy="50" rx="46" ry="46" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+          </svg>
+          <span className="relative z-10 text-xs font-semibold text-white px-2 text-center select-none pointer-events-none">
+            {label}
+          </span>
+        </div>
+      )}
+
+      {/* LOSANGO */}
+      {shapeType === 'diamond' && (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon points="50,2 98,50 50,98 2,50" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+          </svg>
+          <span className="relative z-10 text-xs font-semibold text-white px-4 text-center select-none pointer-events-none">
+            {label}
+          </span>
+        </div>
+      )}
+
+      {/* RETÂNGULO PADRÃO */}
+      {shapeType === 'rectangle' && (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <rect x="2" y="2" width="96" height="96" rx="8" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+          </svg>
+          <span className="relative z-10 text-xs font-semibold text-white px-3 text-center select-none pointer-events-none">
+            {label}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------
+// 4. CARDS DE ENTIDADES DA HISTÓRIA
+// -----------------------------------------------------------------
+function EntityCardNode({ id, data, selected }) {
+  const { title, type, category, rotation = 0 } = data;
+
+  const handleRotate = useCallback(
+    (deg) => {
+      if (data.onUpdateRotation) {
+        data.onUpdateRotation(id, deg);
+      }
+    },
+    [id, data]
+  );
+
+  return (
+    <div
+      className={`group relative bg-[#14141f] border border-purple-500/60 rounded-xl p-3 shadow-2xl w-full h-full text-left space-y-1.5 transition-all ${
+        selected ? 'ring-2 ring-blue-500' : ''
+      }`}
+      style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
+    >
+      <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-blue-500" handleClassName="h-2 w-2 bg-white border border-blue-500 rounded-none" />
+      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} strokeColor="#a855f7" />
+      <ExternalHandles strokeColor="#a855f7" />
+      <strong className="block text-sm font-bold text-white select-none">{title}</strong>
       <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>
         {type || category}
       </span>
@@ -94,16 +223,16 @@ function EntityCardNode({ data, selected }) {
   );
 }
 
-// Componente Interno do Storyboard
+// -----------------------------------------------------------------
+// COMPONENTE PRINCIPAL DO STORYBOARD
+// -----------------------------------------------------------------
 function StoryboardContent({ projectId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Painéis Retráteis
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
-  // Ferramentas & Estilos
   const [selectedTool, setSelectedTool] = useState('select');
   const [fillColor, setFillColor] = useState('#1a1d24');
   const [noFill, setNoFill] = useState(false);
@@ -113,7 +242,6 @@ function StoryboardContent({ projectId }) {
 
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
 
-  // Entidades
   const [entities, setEntities] = useState({
     personagens: [],
     mundo: [],
@@ -129,6 +257,26 @@ function StoryboardContent({ projectId }) {
     estrutura: false,
     cenas: false,
   });
+
+  const onUpdateRotation = useCallback(
+    (nodeId, deg) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                rotation: deg,
+              },
+            };
+          }
+          return node;
+        })
+      );
+    },
+    [setNodes]
+  );
 
   const nodeTypes = useMemo(
     () => ({
@@ -204,7 +352,6 @@ function StoryboardContent({ projectId }) {
     [setEdges, strokeColor, strokeWidth, strokeStyle]
   );
 
-  // Adicionar Forma ao clicar no Canvas
   const onPaneClick = useCallback(
     (event) => {
       if (selectedTool === 'select') return;
@@ -212,7 +359,8 @@ function StoryboardContent({ projectId }) {
       const newNode = {
         id: `shape-${Date.now()}`,
         type: 'customShape',
-        position: { x: event.clientX - 300, y: event.clientY - 100 },
+        position: { x: event.clientX - 320, y: event.clientY - 120 },
+        style: { width: 120, height: 80 },
         zIndex: 1,
         data: {
           shapeType: selectedTool,
@@ -222,16 +370,17 @@ function StoryboardContent({ projectId }) {
           strokeColor,
           strokeWidth,
           strokeStyle,
+          rotation: 0,
+          onUpdateRotation,
         },
       };
 
       setNodes((nds) => [...nds, newNode]);
       setSelectedTool('select');
     },
-    [selectedTool, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, setNodes]
+    [selectedTool, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, onUpdateRotation, setNodes]
   );
 
-  // Carregar dados
   useEffect(() => {
     if (!projectId) return;
 
@@ -267,11 +416,14 @@ function StoryboardContent({ projectId }) {
       id: `entity-${Date.now()}`,
       type: 'entityNode',
       position: { x: 300 + Math.random() * 100, y: 150 + Math.random() * 100 },
+      style: { width: 180, height: 70 },
       zIndex: 2,
       data: {
         title: entity.name || entity.nome || entity.title,
         type: entity.type || category,
         category,
+        rotation: 0,
+        onUpdateRotation,
       },
     };
 
@@ -284,6 +436,18 @@ function StoryboardContent({ projectId }) {
 
   return (
     <main className="storyboard-page relative w-full h-[calc(100vh-2rem)] overflow-hidden bg-[#0a0a0f] text-gray-200 flex">
+      <style>{`
+        .react-flow__panel.react-flow__attribution,
+        .react-flow__attribution {
+          display: none !important;
+        }
+        .react-flow__node {
+          padding: 0 !important;
+          border: none !important;
+          background: transparent !important;
+        }
+      `}</style>
+
       {/* PAINEL ESQUERDO */}
       <aside
         className={`relative z-20 h-full bg-[#12121a]/95 backdrop-blur border-r border-gray-800/80 transition-all duration-300 flex flex-col shrink-0 ${
@@ -414,14 +578,14 @@ function StoryboardContent({ projectId }) {
                   <button
                     type="button"
                     onClick={() => changeZIndex('front')}
-                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600"
+                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 cursor-pointer"
                   >
                     ▲ Frente
                   </button>
                   <button
                     type="button"
                     onClick={() => changeZIndex('back')}
-                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600"
+                    className="p-2 rounded bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 cursor-pointer"
                   >
                     ▼ Trás
                   </button>
@@ -544,7 +708,6 @@ function StoryboardContent({ projectId }) {
   );
 }
 
-// Wrapper OBRIGATÓRIO do Provider
 export default function Storyboard({ projectId }) {
   return (
     <ReactFlowProvider>
