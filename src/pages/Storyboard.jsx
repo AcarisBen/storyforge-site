@@ -28,7 +28,8 @@ function getEntityBadgeTheme(type = '') {
 }
 
 // -----------------------------------------------------------------
-// 1. CONECTORES ROXOS EM ÓRBITA EXTERNA (AFASTADOS 20PX DA BORDA)
+// 1. CONECTORES ROXOS EM ÓRBITA EXTERNA (8 PONTOS COMPLETOS & FUNCIONAIS)
+// Cada conector aceita tanto ser ORIGEM (source) quanto DESTINO (target)
 // -----------------------------------------------------------------
 function ExternalHandles({ strokeColor = '#a855f7' }) {
   const handleStyle = {
@@ -37,29 +38,51 @@ function ExternalHandles({ strokeColor = '#a855f7' }) {
     backgroundColor: strokeColor,
     borderColor: '#ffffff',
     borderWidth: '2px',
+    borderRadius: '50%',
+    zIndex: 50,
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
-      {/* 4 Pontos Cardeais (Afastados 20px) */}
-      <Handle type="target" position={Position.Top} id="top" style={{ ...handleStyle, top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="source" position={Position.Right} id="right" style={{ ...handleStyle, right: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="target" position={Position.Bottom} id="bottom" style={{ ...handleStyle, bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="source" position={Position.Left} id="left" style={{ ...handleStyle, left: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      {/* Topo */}
+      <Handle type="target" position={Position.Top} id="top-t" style={{ ...handleStyle, top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Top} id="top-s" style={{ ...handleStyle, top: '-22px', opacity: 0 }} className="pointer-events-auto" />
 
-      {/* 4 Diagonais (Afastadas 20px) */}
-      <Handle type="source" position={Position.Top} id="top-left" style={{ ...handleStyle, left: '-20px', top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="source" position={Position.Top} id="top-right" style={{ ...handleStyle, right: '-20px', top: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="source" position={Position.Bottom} id="bottom-left" style={{ ...handleStyle, left: '-20px', bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
-      <Handle type="source" position={Position.Bottom} id="bottom-right" style={{ ...handleStyle, right: '-20px', bottom: '-20px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      {/* Direita */}
+      <Handle type="target" position={Position.Right} id="right-t" style={{ ...handleStyle, right: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Right} id="right-s" style={{ ...handleStyle, right: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Baixo */}
+      <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ ...handleStyle, bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ ...handleStyle, bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Esquerda */}
+      <Handle type="target" position={Position.Left} id="left-t" style={{ ...handleStyle, left: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Left} id="left-s" style={{ ...handleStyle, left: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Canto Superior Esquerdo */}
+      <Handle type="target" position={Position.Top} id="top-left-t" style={{ ...handleStyle, left: '-22px', top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Top} id="top-left-s" style={{ ...handleStyle, left: '-22px', top: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Canto Superior Direito */}
+      <Handle type="target" position={Position.Top} id="top-right-t" style={{ ...handleStyle, right: '-22px', top: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Top} id="top-right-s" style={{ ...handleStyle, right: '-22px', top: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Canto Inferior Esquerdo */}
+      <Handle type="target" position={Position.Bottom} id="bottom-left-t" style={{ ...handleStyle, left: '-22px', bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-left-s" style={{ ...handleStyle, left: '-22px', bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
+
+      {/* Canto Inferior Direito */}
+      <Handle type="target" position={Position.Bottom} id="bottom-right-t" style={{ ...handleStyle, right: '-22px', bottom: '-22px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-right-s" style={{ ...handleStyle, right: '-22px', bottom: '-22px', opacity: 0 }} className="pointer-events-auto" />
     </div>
   );
 }
 
 // -----------------------------------------------------------------
-// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR DIREITO INTERNO
+// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR ESQUERDO INTERNO
 // -----------------------------------------------------------------
-function BottomRightRotateHandle({ onRotate, selected, strokeColor }) {
+function BottomLeftRotateHandle({ onRotate, selected, strokeColor }) {
   if (!selected) return null;
 
   const handleMouseDown = (e) => {
@@ -75,7 +98,7 @@ function BottomRightRotateHandle({ onRotate, selected, strokeColor }) {
       const centerY = rect.top + rect.height / 2;
 
       const radians = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
-      let degrees = Math.round(radians * (180 / Math.PI)) - 45;
+      let degrees = Math.round(radians * (180 / Math.PI)) + 135;
       if (degrees < 0) degrees += 360;
 
       onRotate(degrees);
@@ -93,11 +116,11 @@ function BottomRightRotateHandle({ onRotate, selected, strokeColor }) {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="absolute right-2 bottom-2 z-40 cursor-grab active:cursor-grabbing p-1 bg-[#14141f]/90 rounded-full border border-purple-500/80 text-purple-300 hover:scale-125 hover:bg-purple-900 transition-all shadow-lg flex items-center justify-center text-xs"
+      className="absolute left-2 bottom-2 z-40 cursor-grab active:cursor-grabbing p-1 bg-[#14141f]/90 rounded-full border border-purple-500/80 text-purple-300 hover:scale-125 hover:bg-purple-900 transition-all shadow-lg flex items-center justify-center text-xs select-none"
       title="Arraste para rotacionar"
       style={{ color: strokeColor }}
     >
-      ↻
+      ↺
     </div>
   );
 }
@@ -133,13 +156,13 @@ function CustomShapeNode({ id, data, selected }) {
         minHeight={30}
         isVisible={selected}
         lineClassName="border-blue-500"
-        handleClassName="h-2 w-2 bg-white border border-blue-500 rounded-none"
+        handleClassName="h-2.5 w-2.5 bg-white border border-blue-500 rounded-none z-40"
       />
 
-      {/* 2. Rotação no canto inferior direito */}
-      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} strokeColor={strokeVal} />
+      {/* 2. Rotação no canto inferior ESQUERDO */}
+      <BottomLeftRotateHandle onRotate={handleRotate} selected={selected} strokeColor={strokeVal} />
 
-      {/* 3. Conectores roxos afastados a 20px */}
+      {/* 3. Conectores roxos afastados a 22px (8 Pontos) */}
       <ExternalHandles strokeColor={strokeVal} />
 
       {/* TEXTO LIVRE */}
@@ -212,8 +235,8 @@ function EntityCardNode({ id, data, selected }) {
       }`}
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
-      <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-blue-500" handleClassName="h-2 w-2 bg-white border border-blue-500 rounded-none" />
-      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} strokeColor="#a855f7" />
+      <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-blue-500" handleClassName="h-2.5 w-2.5 bg-white border border-blue-500 rounded-none z-40" />
+      <BottomLeftRotateHandle onRotate={handleRotate} selected={selected} strokeColor="#a855f7" />
       <ExternalHandles strokeColor="#a855f7" />
       <strong className="block text-sm font-bold text-white select-none">{title}</strong>
       <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>
