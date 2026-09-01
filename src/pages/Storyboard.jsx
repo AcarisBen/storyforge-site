@@ -97,12 +97,9 @@ function BottomRightRotateHandle({ onRotate, selected }) {
   if (!selected) return null;
 
   const handleMouseDown = (e) => {
-    // Garante apenas o botão esquerdo (button 0)
     if (e.button !== 0) return;
-
     e.stopPropagation();
 
-    // Captura o elemento do nó para calcular o centro exato
     const nodeElem = e.currentTarget.closest('.react-flow__node');
     if (!nodeElem) return;
 
@@ -111,7 +108,6 @@ function BottomRightRotateHandle({ onRotate, selected }) {
     const centerY = rect.top + rect.height / 2;
 
     const onMouseMove = (moveEvent) => {
-      // Ângulo em relação ao centro ajustado para o Canto Inferior Direito
       const radians = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
       let degrees = Math.round(radians * (180 / Math.PI)) - 45;
       if (degrees < 0) degrees += 360;
@@ -146,15 +142,12 @@ function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 
   if (!selected) return null;
 
   const handleMouseDown = (e) => {
-    // Garante apenas o botão esquerdo (button 0)
     if (e.button !== 0) return;
-
     e.stopPropagation();
     const startX = e.clientX;
     const startRadius = currentRadius;
 
     const onMouseMove = (moveEvent) => {
-      // Arrastar para a esquerda diminui, para a direita aumenta
       const deltaX = moveEvent.clientX - startX;
       const newRadius = Math.max(0, Math.min(50, Math.round(startRadius + deltaX / 2)));
       onUpdateRadius(newRadius);
@@ -177,11 +170,64 @@ function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 
     />
   );
 }
+
 // -----------------------------------------------------------------
-// 4. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
+// 4. LOSANGO AMARELO PARA AJUSTAR O VÉRTICE DO TRIÂNGULO
+// -----------------------------------------------------------------
+function TriangleVertexHandle({ onUpdateOffset, selected }) {
+  if (!selected) return null;
+
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+
+    const nodeElem = e.currentTarget.closest('.react-flow__node');
+    if (!nodeElem) return;
+
+    const rect = nodeElem.getBoundingClientRect();
+
+    const onMouseMove = (moveEvent) => {
+      const relativeX = moveEvent.clientX - rect.left;
+      const percentage = (relativeX / rect.width) * 100;
+      const clampedOffset = Math.max(4, Math.min(96, Math.round(percentage)));
+
+      onUpdateOffset(clampedOffset);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform"
+      title="Arraste com o botão esquerdo para alterar a forma do triângulo"
+    />
+  );
+}
+
+// -----------------------------------------------------------------
+// 5. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
 // -----------------------------------------------------------------
 function CustomShapeNode({ id, data, selected }) {
-  const { shapeType, label, fillColor, noFill, strokeColor, strokeWidth, strokeStyle, rotation = 0, cornerRadius = 8 } = data;
+  const {
+    shapeType,
+    label,
+    fillColor,
+    noFill,
+    strokeColor,
+    strokeWidth,
+    strokeStyle,
+    rotation = 0,
+    cornerRadius = 8,
+    vertexOffset = 50,
+  } = data;
 
   const strokeDash = strokeStyle === 'dashed' ? '6 4' : strokeStyle === 'dotted' ? '2 2' : 'none';
   const widthNum = parseInt(strokeWidth, 10) || 2;
@@ -196,12 +242,15 @@ function CustomShapeNode({ id, data, selected }) {
     if (data.onUpdateCornerRadius) data.onUpdateCornerRadius(id, r);
   }, [id, data]);
 
+  const handleVertexOffsetChange = useCallback((offset) => {
+    if (data.onUpdateVertexOffset) data.onUpdateVertexOffset(id, offset);
+  }, [id, data]);
+
   return (
     <div
       className="group relative w-full h-full"
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
-      {/* 8 Pontos de Redimensionamento em Círculos Azuis */}
       <NodeResizer
         minWidth={30}
         minHeight={30}
@@ -210,13 +259,9 @@ function CustomShapeNode({ id, data, selected }) {
         handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40"
       />
 
-      {/* Botão de Rotação - Canto Inferior Direito Afastado (-20px) */}
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
-
-      {/* 4 Conectores em Seta para Fora */}
       <ArrowDirectionalHandles strokeColor={strokeVal} />
 
-      {/* Losango Amarelo Interno (Apenas no Retângulo) */}
       {shapeType === 'rectangle' && (
         <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
       )}
@@ -230,7 +275,7 @@ function CustomShapeNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* CÍRCULO PERFEITO */}
+      {/* CÍRCULO */}
       {shapeType === 'circle' && (
         <div className="w-full h-full flex items-center justify-center">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -254,16 +299,25 @@ function CustomShapeNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* TRIÂNGULO */}
+      {/* TRIÂNGULO COM VÉRTICE AJUSTÁVEL */}
       {shapeType === 'triangle' && (
-        <div className="w-full h-full flex items-center justify-center">
-          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polygon points="50,4 96,96 4,96" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
-          </svg>
-          <span className="relative z-10 text-xs font-semibold text-white px-2 pt-6 text-center select-none pointer-events-none">
-            {label}
-          </span>
-        </div>
+        <>
+          <TriangleVertexHandle onUpdateOffset={handleVertexOffsetChange} selected={selected} />
+          <div className="w-full h-full flex items-center justify-center">
+            <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                points={`${vertexOffset},4 96,96 4,96`}
+                fill={fillVal}
+                stroke={strokeVal}
+                strokeWidth={widthNum}
+                strokeDasharray={strokeDash}
+              />
+            </svg>
+            <span className="relative z-10 text-xs font-semibold text-white px-2 pt-6 text-center select-none pointer-events-none">
+              {label}
+            </span>
+          </div>
+        </>
       )}
 
       {/* SETA */}
@@ -280,7 +334,7 @@ function CustomShapeNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* RETÂNGULO DRAW.IO (COM CANTO DINÂMICO VIA CORNER RADIUS) */}
+      {/* RETÂNGULO */}
       {shapeType === 'rectangle' && (
         <div className="w-full h-full flex items-center justify-center">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -307,7 +361,7 @@ function CustomShapeNode({ id, data, selected }) {
 }
 
 // -----------------------------------------------------------------
-// 5. CARDS DE ENTIDADES
+// 6. CARDS DE ENTIDADES
 // -----------------------------------------------------------------
 function EntityCardNode({ id, data, selected }) {
   const { title, type, category, rotation = 0 } = data;
@@ -329,7 +383,7 @@ function EntityCardNode({ id, data, selected }) {
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
       <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
-      <TopRightRotateHandle onRotate={handleRotate} selected={selected} />
+      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
       <ArrowDirectionalHandles strokeColor="#a855f7" />
       <strong className="block text-sm font-bold text-white select-none">{title}</strong>
       <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>
@@ -359,7 +413,6 @@ function StoryboardContent({ projectId }) {
 
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
 
-  // Refs de controle para o Draw-on-drag
   const isDrawingRef = useRef(false);
   const drawStartRef = useRef(null);
   const activeDrawNodeIdRef = useRef(null);
@@ -410,6 +463,26 @@ function StoryboardContent({ projectId }) {
               data: {
                 ...node.data,
                 cornerRadius: r,
+              },
+            };
+          }
+          return node;
+        })
+      );
+    },
+    [setNodes]
+  );
+
+  const onUpdateVertexOffset = useCallback(
+    (nodeId, offset) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                vertexOffset: offset,
               },
             };
           }
@@ -494,9 +567,6 @@ function StoryboardContent({ projectId }) {
     [setEdges, strokeColor, strokeWidth, strokeStyle]
   );
 
-  // -----------------------------------------------------------------
-  // MANIPULAÇÃO DO MOUSE PARA DRAW-ON-DRAG (BOTÃO ESQUERDO)
-  // -----------------------------------------------------------------
   const handleMouseDownCanvas = (event) => {
     if (event.button !== 0 || selectedTool === 'select') return;
 
@@ -526,8 +596,10 @@ function StoryboardContent({ projectId }) {
         strokeStyle,
         rotation: 0,
         cornerRadius: 8,
+        vertexOffset: 50,
         onUpdateRotation,
         onUpdateCornerRadius,
+        onUpdateVertexOffset,
       },
     };
 
@@ -802,7 +874,7 @@ function StoryboardContent({ projectId }) {
         )}
       </aside>
 
-      {/* CANVAS CENTRAL COM SUPORTE A DRAW-ON-DRAG */}
+      {/* CANVAS CENTRAL */}
       <div
         className="flex-1 h-full relative"
         onMouseDown={handleMouseDownCanvas}
@@ -818,7 +890,7 @@ function StoryboardContent({ projectId }) {
           onConnect={onConnect}
           selectionMode={SelectionMode.Partial}
           panOnScroll
-          panOnDrag={[2]} /* Pan exclusivamente com o BOTÃO DIREITO */
+          panOnDrag={[2]}
           selectionOnDrag={selectedTool === 'select'}
           fitView
           className="bg-[#0a0a0f]"
