@@ -29,9 +29,9 @@ function getEntityBadgeTheme(type = '') {
 }
 
 // -----------------------------------------------------------------
-// 1. CONECTORES EM FORMA DE SETAS NAS 4 BORDAS (ESTILO DRAW.IO)
+// 1. CONECTORES EM FORMA DE SETAS NAS 4 BORDAS
 // -----------------------------------------------------------------
-function ArrowDirectionalHandles({ strokeColor = '#3b82f6' }) {
+function ArrowDirectionalHandles() {
   const arrowStyle = {
     width: '16px',
     height: '16px',
@@ -91,7 +91,7 @@ function ArrowDirectionalHandles({ strokeColor = '#3b82f6' }) {
 }
 
 // -----------------------------------------------------------------
-// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR DIREITO AFASTADO (-20px)
+// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR DIREITO
 // -----------------------------------------------------------------
 function BottomRightRotateHandle({ onRotate, selected }) {
   if (!selected) return null;
@@ -136,7 +136,7 @@ function BottomRightRotateHandle({ onRotate, selected }) {
 }
 
 // -----------------------------------------------------------------
-// 3. LOSANGO AMARELO INTERNO (CANTO INFERIOR DIREITO DO RETÂNGULO)
+// 3. LOSANGO AMARELO INTERNO (CANTO INFERIOR DIREITO)
 // -----------------------------------------------------------------
 function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 }) {
   if (!selected) return null;
@@ -166,13 +166,13 @@ function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 
     <div
       onMouseDown={handleMouseDown}
       className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform"
-      title="Arraste com o botão esquerdo para arredondar os cantos"
+      title="Arraste para arredondar os cantos"
     />
   );
 }
 
 // -----------------------------------------------------------------
-// 4. LOSANGO AMARELO PARA AJUSTAR O VÉRTICE DO TRIÂNGULO
+// 4. LOSANGO AMARELO PARA O TRIÂNGULO
 // -----------------------------------------------------------------
 function TriangleVertexHandle({ onUpdateOffset, selected }) {
   if (!selected) return null;
@@ -207,13 +207,65 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
     <div
       onMouseDown={handleMouseDown}
       className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform"
-      title="Arraste com o botão esquerdo para alterar a forma do triângulo"
+      title="Arraste para alterar a forma do triângulo"
     />
   );
 }
 
 // -----------------------------------------------------------------
-// 5. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
+// 5. CAIXA DE TEXTO TOTALMENTE AJUSTADA E EDITÁVEL
+// -----------------------------------------------------------------
+
+        function EditableNodeText({ id, label, onUpdateLabel }) {
+  const textRef = useRef(null);
+
+  // Sincroniza o valor inicial e alterações externas
+  useEffect(() => {
+    if (textRef.current && document.activeElement !== textRef.current) {
+      textRef.current.innerText = label || '';
+    }
+  }, [label]);
+
+  const handleInput = (e) => {
+    const val = e.currentTarget.innerText;
+
+    // Repassa o valor para o React Flow
+    if (onUpdateLabel) {
+      onUpdateLabel(id, val);
+    }
+  };
+
+  const handleFocus = () => {
+    // Mover o cursor para o final do texto ao focar
+    if (textRef.current) {
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents(textRef.current);
+      range.collapse(false); // false = vai para o fim
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
+  return (
+    <div className="w-full h-full flex items-center justify-center p-1 pointer-events-auto relative z-20">
+      <div
+        ref={textRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onFocus={handleFocus}
+        onKeyDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="nodrag nopan w-full h-full bg-transparent text-white text-center outline-none focus:ring-1 focus:ring-purple-500 rounded p-0.5 text-sm font-medium flex items-center justify-center overflow-hidden leading-tight"
+        style={{ cursor: 'text', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+      />
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------
+// 6. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
 // -----------------------------------------------------------------
 function CustomShapeNode({ id, data, selected }) {
   const {
@@ -246,21 +298,25 @@ function CustomShapeNode({ id, data, selected }) {
     if (data.onUpdateVertexOffset) data.onUpdateVertexOffset(id, offset);
   }, [id, data]);
 
+  const handleLabelChange = useCallback((nodeId, newText) => {
+    if (data.onUpdateLabel) data.onUpdateLabel(nodeId, newText);
+  }, [data]);
+
   return (
     <div
-      className="group relative w-full h-full"
+      className="group relative w-full h-full min-w-[15px] min-h-[15px] flex items-center justify-center"
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
       <NodeResizer
-        minWidth={30}
-        minHeight={30}
+        minWidth={15}
+        minHeight={15}
         isVisible={selected}
         lineClassName="border-sky-400 border-dashed"
         handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40"
       />
 
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
-      <ArrowDirectionalHandles strokeColor={strokeVal} />
+      <ArrowDirectionalHandles />
 
       {shapeType === 'rectangle' && (
         <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
@@ -268,61 +324,51 @@ function CustomShapeNode({ id, data, selected }) {
 
       {/* TEXTO LIVRE */}
       {shapeType === 'text' && (
-        <div className="w-full h-full flex items-center justify-center p-1">
-          <span className="text-base font-medium text-white block select-none text-center">
-            {label || 'Texto Livre'}
-          </span>
-        </div>
+        <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
       )}
 
       {/* CÍRCULO */}
       {shapeType === 'circle' && (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <ellipse cx="50" cy="50" rx="46" ry="46" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <span className="relative z-10 text-xs font-semibold text-white px-2 text-center select-none pointer-events-none">
-            {label}
-          </span>
+          <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
+            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
+          </div>
         </div>
       )}
 
       {/* LOSANGO */}
       {shapeType === 'diamond' && (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon points="50,2 98,50 50,98 2,50" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <span className="relative z-10 text-xs font-semibold text-white px-4 text-center select-none pointer-events-none">
-            {label}
-          </span>
+          <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
+            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
+          </div>
         </div>
       )}
 
-      {/* TRIÂNGULO COM VÉRTICE AJUSTÁVEL */}
+      {/* TRIÂNGULO */}
       {shapeType === 'triangle' && (
         <>
           <TriangleVertexHandle onUpdateOffset={handleVertexOffsetChange} selected={selected} />
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center relative">
             <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon
-                points={`${vertexOffset},4 96,96 4,96`}
-                fill={fillVal}
-                stroke={strokeVal}
-                strokeWidth={widthNum}
-                strokeDasharray={strokeDash}
-              />
+              <polygon points={`${vertexOffset},4 96,96 4,96`} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
             </svg>
-            <span className="relative z-10 text-xs font-semibold text-white px-2 pt-6 text-center select-none pointer-events-none">
-              {label}
-            </span>
+            <div className="relative z-10 w-full h-full flex items-center justify-center pt-6 px-2">
+              <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
+            </div>
           </div>
         </>
       )}
 
       {/* SETA */}
       {shapeType === 'arrow' && (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
               <marker id={`arrowhead-${id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -336,24 +382,13 @@ function CustomShapeNode({ id, data, selected }) {
 
       {/* RETÂNGULO */}
       {shapeType === 'rectangle' && (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect
-              x="2"
-              y="2"
-              width="96"
-              height="96"
-              rx={cornerRadius}
-              ry={cornerRadius}
-              fill={fillVal}
-              stroke={strokeVal}
-              strokeWidth={widthNum}
-              strokeDasharray={strokeDash}
-            />
+            <rect x="2" y="2" width="96" height="96" rx={cornerRadius} ry={cornerRadius} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <span className="relative z-10 text-xs font-semibold text-white px-3 text-center select-none pointer-events-none">
-            {label}
-          </span>
+          <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
+            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
+          </div>
         </div>
       )}
     </div>
@@ -361,19 +396,14 @@ function CustomShapeNode({ id, data, selected }) {
 }
 
 // -----------------------------------------------------------------
-// 6. CARDS DE ENTIDADES
+// 7. CARDS DE ENTIDADES
 // -----------------------------------------------------------------
 function EntityCardNode({ id, data, selected }) {
   const { title, type, category, rotation = 0 } = data;
 
-  const handleRotate = useCallback(
-    (deg) => {
-      if (data.onUpdateRotation) {
-        data.onUpdateRotation(id, deg);
-      }
-    },
-    [id, data]
-  );
+  const handleRotate = useCallback((deg) => {
+    if (data.onUpdateRotation) data.onUpdateRotation(id, deg);
+  }, [id, data]);
 
   return (
     <div
@@ -384,7 +414,7 @@ function EntityCardNode({ id, data, selected }) {
     >
       <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
-      <ArrowDirectionalHandles strokeColor="#a855f7" />
+      <ArrowDirectionalHandles />
       <strong className="block text-sm font-bold text-white select-none">{title}</strong>
       <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>
         {type || category}
@@ -433,65 +463,49 @@ function StoryboardContent({ projectId }) {
     cenas: false,
   });
 
-  const onUpdateRotation = useCallback(
-    (nodeId, deg) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                rotation: deg,
-              },
-            };
-          }
-          return node;
-        })
-      );
-    },
-    [setNodes]
-  );
+  const onUpdateRotation = useCallback((nodeId, deg) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, rotation: deg } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
 
-  const onUpdateCornerRadius = useCallback(
-    (nodeId, r) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                cornerRadius: r,
-              },
-            };
-          }
-          return node;
-        })
-      );
-    },
-    [setNodes]
-  );
+  const onUpdateCornerRadius = useCallback((nodeId, r) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, cornerRadius: r } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
 
-  const onUpdateVertexOffset = useCallback(
-    (nodeId, offset) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                vertexOffset: offset,
-              },
-            };
-          }
-          return node;
-        })
-      );
-    },
-    [setNodes]
-  );
+  const onUpdateVertexOffset = useCallback((nodeId, offset) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, vertexOffset: offset } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  const onUpdateLabel = useCallback((nodeId, text) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, label: text } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
 
   const nodeTypes = useMemo(
     () => ({
@@ -523,13 +537,7 @@ function StoryboardContent({ projectId }) {
       setNodes((nds) =>
         nds.map((node) => {
           if (selectedNodeIds.includes(node.id)) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                [key]: value,
-              },
-            };
+            return { ...node, data: { ...node.data, [key]: value } };
           }
           return node;
         })
@@ -580,11 +588,14 @@ function StoryboardContent({ projectId }) {
     const newNodeId = `shape-${Date.now()}`;
     activeDrawNodeIdRef.current = newNodeId;
 
+    const initialWidth = selectedTool === 'text' ? 140 : 10;
+    const initialHeight = selectedTool === 'text' ? 45 : 10;
+
     const newNode = {
       id: newNodeId,
       type: 'customShape',
       position: startPos,
-      style: { width: 10, height: 10 },
+      style: { width: initialWidth, height: initialHeight },
       zIndex: 1,
       data: {
         shapeType: selectedTool,
@@ -600,6 +611,7 @@ function StoryboardContent({ projectId }) {
         onUpdateRotation,
         onUpdateCornerRadius,
         onUpdateVertexOffset,
+        onUpdateLabel,
       },
     };
 
@@ -607,35 +619,37 @@ function StoryboardContent({ projectId }) {
   };
 
   const handleMouseMoveCanvas = (event) => {
-    if (!isDrawingRef.current || !drawStartRef.current || !activeDrawNodeIdRef.current) return;
+  if (!isDrawingRef.current || !drawStartRef.current || !activeDrawNodeIdRef.current) return;
 
-    const currentPos = screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY,
-    });
+  const currentPos = screenToFlowPosition({
+    x: event.clientX,
+    y: event.clientY,
+  });
 
-    const startX = drawStartRef.current.x;
-    const startY = drawStartRef.current.y;
+  const startX = drawStartRef.current.x;
+  const startY = drawStartRef.current.y;
 
-    const width = Math.max(20, Math.abs(currentPos.x - startX));
-    const height = Math.max(20, Math.abs(currentPos.y - startY));
+  // Permite redimensionamento livre a partir de 15px
+  const width = Math.max(15, Math.abs(currentPos.x - startX));
+  const height = Math.max(15, Math.abs(currentPos.y - startY));
 
-    const newX = currentPos.x < startX ? startX - width : startX;
-    const newY = currentPos.y < startY ? startY - height : startY;
+  const newX = currentPos.x < startX ? startX - width : startX;
+  const newY = currentPos.y < startY ? startY - height : startY;
 
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === activeDrawNodeIdRef.current) {
-          return {
-            ...node,
-            position: { x: newX, y: newY },
-            style: { width, height },
-          };
-        }
-        return node;
-      })
-    );
-  };
+  setNodes((nds) =>
+    nds.map((node) => {
+      if (node.id === activeDrawNodeIdRef.current) {
+        return {
+          ...node,
+          position: { x: newX, y: newY },
+          style: { width, height },
+        };
+      }
+      return node;
+    })
+  );
+};
+
 
   const handleMouseUpCanvas = () => {
     if (isDrawingRef.current) {
