@@ -848,4 +848,52 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
   }
 });
 
+// ==========================================
+// CENAS, MISTÉRIOS, PLOT TWISTS E RELAÇÕES
+// ==========================================
+
+// GET: Buscar Cenas do Projeto
+router.get('/projects/:projectId/scenes', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'SCENES' } });
+    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Buscar Mistérios do Projeto
+router.get('/projects/:projectId/mysteries', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'MYSTERIES' } });
+    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Buscar Plot Twists do Projeto
+router.get('/projects/:projectId/twists', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'TWISTS' } });
+    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Buscar Relações do Projeto
+router.get('/projects/:projectId/relations', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RELATIONS' } });
+    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

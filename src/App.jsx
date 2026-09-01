@@ -13,6 +13,7 @@ import Misterios from './pages/Misterios'
 import PlotTwists from './pages/PlotTwists'
 import Dashboard from './pages/Dashboard'
 import Checklist from './pages/Checklist';
+import StoryBible from './pages/StoryBible';
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -97,13 +98,14 @@ function App() {
     activePage === 'cenas' ? <Cenas projectId={currentProject.id} /> :
     activePage === 'misterios' ? <Misterios projectId={currentProject.id} /> : 
     activePage === 'plot-twists' ? <PlotTwists projectId={currentProject.id} /> : 
-    activePage === 'checklist' ? <Checklist projectId={currentProject.id} /> : // <- ADICIONAR ESTA LINHA
+    activePage === 'checklist' ? <Checklist projectId={currentProject.id} /> : 
+    activePage === 'story-bible' ? <StoryBible projectId={currentProject.id} /> :
     activePage === 'dashboard' ? <Dashboard /> : 
     activePage === 'escrita' ? (
       <Escrita projectId={currentProject.id} onNavigate={setActivePage} />
     ) :
     <div className="coming-soon">Esta página será adicionada em breve.</div>;
-    
+
   return (
     <div className="app-shell">
       <Sidebar 
