@@ -64,3 +64,18 @@ model Entity {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model CharacterRelation {
+  id          Int      @id @default(autoincrement())
+  projectId   String   @map("project_id")
+  charAId     String   @map("char_a_id")
+  charBId     String   @map("char_b_id")
+  type        String   @default("Amizade")
+  intensity   Int      @default(6)
+  sceneId     String?  @map("scene_id")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("character_relations")
+}

@@ -82,38 +82,33 @@ export default function Relacoes({ projectId }) {
   const [description, setDescription] = useState('');
 
   useEffect(() => {
-    let isMounted = true;
+  let isMounted = true;
 
-    const fetchData = async () => {
-      try {
-        const [resChars, resScenes, resRels] = await Promise.all([
-          apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
-          apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
-          apiClient.get(`/entities/projects/${projectId}/relations`).catch(() => ({ data: [] })),
-        ]);
+  const fetchData = async () => {
+    try {
+      const [resChars, resScenes, resRels] = await Promise.all([
+        apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
+        apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
+        apiClient.get(`/entities/projects/${projectId}/relations`).catch(() => ({ data: [] })),
+      ]);
 
-        if (!isMounted) return;
+      if (!isMounted) return;
 
-        const charList = Array.isArray(resChars?.data) && resChars.data.length > 0
-          ? resChars.data
-          : MOCK_CHARACTERS;
-
-        setCharacters(charList);
-        setScenes(Array.isArray(resScenes?.data) ? resScenes.data : []);
-        setRelations(Array.isArray(resRels?.data) ? resRels.data : []);
-      } catch (err) {
-        if (isMounted) setCharacters(MOCK_CHARACTERS);
-      }
-    };
-
-    if (projectId) {
-      fetchData();
-    } else {
-      setCharacters(MOCK_CHARACTERS);
+      // Se houver resposta do backend/Postgres, usa a resposta
+      setCharacters(Array.isArray(resChars?.data) ? resChars.data : []);
+      setScenes(Array.isArray(resScenes?.data) ? resScenes.data : []);
+      setRelations(Array.isArray(resRels?.data) ? resRels.data : []);
+    } catch (err) {
+      console.error('Erro ao sincronizar com PostgreSQL:', err);
     }
+  };
 
-    return () => { isMounted = false; };
-  }, [projectId]);
+  if (projectId) {
+    fetchData();
+  }
+
+  return () => { isMounted = false; };
+}, [projectId]);
 
   const nodePositions = useMemo(() => {
     if (!Array.isArray(characters) || characters.length === 0) return {};
@@ -181,46 +176,47 @@ export default function Relacoes({ projectId }) {
   };
 
   const handleSaveRelation = async (e) => {
-    e.preventDefault();
-    if (!charA || !charB || charA === charB) {
-      alert('Selecione dois personagens diferentes.');
-      return;
-    }
+  e.preventDefault();
+  if (!charA || !charB || charA === charB) {
+    alert('Selecione dois personagens diferentes.');
+    return;
+  }
 
-    const payload = {
-      projectId,
-      charAId: charA,
-      charBId: charB,
-      type: relType,
-      intensity,
-      sceneId: relSceneId,
-      description,
-    };
-
-    try {
-      if (editingId) {
-        const res = await apiClient.put(`/entities/relations/${editingId}`, payload);
-        setRelations((prev) => prev.map((r) => (r.id === editingId ? (res.data || payload) : r)));
-      } else {
-        const res = await apiClient.post(`/entities/relations`, payload);
-        const newObj = res?.data || { id: `rel-${Date.now()}`, ...payload };
-        setRelations((prev) => [...prev, newObj]);
-      }
-      setIsFormOpen(false);
-    } catch (err) {
-      const mockObj = { id: editingId || `rel-${Date.now()}`, ...payload };
-      setRelations((prev) =>
-        editingId ? prev.map((r) => (r.id === editingId ? mockObj : r)) : [...prev, mockObj]
-      );
-      setIsFormOpen(false);
-    }
+  const payload = {
+    projectId,
+    charAId: charA,
+    charBId: charB,
+    type: relType,
+    intensity,
+    sceneId: relSceneId || null,
+    description,
   };
+
+  try {
+    if (editingId) {
+      const res = await apiClient.put(`/entities/relations/${editingId}`, payload);
+      setRelations((prev) => prev.map((r) => (r.id === editingId ? res.data : r)));
+    } else {
+      const res = await apiClient.post(`/entities/relations`, payload);
+      setRelations((prev) => [...prev, res.data]);
+    }
+    setIsFormOpen(false);
+  } catch (err) {
+    console.error('Erro ao salvar no PostgreSQL:', err);
+    alert('Não foi possível salvar a relação no banco de dados.');
+  }
+};
 
   const handleDeleteRelation = async (id, e) => {
-    e.stopPropagation();
-    try { await apiClient.delete(`/entities/relations/${id}`); } catch (err) {}
+  e.stopPropagation();
+  try {
+    await apiClient.delete(`/entities/relations/${id}`);
     setRelations((prev) => prev.filter((r) => r.id !== id));
-  };
+  } catch (err) {
+    console.error('Erro ao excluir no PostgreSQL:', err);
+    alert('Não foi possível excluir a relação.');
+  }
+};
 
   return (
     <div className="w-full min-h-screen bg-[#0b0c10] text-gray-200 p-6 font-sans">
