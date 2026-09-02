@@ -17,6 +17,32 @@ import {
 import '@xyflow/react/dist/style.css';
 import apiClient from '../api/apiClient';
 
+// -----------------------------------------------------------------
+// HELPER PARA CONVERTER HEX + OPACIDADE (%) EM RGBA
+// -----------------------------------------------------------------
+function hexToRgba(hex = '#181824', opacity = 100) {
+  if (hex === 'none') return 'transparent';
+  let cleanHex = hex.replace('#', '');
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex.split('').map((c) => c + c).join('');
+  }
+  const num = parseInt(cleanHex, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  const alpha = Math.max(0, Math.min(100, opacity)) / 100;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Map de Tamanhos de Fonte
+const FONT_SIZE_MAP = {
+  'muito-pequeno': '10px',
+  pequeno: '12px',
+  medio: '14px',
+  grande: '18px',
+  gigante: '24px',
+};
+
 // Helper de cores para Badges de Entidades
 function getEntityBadgeTheme(type = '') {
   const norm = String(type).toLowerCase();
@@ -216,10 +242,24 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
 // 5. CAIXA DE TEXTO TOTALMENTE AJUSTADA E EDITÁVEL
 // -----------------------------------------------------------------
 
-        function EditableNodeText({ id, label, onUpdateLabel }) {
+  function EditableNodeText({ id, data, onUpdateData }) {
+  const {
+    label = '',
+    textColor = '#ffffff',
+    textOpacity = 100,
+    fontSize = 'medio',
+    fontFamily = 'Arial',
+    isBold = false,
+    isItalic = false,
+    isUnderline = false,
+    isStrike = false,
+    textAlign = 'center',
+    textVAlign = 'middle',
+    textDirection = 'horizontal',
+  } = data;
+
   const textRef = useRef(null);
 
-  // Sincroniza o valor inicial e alterações externas
   useEffect(() => {
     if (textRef.current && document.activeElement !== textRef.current) {
       textRef.current.innerText = label || '';
@@ -228,27 +268,45 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
 
   const handleInput = (e) => {
     const val = e.currentTarget.innerText;
-
-    // Repassa o valor para o React Flow
-    if (onUpdateLabel) {
-      onUpdateLabel(id, val);
+    if (onUpdateData) {
+      onUpdateData(id, { label: val });
     }
   };
 
   const handleFocus = () => {
-    // Mover o cursor para o final do texto ao focar
     if (textRef.current) {
       const range = document.createRange();
       const selection = window.getSelection();
       range.selectNodeContents(textRef.current);
-      range.collapse(false); // false = vai para o fim
+      range.collapse(false);
       selection.removeAllRanges();
       selection.addRange(range);
     }
   };
 
+  // Alinhamento Vertical
+  const vAlignClass =
+    textVAlign === 'top'
+      ? 'items-start'
+      : textVAlign === 'bottom'
+      ? 'items-end'
+      : 'items-center';
+
+  // Alinhamento Horizontal
+  const hAlignStyle =
+    textAlign === 'left' ? 'text-left' : textAlign === 'right' ? 'text-right' : 'text-center';
+
+  // Estilos de Fonte
+  const textDecorations = [
+    isUnderline ? 'underline' : '',
+    isStrike ? 'line-through' : '',
+  ].filter(Boolean).join(' ');
+
+  // Direção de Escrita
+  const isVertical = textDirection === 'vertical-lr' || textDirection === 'vertical-rl';
+
   return (
-    <div className="w-full h-full flex items-center justify-center p-1 pointer-events-auto relative z-20">
+    <div className={`w-full h-full flex ${vAlignClass} justify-center p-1.5 pointer-events-auto relative z-20`}>
       <div
         ref={textRef}
         contentEditable
@@ -257,9 +315,22 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
         onFocus={handleFocus}
         onKeyDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        className="nodrag nopan w-full h-full bg-transparent text-white text-center outline-none focus:ring-1 focus:ring-purple-500 rounded p-0.5 text-sm font-medium flex items-center justify-center overflow-hidden leading-tight"
-        style={{ cursor: 'text', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
-      />
+        className={`nodrag nopan w-full h-full bg-transparent outline-none focus:ring-1 focus:ring-purple-500 rounded p-0.5 font-medium flex items-center justify-center overflow-hidden leading-tight ${hAlignStyle}`}
+        style={{
+          color: hexToRgba(textColor, textOpacity),
+          fontSize: FONT_SIZE_MAP[fontSize] || '14px',
+          fontFamily: fontFamily || 'Arial',
+          fontWeight: isBold ? 'bold' : 'normal',
+          fontStyle: isItalic ? 'italic' : 'normal',
+          textDecoration: textDecorations || 'none',
+          writingMode: isVertical ? textDirection : 'horizontal-tb',
+          cursor: 'text',
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+        }}
+      >
+        {label}
+      </div>
     </div>
   );
 }
@@ -270,46 +341,49 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
 function CustomShapeNode({ id, data, selected }) {
   const {
     shapeType,
-    label,
-    fillColor,
-    noFill,
-    strokeColor,
-    strokeWidth,
-    strokeStyle,
+    fillColor = '#181824',
+    fillOpacity = 100,
+    noFill = false,
+    strokeColor = '#7C3AED',
+    strokeOpacity = 100,
+    strokeWidth = '2px',
+    strokeStyle = 'solid',
+    arrowStartHead = 'none',
+    arrowEndHead = 'triangle',
     rotation = 0,
     cornerRadius = 8,
     vertexOffset = 50,
   } = data;
 
   const strokeDash = strokeStyle === 'dashed' ? '6 4' : strokeStyle === 'dotted' ? '2 2' : 'none';
-  const widthNum = parseInt(strokeWidth, 10) || 2;
-  const fillVal = noFill ? 'none' : fillColor || '#181824';
-  const strokeVal = strokeColor || '#7C3AED';
+  const widthNum = strokeWidth === '0px' ? 0 : parseInt(strokeWidth, 10) || 2;
+  const fillVal = noFill ? 'none' : hexToRgba(fillColor, fillOpacity);
+  const strokeVal = widthNum === 0 ? 'none' : hexToRgba(strokeColor, strokeOpacity);
 
   const handleRotate = useCallback((deg) => {
-    if (data.onUpdateRotation) data.onUpdateRotation(id, deg);
+    if (data.onUpdateData) data.onUpdateData(id, { rotation: deg });
   }, [id, data]);
 
   const handleRadiusChange = useCallback((r) => {
-    if (data.onUpdateCornerRadius) data.onUpdateCornerRadius(id, r);
+    if (data.onUpdateData) data.onUpdateData(id, { cornerRadius: r });
   }, [id, data]);
 
   const handleVertexOffsetChange = useCallback((offset) => {
-    if (data.onUpdateVertexOffset) data.onUpdateVertexOffset(id, offset);
+    if (data.onUpdateData) data.onUpdateData(id, { vertexOffset: offset });
   }, [id, data]);
 
-  const handleLabelChange = useCallback((nodeId, newText) => {
-    if (data.onUpdateLabel) data.onUpdateLabel(nodeId, newText);
+  const handleUpdateData = useCallback((nodeId, updatedProps) => {
+    if (data.onUpdateData) data.onUpdateData(nodeId, updatedProps);
   }, [data]);
 
   return (
     <div
-      className="group relative w-full h-full min-w-[15px] min-h-[15px] flex items-center justify-center"
+      className="group relative w-full h-full min-w-[30px] min-h-[30px] flex items-center justify-center"
       style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
     >
       <NodeResizer
-        minWidth={15}
-        minHeight={15}
+        minWidth={30}
+        minHeight={30}
         isVisible={selected}
         lineClassName="border-sky-400 border-dashed"
         handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40"
@@ -322,9 +396,9 @@ function CustomShapeNode({ id, data, selected }) {
         <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
       )}
 
-      {/* TEXTO LIVRE */}
+      {/* CAIXA DE TEXTO LIVRE */}
       {shapeType === 'text' && (
-        <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
+        <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
       )}
 
       {/* CÍRCULO */}
@@ -333,9 +407,7 @@ function CustomShapeNode({ id, data, selected }) {
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <ellipse cx="50" cy="50" rx="46" ry="46" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
-            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
-          </div>
+          <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
         </div>
       )}
 
@@ -345,9 +417,7 @@ function CustomShapeNode({ id, data, selected }) {
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon points="50,2 98,50 50,98 2,50" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
-            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
-          </div>
+          <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
         </div>
       )}
 
@@ -359,23 +429,60 @@ function CustomShapeNode({ id, data, selected }) {
             <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon points={`${vertexOffset},4 96,96 4,96`} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
             </svg>
-            <div className="relative z-10 w-full h-full flex items-center justify-center pt-6 px-2">
-              <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
-            </div>
+            <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
           </div>
         </>
       )}
 
-      {/* SETA */}
+      {/* SETA COM SUPORTE A DIFERENTES MARCADORES DE PONTA */}
       {shapeType === 'arrow' && (
         <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
-              <marker id={`arrowhead-${id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill={strokeVal} />
+              {/* Ponta Triangular */}
+              <marker id={`start-triangle-${id}`} markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto">
+                <polygon points="8 0, 0 4, 8 8" fill={strokeVal} />
+              </marker>
+              <marker id={`end-triangle-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <polygon points="0 0, 8 4, 0 8" fill={strokeVal} />
+              </marker>
+
+              {/* Ponta Redonda */}
+              <marker id={`start-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <circle cx="4" cy="4" r="3" fill={strokeVal} />
+              </marker>
+              <marker id={`end-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <circle cx="4" cy="4" r="3" fill={strokeVal} />
+              </marker>
+
+              {/* Ponta Quadrada */}
+              <marker id={`start-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <rect x="1" y="1" width="6" height="6" fill={strokeVal} />
+              </marker>
+              <marker id={`end-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <rect x="1" y="1" width="6" height="6" fill={strokeVal} />
+              </marker>
+
+              {/* Ponta Losango */}
+              <marker id={`start-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} />
+              </marker>
+              <marker id={`end-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} />
               </marker>
             </defs>
-            <line x1="5" y1="50" x2="85" y2="50" stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} markerEnd={`url(#arrowhead-${id})`} />
+
+            <line
+              x1="8"
+              y1="50"
+              x2="92"
+              y2="50"
+              stroke={strokeVal}
+              strokeWidth={widthNum || 2}
+              strokeDasharray={strokeDash}
+              markerStart={arrowStartHead !== 'none' ? `url(#start-${arrowStartHead}-${id})` : undefined}
+              markerEnd={arrowEndHead !== 'none' ? `url(#end-${arrowEndHead}-${id})` : undefined}
+            />
           </svg>
         </div>
       )}
@@ -386,9 +493,7 @@ function CustomShapeNode({ id, data, selected }) {
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <rect x="2" y="2" width="96" height="96" rx={cornerRadius} ry={cornerRadius} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
           </svg>
-          <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
-            <EditableNodeText id={id} label={label} onUpdateLabel={handleLabelChange} />
-          </div>
+          <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
         </div>
       )}
     </div>
