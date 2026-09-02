@@ -40,11 +40,8 @@ const FONT_SIZE_MAP = {
   gigante: '24px',
 };
 
-// -----------------------------------------------------------------
 // SISTEMA DE CORES FIXAS E ESPECÍFICAS PARA AS TAGS / BADGES
-// -----------------------------------------------------------------
 function getEntityBadgeTheme(category = '', type = '') {
-  // Remove acentos e converte para minúsculas
   const sanitize = (str) =>
     String(str || '')
       .normalize('NFD')
@@ -54,21 +51,19 @@ function getEntityBadgeTheme(category = '', type = '') {
   const normCat = sanitize(category);
   const normType = sanitize(type);
 
-  // 1. PERSONAGENS (Cor Principal + Subtipos Específicos)
   if (normCat.includes('personag') || normType.includes('personag')) {
     if (normType.includes('protagonista')) {
-      return 'bg-orange-900/90 text-orange-200 border-orange-500 font-bold'; // Protagonista -> Laranja
+      return 'bg-orange-900/90 text-orange-200 border-orange-500 font-bold';
     }
     if (normType.includes('antagonista') || normType.includes('vilao')) {
-      return 'bg-red-900/90 text-red-200 border-red-500 font-bold'; // Antagonista -> Vermelho
+      return 'bg-red-900/90 text-red-200 border-red-500 font-bold';
     }
     if (normType.includes('secundario') || normType.includes('coadjuvante')) {
-      return 'bg-blue-900/90 text-blue-200 border-blue-500 font-bold'; // Secundário -> Azul
+      return 'bg-blue-900/90 text-blue-200 border-blue-500 font-bold';
     }
     return 'bg-purple-950/90 text-purple-300 border-purple-700/60 font-bold';
   }
 
-  // 2. MUNDO (Cor Principal + Subtipos)
   if (normCat.includes('mundo') || normType.includes('mundo')) {
     if (normType.includes('planeta')) return 'bg-blue-900/80 text-blue-200 border-blue-400 font-bold';
     if (normType.includes('pais')) return 'bg-emerald-900/80 text-emerald-200 border-emerald-400 font-bold';
@@ -76,7 +71,6 @@ function getEntityBadgeTheme(category = '', type = '') {
     return 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60 font-bold';
   }
 
-  // 3. OUTROS TIPOS COM CORES DEDICADAS
   if (normCat.includes('cena')) return 'bg-amber-900/80 text-amber-200 border-amber-500 font-bold';
   if (normCat.includes('estrutura')) return 'bg-blue-900/80 text-blue-200 border-blue-500 font-bold';
   if (normCat.includes('misterio')) return 'bg-pink-900/80 text-pink-200 border-pink-500 font-bold';
@@ -84,7 +78,6 @@ function getEntityBadgeTheme(category = '', type = '') {
 
   return 'bg-gray-800 text-gray-300 border-gray-600 font-bold';
 }
-
 
 function ArrowDirectionalHandles() {
   const arrowStyle = {
@@ -113,7 +106,8 @@ function ArrowDirectionalHandles() {
   );
 }
 
-function BottomRightRotateHandle({ onRotate, selected }) {
+// MANIPULADOR DE ROTAÇÃO DE ALTA PRECISÃO (PESADO E CONTROLADO)
+function BottomRightRotateHandle({ onRotate, selected, currentRotation = 0 }) {
   if (!selected) return null;
 
   const handleMouseDown = (e) => {
@@ -127,11 +121,29 @@ function BottomRightRotateHandle({ onRotate, selected }) {
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
+    const initialMouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    const initialNodeRotation = Number(currentRotation) || 0;
+    const startX = e.clientX;
+    const startY = e.clientY;
+
     const onMouseMove = (moveEvent) => {
-      const radians = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
-      let degrees = Math.round(radians * (180 / Math.PI)) - 45;
-      if (degrees < 0) degrees += 360;
-      onRotate(degrees);
+      // Exige um movimento mínimo de 4px para ativar o giro
+      const distanceMoved = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+      if (distanceMoved < 4) return;
+
+      const currentMouseAngle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * (180 / Math.PI);
+      const rawDelta = currentMouseAngle - initialMouseAngle;
+
+      // Fator de peso (damping = 0.4): desacelera a rotação para exigir arrasto intencional
+      const dampenedDelta = rawDelta * 0.4;
+      let newAngle = initialNodeRotation + dampenedDelta;
+
+      // Trava magnética (15° normal / 45° com Shift)
+      const step = moveEvent.shiftKey ? 45 : 15;
+      newAngle = Math.round(newAngle / step) * step;
+
+      const normalizedAngle = ((newAngle % 360) + 360) % 360;
+      onRotate(normalizedAngle);
     };
 
     const onMouseUp = () => {
@@ -144,7 +156,13 @@ function BottomRightRotateHandle({ onRotate, selected }) {
   };
 
   return (
-    <div onMouseDown={handleMouseDown} className="nodrag nopan absolute -right-5 -bottom-5 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-all shadow-md flex items-center justify-center text-[10px] select-none font-bold" title="Arraste para rotacionar">↻</div>
+    <div
+      onMouseDown={handleMouseDown}
+      className="nodrag nopan absolute -right-6 -bottom-6 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-all shadow-md flex items-center justify-center text-[11px] w-6 h-6 select-none font-bold"
+      title="Arraste para rotacionar (Segure Shift para travar a 45°)"
+    >
+      ↻
+    </div>
   );
 }
 
@@ -355,7 +373,7 @@ function CustomShapeNode({ id, data, selected }) {
       <NodeResizer minWidth={30} minHeight={30} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
 
       <TopRightDeleteHandle onDelete={handleDeleteNode} selected={selected} />
-      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
+      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} currentRotation={rotation} />
       <ArrowDirectionalHandles />
 
       {shapeType === 'rectangle' && (
@@ -430,9 +448,6 @@ function CustomShapeNode({ id, data, selected }) {
   );
 }
 
-// -----------------------------------------------------------------
-// CARD DE ENTIDADES: ACEITA FORMATAÇÕES DAS FERRAMENTAS ESQUERDAS
-// -----------------------------------------------------------------
 function EntityCardNode({ id, data, selected }) {
   const {
     title,
@@ -464,7 +479,6 @@ function EntityCardNode({ id, data, selected }) {
     if (data.onDeleteNode) data.onDeleteNode(id);
   }, [id, data]);
 
-  // Estilos Dinâmicos
   const bgStyle = noFill ? 'transparent' : hexToRgba(fillColor, fillOpacity);
   const borderStyleVal = strokeWidth === '0px' ? 'none' : strokeStyle;
   const borderColVal = strokeWidth === '0px' ? 'transparent' : hexToRgba(strokeColor, strokeOpacity);
@@ -473,6 +487,8 @@ function EntityCardNode({ id, data, selected }) {
     isUnderline ? 'underline' : '',
     isStrike ? 'line-through' : '',
   ].filter(Boolean).join(' ');
+
+  const badgeTheme = getEntityBadgeTheme(category || '', type || title);
 
   return (
     <div
@@ -490,10 +506,10 @@ function EntityCardNode({ id, data, selected }) {
     >
       <NodeResizer minWidth={140} minHeight={60} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
       <TopRightDeleteHandle onDelete={handleDeleteNode} selected={selected} />
-      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
+      <BottomRightRotateHandle onRotate={handleRotate} selected={selected} currentRotation={rotation} />
       <ArrowDirectionalHandles />
 
-      {/* Título do Card: Conteúdo Protegido, mas Formatação Editável */}
+      {/* Título do Card */}
       <div className="pr-2 overflow-hidden">
         <strong
           className="block truncate select-none leading-tight"
@@ -510,12 +526,13 @@ function EntityCardNode({ id, data, selected }) {
         </strong>
       </div>
 
-      {/* Tag / Badge Protegida com Cores Fixas por Categoria / Subtipo */}
+      {/* Tag / Badge */}
       <div className="pt-2">
-        <span className={`inline-block border px-2.5 py-0.5 rounded-md text-[10px] tracking-wide shadow-sm select-none ${getEntityBadgeTheme(category, type)}`}>
+        <span className={`inline-block border px-2.5 py-0.5 rounded-md text-[10px] tracking-wide shadow-sm select-none ${badgeTheme}`}>
           {type || category}
         </span>
       </div>
+    </div>
   );
 }
 
@@ -568,6 +585,101 @@ function StoryboardContent({ projectId }) {
     setNodes((nds) => nds.filter((node) => node.id !== nodeId));
     setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId));
   }, [setNodes]);
+
+  // FUNÇÕES DE ALINHAMENTO, DISTRIBUIÇÃO E GRADE
+  const alignNodes = useCallback((alignmentType) => {
+    if (selectedNodeIds.length < 1) return;
+
+    setNodes((prevNodes) => {
+      const selected = prevNodes.filter((n) => selectedNodeIds.includes(n.id));
+      if (selected.length === 0) return prevNodes;
+
+      if (alignmentType === 'grid') {
+        const GRID_SIZE = 20;
+        return prevNodes.map((node) => {
+          if (selectedNodeIds.includes(node.id)) {
+            return {
+              ...node,
+              position: {
+                x: Math.round(node.position.x / GRID_SIZE) * GRID_SIZE,
+                y: Math.round(node.position.y / GRID_SIZE) * GRID_SIZE,
+              },
+            };
+          }
+          return node;
+        });
+      }
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+      selected.forEach((node) => {
+        const w = node.measured?.width || parseInt(node.style?.width, 10) || 150;
+        const h = node.measured?.height || parseInt(node.style?.height, 10) || 80;
+        
+        if (node.position.x < minX) minX = node.position.x;
+        if (node.position.x + w > maxX) maxX = node.position.x + w;
+        if (node.position.y < minY) minY = node.position.y;
+        if (node.position.y + h > maxY) maxY = node.position.y + h;
+      });
+
+      const groupCenterX = minX + (maxX - minX) / 2;
+      const groupCenterY = minY + (maxY - minY) / 2;
+
+      if (alignmentType === 'distribute-h' && selected.length >= 3) {
+        const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
+        const totalWidth = sorted.reduce((sum, n) => sum + (n.measured?.width || parseInt(n.style?.width, 10) || 150), 0);
+        const gap = (maxX - minX - totalWidth) / (sorted.length - 1);
+
+        let currentX = minX;
+        const posMap = new Map();
+        sorted.forEach((n) => {
+          posMap.set(n.id, currentX);
+          const w = n.measured?.width || parseInt(n.style?.width, 10) || 150;
+          currentX += w + gap;
+        });
+
+        return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, x: posMap.get(n.id) } } : n);
+      }
+
+      if (alignmentType === 'distribute-v' && selected.length >= 3) {
+        const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
+        const totalHeight = sorted.reduce((sum, n) => sum + (n.measured?.height || parseInt(n.style?.height, 10) || 80), 0);
+        const gap = (maxY - minY - totalHeight) / (sorted.length - 1);
+
+        let currentY = minY;
+        const posMap = new Map();
+        sorted.forEach((n) => {
+          posMap.set(n.id, currentY);
+          const h = n.measured?.height || parseInt(n.style?.height, 10) || 80;
+          currentY += h + gap;
+        });
+
+        return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, y: posMap.get(n.id) } } : n);
+      }
+
+      return prevNodes.map((node) => {
+        if (!selectedNodeIds.includes(node.id)) return node;
+
+        const w = node.measured?.width || parseInt(node.style?.width, 10) || 150;
+        const h = node.measured?.height || parseInt(node.style?.height, 10) || 80;
+
+        let newX = node.position.x;
+        let newY = node.position.y;
+
+        switch (alignmentType) {
+          case 'left': newX = minX; break;
+          case 'right': newX = maxX - w; break;
+          case 'center-h': newX = groupCenterX - w / 2; break;
+          case 'top': newY = minY; break;
+          case 'bottom': newY = maxY - h; break;
+          case 'center-v': newY = groupCenterY - h / 2; break;
+          default: break;
+        }
+
+        return { ...node, position: { x: newX, y: newY } };
+      });
+    });
+  }, [selectedNodeIds, setNodes]);
 
   const [entities, setEntities] = useState({
     personagens: [],
@@ -852,9 +964,7 @@ function StoryboardContent({ projectId }) {
     fetchProjectEntities();
   }, [projectId]);
 
-  // INJEÇÃO DE ENTIDADES DA HISTÓRIA COM AS PROPRIEDADES DE ESTILO PADRÃO
   function addEntityToCanvas(entity, category) {
-    // Detecta o subtipo do personagem/item independente da chave enviada pelo Backend
     const entitySubtype =
       entity.type ||
       entity.role ||
@@ -974,6 +1084,27 @@ function StoryboardContent({ projectId }) {
                       <span className="text-[9px] font-medium tracking-tight leading-none">{tool.label}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* SEÇÃO DE ALINHAMENTO E GRADE */}
+              <div className="space-y-3 pt-3 border-t border-gray-800/60">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">ALINHAMENTO E GRADE</h3>
+                
+                <div className="grid grid-cols-3 gap-1.5 bg-[#161622] p-2 rounded-xl border border-gray-800/80">
+                  <button type="button" onClick={() => alignNodes('left')} disabled={selectedNodeIds.length < 1} title="Alinhar à Esquerda" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">⇤ Esq</button>
+                  <button type="button" onClick={() => alignNodes('center-h')} disabled={selectedNodeIds.length < 1} title="Centralizar Horizontalmente" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">⇥ Hor ⇤</button>
+                  <button type="button" onClick={() => alignNodes('right')} disabled={selectedNodeIds.length < 1} title="Alinhar à Direita" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">Dir ⇥</button>
+
+                  <button type="button" onClick={() => alignNodes('top')} disabled={selectedNodeIds.length < 1} title="Alinhar ao Topo" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">⤒ Topo</button>
+                  <button type="button" onClick={() => alignNodes('center-v')} disabled={selectedNodeIds.length < 1} title="Centralizar Verticalmente" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">⤓ Ver ⤒</button>
+                  <button type="button" onClick={() => alignNodes('bottom')} disabled={selectedNodeIds.length < 1} title="Alinhar à Base" className="p-2 rounded bg-[#12121a] hover:bg-purple-900/50 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold flex items-center justify-center">⤓ Base</button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button type="button" onClick={() => alignNodes('distribute-h')} disabled={selectedNodeIds.length < 3} title="Espaçar Igualmente na Horizontal (Min. 3)" className="p-1.5 rounded bg-[#181824] border border-gray-800 hover:border-purple-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-semibold">Distr. Hor</button>
+                  <button type="button" onClick={() => alignNodes('distribute-v')} disabled={selectedNodeIds.length < 3} title="Espaçar Igualmente na Vertical (Min. 3)" className="p-1.5 rounded bg-[#181824] border border-gray-800 hover:border-purple-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-semibold">Distr. Ver</button>
+                  <button type="button" onClick={() => alignNodes('grid')} disabled={selectedNodeIds.length < 1} title="Ajustar posição à grade (20px)" className="p-1.5 rounded bg-purple-950/60 border border-purple-800/80 hover:bg-purple-900 text-purple-200 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-bold">Grade ⩤⩥</button>
                 </div>
               </div>
 
@@ -1330,6 +1461,8 @@ function StoryboardContent({ projectId }) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           selectionMode={SelectionMode.Partial}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
           panOnScroll
           panOnDrag={[2]}
           selectionOnDrag={selectedTool === 'select'}
