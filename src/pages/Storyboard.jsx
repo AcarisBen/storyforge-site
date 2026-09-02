@@ -17,9 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import apiClient from '../api/apiClient';
 
-// -----------------------------------------------------------------
-// HELPER PARA CONVERTER HEX + OPACIDADE (%) EM RGBA
-// -----------------------------------------------------------------
+// Helper para converter HEX + Opacidade (%) em RGBA
 function hexToRgba(hex = '#181824', opacity = 100) {
   if (hex === 'none') return 'transparent';
   let cleanHex = hex.replace('#', '');
@@ -34,7 +32,6 @@ function hexToRgba(hex = '#181824', opacity = 100) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Map de Tamanhos de Fonte
 const FONT_SIZE_MAP = {
   'muito-pequeno': '10px',
   pequeno: '12px',
@@ -43,19 +40,52 @@ const FONT_SIZE_MAP = {
   gigante: '24px',
 };
 
-function getEntityBadgeTheme(type = '') {
-  const norm = String(type).toLowerCase();
-  if (norm.includes('protagonista')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
-  if (norm.includes('antagonista')) return 'bg-red-900/60 text-red-300 border-red-500/50';
-  if (norm.includes('planeta') || norm.includes('país') || norm.includes('cidade')) return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
-  if (norm.includes('política') || norm.includes('economia')) return 'bg-amber-900/60 text-amber-300 border-amber-500/50';
-  if (norm.includes('fauna') || norm.includes('flora')) return 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50';
-  return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
+// -----------------------------------------------------------------
+// SISTEMA DE CORES FIXAS E ESPECÍFICAS PARA AS TAGS / BADGES
+// -----------------------------------------------------------------
+function getEntityBadgeTheme(category = '', type = '') {
+  // Remove acentos e converte para minúsculas
+  const sanitize = (str) =>
+    String(str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+  const normCat = sanitize(category);
+  const normType = sanitize(type);
+
+  // 1. PERSONAGENS (Cor Principal + Subtipos Específicos)
+  if (normCat.includes('personag') || normType.includes('personag')) {
+    if (normType.includes('protagonista')) {
+      return 'bg-orange-900/90 text-orange-200 border-orange-500 font-bold'; // Protagonista -> Laranja
+    }
+    if (normType.includes('antagonista') || normType.includes('vilao')) {
+      return 'bg-red-900/90 text-red-200 border-red-500 font-bold'; // Antagonista -> Vermelho
+    }
+    if (normType.includes('secundario') || normType.includes('coadjuvante')) {
+      return 'bg-blue-900/90 text-blue-200 border-blue-500 font-bold'; // Secundário -> Azul
+    }
+    return 'bg-purple-950/90 text-purple-300 border-purple-700/60 font-bold';
+  }
+
+  // 2. MUNDO (Cor Principal + Subtipos)
+  if (normCat.includes('mundo') || normType.includes('mundo')) {
+    if (normType.includes('planeta')) return 'bg-blue-900/80 text-blue-200 border-blue-400 font-bold';
+    if (normType.includes('pais')) return 'bg-emerald-900/80 text-emerald-200 border-emerald-400 font-bold';
+    if (normType.includes('cidade')) return 'bg-cyan-900/80 text-cyan-200 border-cyan-400 font-bold';
+    return 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60 font-bold';
+  }
+
+  // 3. OUTROS TIPOS COM CORES DEDICADAS
+  if (normCat.includes('cena')) return 'bg-amber-900/80 text-amber-200 border-amber-500 font-bold';
+  if (normCat.includes('estrutura')) return 'bg-blue-900/80 text-blue-200 border-blue-500 font-bold';
+  if (normCat.includes('misterio')) return 'bg-pink-900/80 text-pink-200 border-pink-500 font-bold';
+  if (normCat.includes('twist') || normCat.includes('plot')) return 'bg-purple-900/80 text-purple-200 border-purple-500 font-bold';
+
+  return 'bg-gray-800 text-gray-300 border-gray-600 font-bold';
 }
 
-// -----------------------------------------------------------------
-// 1. CONECTORES EM FORMA DE SETA NAS BORDAS
-// -----------------------------------------------------------------
+
 function ArrowDirectionalHandles() {
   const arrowStyle = {
     width: '16px',
@@ -83,9 +113,6 @@ function ArrowDirectionalHandles() {
   );
 }
 
-// -----------------------------------------------------------------
-// 2. MANIPULADORES DE ROTAÇÃO E CANTOS
-// -----------------------------------------------------------------
 function BottomRightRotateHandle({ onRotate, selected }) {
   if (!selected) return null;
 
@@ -201,9 +228,6 @@ function TopRightDeleteHandle({ onDelete, selected }) {
   );
 }
 
-// -----------------------------------------------------------------
-// 3. CAMPO DE TEXTO EDITÁVEL FORMATÁVEL
-// -----------------------------------------------------------------
 function EditableNodeText({ id, data, onUpdateData }) {
   const {
     label = '',
@@ -284,9 +308,6 @@ function EditableNodeText({ id, data, onUpdateData }) {
   );
 }
 
-// -----------------------------------------------------------------
-// 4. RENDERIZADOR DE NÓS VETORIAIS
-// -----------------------------------------------------------------
 function CustomShapeNode({ id, data, selected }) {
   const {
     shapeType,
@@ -409,8 +430,31 @@ function CustomShapeNode({ id, data, selected }) {
   );
 }
 
+// -----------------------------------------------------------------
+// CARD DE ENTIDADES: ACEITA FORMATAÇÕES DAS FERRAMENTAS ESQUERDAS
+// -----------------------------------------------------------------
 function EntityCardNode({ id, data, selected }) {
-  const { title, type, category, rotation = 0 } = data;
+  const {
+    title,
+    type,
+    category,
+    rotation = 0,
+    fillColor = '#14141f',
+    fillOpacity = 100,
+    noFill = false,
+    strokeColor = '#7C3AED',
+    strokeOpacity = 100,
+    strokeWidth = '2px',
+    strokeStyle = 'solid',
+    textColor = '#ffffff',
+    textOpacity = 100,
+    fontSize = 'medio',
+    fontFamily = 'Arial',
+    isBold = false,
+    isItalic = false,
+    isUnderline = false,
+    isStrike = false,
+  } = data;
 
   const handleRotate = useCallback((deg) => {
     if (data.onUpdateData) data.onUpdateData(id, { rotation: deg });
@@ -420,21 +464,61 @@ function EntityCardNode({ id, data, selected }) {
     if (data.onDeleteNode) data.onDeleteNode(id);
   }, [id, data]);
 
+  // Estilos Dinâmicos
+  const bgStyle = noFill ? 'transparent' : hexToRgba(fillColor, fillOpacity);
+  const borderStyleVal = strokeWidth === '0px' ? 'none' : strokeStyle;
+  const borderColVal = strokeWidth === '0px' ? 'transparent' : hexToRgba(strokeColor, strokeOpacity);
+
+  const textDecorations = [
+    isUnderline ? 'underline' : '',
+    isStrike ? 'line-through' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={`group relative bg-[#14141f] border border-purple-500/60 rounded-xl p-3 shadow-2xl w-full h-full text-left space-y-1.5 transition-all ${selected ? 'ring-2 ring-sky-400' : ''}`} style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
-      <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
+    <div
+      className={`group relative rounded-xl p-3.5 shadow-2xl w-full h-full text-left flex flex-col justify-between transition-all ${
+        selected ? 'ring-2 ring-sky-400' : ''
+      }`}
+      style={{
+        transform: `rotate(${rotation}deg)`,
+        transformOrigin: 'center center',
+        backgroundColor: bgStyle,
+        borderColor: borderColVal,
+        borderWidth: strokeWidth,
+        borderStyle: borderStyleVal,
+      }}
+    >
+      <NodeResizer minWidth={140} minHeight={60} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
       <TopRightDeleteHandle onDelete={handleDeleteNode} selected={selected} />
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
       <ArrowDirectionalHandles />
-      <strong className="block text-sm font-bold text-white select-none">{title}</strong>
-      <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>{type || category}</span>
-    </div>
+
+      {/* Título do Card: Conteúdo Protegido, mas Formatação Editável */}
+      <div className="pr-2 overflow-hidden">
+        <strong
+          className="block truncate select-none leading-tight"
+          style={{
+            color: hexToRgba(textColor, textOpacity),
+            fontSize: FONT_SIZE_MAP[fontSize] || '14px',
+            fontFamily: fontFamily || 'Arial',
+            fontWeight: isBold ? 'bold' : 'normal',
+            fontStyle: isItalic ? 'italic' : 'normal',
+            textDecoration: textDecorations || 'none',
+          }}
+        >
+          {title}
+        </strong>
+      </div>
+
+      {/* Tag / Badge Protegida com Cores Fixas por Categoria / Subtipo */}
+      <div className="pt-2">
+        <span className={`inline-block border px-2.5 py-0.5 rounded-md text-[10px] tracking-wide shadow-sm select-none ${getEntityBadgeTheme(category, type)}`}>
+          {type || category}
+        </span>
+      </div>
   );
 }
 
-// -----------------------------------------------------------------
-// COMPONENTE PRINCIPAL DO STORYBOARD
-// -----------------------------------------------------------------
 function StoryboardContent({ projectId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -445,7 +529,6 @@ function StoryboardContent({ projectId }) {
 
   const [selectedTool, setSelectedTool] = useState('select');
 
-  // ESTADOS DE FORMATAÇÃO PADRÃO
   const [fillColor, setFillColor] = useState('#1a1d24');
   const [fillOpacity, setFillOpacity] = useState(100);
   const [noFill, setNoFill] = useState(false);
@@ -458,7 +541,6 @@ function StoryboardContent({ projectId }) {
   const [arrowStartHead, setArrowStartHead] = useState('none');
   const [arrowEndHead, setArrowEndHead] = useState('triangle');
 
-  // FORMATAÇÃO DE TEXTO
   const [textColor, setTextColor] = useState('#ffffff');
   const [textOpacity, setTextOpacity] = useState(100);
   const [fontSize, setFontSize] = useState('medio');
@@ -467,8 +549,6 @@ function StoryboardContent({ projectId }) {
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
   const [isStrike, setIsStrike] = useState(false);
-  const [textAlign, setTextAlign] = useState('center');
-  const [textVAlign, setTextVAlign] = useState('middle');
   const [textDirection, setTextDirection] = useState('horizontal');
 
   const [selectedNodes, setSelectedNodes] = useState([]);
@@ -552,8 +632,6 @@ function StoryboardContent({ projectId }) {
         if (data.isItalic !== undefined) setIsItalic(data.isItalic);
         if (data.isUnderline !== undefined) setIsUnderline(data.isUnderline);
         if (data.isStrike !== undefined) setIsStrike(data.isStrike);
-        if (data.textAlign !== undefined) setTextAlign(data.textAlign);
-        if (data.textVAlign !== undefined) setTextVAlign(data.textVAlign);
         if (data.textDirection !== undefined) setTextDirection(data.textDirection);
       }
     },
@@ -587,24 +665,60 @@ function StoryboardContent({ projectId }) {
       const selectedList = prevNodes.filter((n) => selectedNodeIds.includes(n.id));
       const unselectedList = prevNodes.filter((n) => !selectedNodeIds.includes(n.id));
 
+      let updatedNodes = [];
+
       if (type === 'front-top') {
-        return [...unselectedList, ...selectedList.map((n) => ({ ...n, zIndex: (n.zIndex || 1) + 50 }))];
+        const maxZ = Math.max(...prevNodes.map((n) => n.zIndex || 1), 1);
+        updatedNodes = [
+          ...unselectedList,
+          ...selectedList.map((n) => ({
+            ...n,
+            zIndex: maxZ + 10,
+            style: { ...n.style, zIndex: maxZ + 10 },
+            data: { ...n.data },
+          })),
+        ];
+      } else if (type === 'back-bottom') {
+        updatedNodes = [
+          ...selectedList.map((n) => ({
+            ...n,
+            zIndex: 0,
+            style: { ...n.style, zIndex: 0 },
+            data: { ...n.data },
+          })),
+          ...unselectedList,
+        ];
+      } else if (type === 'front-step') {
+        updatedNodes = prevNodes.map((node) => {
+          if (selectedNodeIds.includes(node.id)) {
+            const currentZ = node.zIndex || 1;
+            const newZ = currentZ + 5;
+            return {
+              ...node,
+              zIndex: newZ,
+              style: { ...node.style, zIndex: newZ },
+              data: { ...node.data },
+            };
+          }
+          return node;
+        });
+      } else if (type === 'back-step') {
+        updatedNodes = prevNodes.map((node) => {
+          if (selectedNodeIds.includes(node.id)) {
+            const currentZ = node.zIndex || 1;
+            const newZ = Math.max(0, currentZ - 5);
+            return {
+              ...node,
+              zIndex: newZ,
+              style: { ...node.style, zIndex: newZ },
+              data: { ...node.data },
+            };
+          }
+          return node;
+        });
       }
 
-      if (type === 'back-bottom') {
-        return [...selectedList.map((n) => ({ ...n, zIndex: 0 })), ...unselectedList];
-      }
-
-      return prevNodes.map((node) => {
-        if (selectedNodeIds.includes(node.id)) {
-          const currentZ = node.zIndex || 1;
-          let newZ = currentZ;
-          if (type === 'front-step') newZ = currentZ + 5;
-          if (type === 'back-step') newZ = Math.max(0, currentZ - 5);
-          return { ...node, zIndex: newZ };
-        }
-        return node;
-      });
+      return [...updatedNodes];
     });
   }
 
@@ -659,8 +773,6 @@ function StoryboardContent({ projectId }) {
         isItalic,
         isUnderline,
         isStrike,
-        textAlign,
-        textVAlign,
         textDirection,
         rotation: 0,
         cornerRadius: 8,
@@ -740,18 +852,43 @@ function StoryboardContent({ projectId }) {
     fetchProjectEntities();
   }, [projectId]);
 
+  // INJEÇÃO DE ENTIDADES DA HISTÓRIA COM AS PROPRIEDADES DE ESTILO PADRÃO
   function addEntityToCanvas(entity, category) {
+    // Detecta o subtipo do personagem/item independente da chave enviada pelo Backend
+    const entitySubtype =
+      entity.type ||
+      entity.role ||
+      entity.papel ||
+      entity.subType ||
+      entity.archetype ||
+      category;
+
     const newNode = {
       id: `entity-${Date.now()}`,
       type: 'entityNode',
-      position: { x: 300 + Math.random() * 100, y: 150 + Math.random() * 100 },
-      style: { width: 180, height: 70 },
+      position: { x: 300 + Math.random() * 80, y: 150 + Math.random() * 80 },
+      style: { width: 190, height: 80 },
       zIndex: 2,
       data: {
         title: entity.name || entity.nome || entity.title,
-        type: entity.type || category,
+        type: entitySubtype,
         category,
         rotation: 0,
+        fillColor: '#14141f',
+        fillOpacity: 100,
+        noFill: false,
+        strokeColor: '#7C3AED',
+        strokeOpacity: 100,
+        strokeWidth: '2px',
+        strokeStyle: 'solid',
+        textColor: '#ffffff',
+        textOpacity: 100,
+        fontSize: 'medio',
+        fontFamily: 'Arial',
+        isBold: true,
+        isItalic: false,
+        isUnderline: false,
+        isStrike: false,
         onUpdateData,
         onDeleteNode,
       },
@@ -765,7 +902,7 @@ function StoryboardContent({ projectId }) {
   }
 
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
-  const isTextSupported = selectedTool === 'text' || (selectedNode && selectedNode.type === 'customShape');
+  const isTextSupported = selectedTool === 'text' || (selectedNode && (selectedNode.type === 'customShape' || selectedNode.type === 'entityNode'));
   const isArrowSelected = selectedNode && selectedNode.data?.shapeType === 'arrow';
 
   return (
@@ -775,7 +912,6 @@ function StoryboardContent({ projectId }) {
         .react-flow__attribution { display: none !important; }
         .react-flow__node { padding: 0 !important; border: none !important; background: transparent !important; }
         
-        /* ESTILIZAÇÃO DOS CONTROLES DO CANVAS */
         .react-flow__controls {
           background-color: #14141f !important;
           border: 1px solid #1f2937 !important;
@@ -797,8 +933,9 @@ function StoryboardContent({ projectId }) {
           color: #a855f7 !important;
         }
         .react-flow__controls-button svg {
-          max-width: 14px !important;
-          max-height: 14px !important;
+          fill: currentColor !important;
+          width: 14px !important;
+          height: 14px !important;
         }
       `}</style>
 
@@ -895,7 +1032,6 @@ function StoryboardContent({ projectId }) {
                   </div>
                 )}
 
-                {/* BORDA / LINHA */}
                 <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
                   <label className="text-xs font-semibold text-gray-300 block">Cor da Linha / Borda</label>
                   <div className="flex items-center gap-2.5">
@@ -968,7 +1104,6 @@ function StoryboardContent({ projectId }) {
                   </div>
                 </div>
 
-                {/* FORMATAÇÃO ESPECÍFICA DE SETAS */}
                 {isArrowSelected && (
                   <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
                     <label className="text-xs font-semibold text-gray-300 block">Estilo de Pontas da Seta</label>
@@ -1087,74 +1222,7 @@ function StoryboardContent({ projectId }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Alinhamento H.</label>
-                      <div className="flex bg-[#12121a] p-1 rounded-lg border border-gray-800">
-                        {[
-                          { id: 'left', icon: '⯇' },
-                          { id: 'center', icon: '⯎' },
-                          { id: 'right', icon: '⯈' },
-                        ].map((align) => (
-                          <button
-                            key={align.id}
-                            type="button"
-                            onClick={() => {
-                              setTextAlign(align.id);
-                              updateSelectedNodesStyle('textAlign', align.id);
-                            }}
-                            className={`flex-1 text-xs p-1 rounded transition-all cursor-pointer ${
-                              textAlign === align.id ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                            }`}
-                          >
-                            {align.icon}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Alinhamento V.</label>
-                      <div className="flex bg-[#12121a] p-1 rounded-lg border border-gray-800">
-                        {[
-                          { id: 'top', icon: '▲' },
-                          { id: 'middle', icon: '⯎' },
-                          { id: 'bottom', icon: '▼' },
-                        ].map((align) => (
-                          <button
-                            key={align.id}
-                            type="button"
-                            onClick={() => {
-                              setTextVAlign(align.id);
-                              updateSelectedNodesStyle('textVAlign', align.id);
-                            }}
-                            className={`flex-1 text-xs p-1 rounded transition-all cursor-pointer ${
-                              textVAlign === align.id ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                            }`}
-                          >
-                            {align.icon}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="space-y-2 pt-1">
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Direção da Escrita</label>
-                      <select
-                        value={textDirection}
-                        onChange={(e) => {
-                          setTextDirection(e.target.value);
-                          updateSelectedNodesStyle('textDirection', e.target.value);
-                        }}
-                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
-                      >
-                        <option value="horizontal">Horizontal (padrão)</option>
-                        <option value="vertical-rl">Vertical (dir. para esq.)</option>
-                      </select>
-                    </div>
-
                     <div>
                       <label className="text-[10px] text-gray-400 block mb-1">Cor e Opacidade do Texto</label>
                       <div className="flex items-center gap-2">
@@ -1224,7 +1292,7 @@ function StoryboardContent({ projectId }) {
               </div>
             </div>
 
-            {/* BOTÃO DE EXCLUIR DENTRO DA BARRA LATERAL NO CANTO INFERIOR */}
+            {/* BOTÃO DE EXCLUIR */}
             <div className="pt-4 border-t border-gray-800/60 mt-auto">
               <button
                 type="button"
@@ -1301,7 +1369,7 @@ function StoryboardContent({ projectId }) {
                 { key: 'estrutura', label: 'Estrutura', color: 'bg-blue-500' },
                 { key: 'cenas', label: 'Cenas', color: 'bg-amber-500' },
                 { key: 'misterios', label: 'Mistérios', color: 'bg-pink-500' },
-                { key: 'twists', label: 'Plot Twists', color: 'bg-red-500' },
+                { key: 'twists', label: 'Plot Twists', color: 'bg-purple-500' },
               ].map((group) => {
                 const list = entities[group.key] || [];
                 const isOpen = openEntityCategories[group.key];
