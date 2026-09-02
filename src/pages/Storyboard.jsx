@@ -43,7 +43,6 @@ const FONT_SIZE_MAP = {
   gigante: '24px',
 };
 
-// Helper de cores para Badges de Entidades
 function getEntityBadgeTheme(type = '') {
   const norm = String(type).toLowerCase();
   if (norm.includes('protagonista')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
@@ -55,7 +54,7 @@ function getEntityBadgeTheme(type = '') {
 }
 
 // -----------------------------------------------------------------
-// 1. CONECTORES EM FORMA DE SETAS NAS 4 BORDAS
+// 1. CONECTORES EM FORMA DE SETA NAS BORDAS
 // -----------------------------------------------------------------
 function ArrowDirectionalHandles() {
   const arrowStyle = {
@@ -69,55 +68,23 @@ function ArrowDirectionalHandles() {
 
   return (
     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top-t"
-        style={{ ...arrowStyle, top: '-18px' }}
-        className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none"
-      >
-        ↑
-      </Handle>
+      <Handle type="target" position={Position.Top} id="top-t" style={{ ...arrowStyle, top: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">↑</Handle>
       <Handle type="source" position={Position.Top} id="top-s" style={{ ...arrowStyle, top: '-18px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right-t"
-        style={{ ...arrowStyle, right: '-18px' }}
-        className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none"
-      >
-        →
-      </Handle>
+      <Handle type="target" position={Position.Right} id="right-t" style={{ ...arrowStyle, right: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">→</Handle>
       <Handle type="source" position={Position.Right} id="right-s" style={{ ...arrowStyle, right: '-18px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom-t"
-        style={{ ...arrowStyle, bottom: '-18px' }}
-        className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none"
-      >
-        ↓
-      </Handle>
+      <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ ...arrowStyle, bottom: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">↓</Handle>
       <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ ...arrowStyle, bottom: '-18px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left-t"
-        style={{ ...arrowStyle, left: '-18px' }}
-        className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none"
-      >
-        ←
-      </Handle>
+      <Handle type="target" position={Position.Left} id="left-t" style={{ ...arrowStyle, left: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">←</Handle>
       <Handle type="source" position={Position.Left} id="left-s" style={{ ...arrowStyle, left: '-18px', opacity: 0 }} className="pointer-events-auto" />
     </div>
   );
 }
 
 // -----------------------------------------------------------------
-// 2. ÍCONE DE ROTAÇÃO NO CANTO INFERIOR DIREITO
+// 2. MANIPULADORES DE ROTAÇÃO E CANTOS
 // -----------------------------------------------------------------
 function BottomRightRotateHandle({ onRotate, selected }) {
   if (!selected) return null;
@@ -137,7 +104,6 @@ function BottomRightRotateHandle({ onRotate, selected }) {
       const radians = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
       let degrees = Math.round(radians * (180 / Math.PI)) - 45;
       if (degrees < 0) degrees += 360;
-
       onRotate(degrees);
     };
 
@@ -151,19 +117,10 @@ function BottomRightRotateHandle({ onRotate, selected }) {
   };
 
   return (
-    <div
-      onMouseDown={handleMouseDown}
-      className="nodrag nopan absolute -right-5 -bottom-5 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-all shadow-md flex items-center justify-center text-[10px] select-none font-bold"
-      title="Arraste com o botão esquerdo para rotacionar"
-    >
-      ↻
-    </div>
+    <div onMouseDown={handleMouseDown} className="nodrag nopan absolute -right-5 -bottom-5 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-all shadow-md flex items-center justify-center text-[10px] select-none font-bold" title="Arraste para rotacionar">↻</div>
   );
 }
 
-// -----------------------------------------------------------------
-// 3. LOSANGO AMARELO INTERNO (CANTO INFERIOR DIREITO)
-// -----------------------------------------------------------------
 function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 }) {
   if (!selected) return null;
 
@@ -189,17 +146,10 @@ function YellowCornerRadiusHandle({ onUpdateRadius, selected, currentRadius = 8 
   };
 
   return (
-    <div
-      onMouseDown={handleMouseDown}
-      className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform"
-      title="Arraste para arredondar os cantos"
-    />
+    <div onMouseDown={handleMouseDown} className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform" title="Arraste para arredondar os cantos" />
   );
 }
 
-// -----------------------------------------------------------------
-// 4. LOSANGO AMARELO PARA O TRIÂNGULO
-// -----------------------------------------------------------------
 function TriangleVertexHandle({ onUpdateOffset, selected }) {
   if (!selected) return null;
 
@@ -216,7 +166,6 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
       const relativeX = moveEvent.clientX - rect.left;
       const percentage = (relativeX / rect.width) * 100;
       const clampedOffset = Math.max(4, Math.min(96, Math.round(percentage)));
-
       onUpdateOffset(clampedOffset);
     };
 
@@ -230,19 +179,14 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
   };
 
   return (
-    <div
-      onMouseDown={handleMouseDown}
-      className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform"
-      title="Arraste para alterar a forma do triângulo"
-    />
+    <div onMouseDown={handleMouseDown} className="nodrag nopan absolute bottom-3 right-3 z-50 cursor-ew-resize w-2.5 h-2.5 bg-amber-400 border border-amber-600 rotate-45 shadow hover:scale-125 transition-transform" title="Arraste para alterar o vértice" />
   );
 }
 
 // -----------------------------------------------------------------
-// 5. CAIXA DE TEXTO TOTALMENTE AJUSTADA E EDITÁVEL
+// 3. CAMPO DE TEXTO EDITÁVEL FORMATÁVEL
 // -----------------------------------------------------------------
-
-  function EditableNodeText({ id, data, onUpdateData }) {
+function EditableNodeText({ id, data, onUpdateData }) {
   const {
     label = '',
     textColor = '#ffffff',
@@ -284,25 +228,9 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
     }
   };
 
-  // Alinhamento Vertical
-  const vAlignClass =
-    textVAlign === 'top'
-      ? 'items-start'
-      : textVAlign === 'bottom'
-      ? 'items-end'
-      : 'items-center';
-
-  // Alinhamento Horizontal
-  const hAlignStyle =
-    textAlign === 'left' ? 'text-left' : textAlign === 'right' ? 'text-right' : 'text-center';
-
-  // Estilos de Fonte
-  const textDecorations = [
-    isUnderline ? 'underline' : '',
-    isStrike ? 'line-through' : '',
-  ].filter(Boolean).join(' ');
-
-  // Direção de Escrita
+  const vAlignClass = textVAlign === 'top' ? 'items-start' : textVAlign === 'bottom' ? 'items-end' : 'items-center';
+  const hAlignStyle = textAlign === 'left' ? 'text-left' : textAlign === 'right' ? 'text-right' : 'text-center';
+  const textDecorations = [isUnderline ? 'underline' : '', isStrike ? 'line-through' : ''].filter(Boolean).join(' ');
   const isVertical = textDirection === 'vertical-lr' || textDirection === 'vertical-rl';
 
   return (
@@ -336,7 +264,7 @@ function TriangleVertexHandle({ onUpdateOffset, selected }) {
 }
 
 // -----------------------------------------------------------------
-// 6. RENDERIZADOR COMPLETO DE TODAS AS FORMAS
+// 4. RENDERIZADOR DE NÓS VETORIAIS
 // -----------------------------------------------------------------
 function CustomShapeNode({ id, data, selected }) {
   const {
@@ -377,17 +305,8 @@ function CustomShapeNode({ id, data, selected }) {
   }, [data]);
 
   return (
-    <div
-      className="group relative w-full h-full min-w-[30px] min-h-[30px] flex items-center justify-center"
-      style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
-    >
-      <NodeResizer
-        minWidth={30}
-        minHeight={30}
-        isVisible={selected}
-        lineClassName="border-sky-400 border-dashed"
-        handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40"
-      />
+    <div className="group relative w-full h-full min-w-[30px] min-h-[30px] flex items-center justify-center" style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
+      <NodeResizer minWidth={30} minHeight={30} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
 
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
       <ArrowDirectionalHandles />
@@ -396,12 +315,10 @@ function CustomShapeNode({ id, data, selected }) {
         <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
       )}
 
-      {/* CAIXA DE TEXTO LIVRE */}
       {shapeType === 'text' && (
         <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
       )}
 
-      {/* CÍRCULO */}
       {shapeType === 'circle' && (
         <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -411,7 +328,6 @@ function CustomShapeNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* LOSANGO */}
       {shapeType === 'diamond' && (
         <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -421,7 +337,6 @@ function CustomShapeNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* TRIÂNGULO */}
       {shapeType === 'triangle' && (
         <>
           <TriangleVertexHandle onUpdateOffset={handleVertexOffsetChange} selected={selected} />
@@ -434,60 +349,28 @@ function CustomShapeNode({ id, data, selected }) {
         </>
       )}
 
-      {/* SETA COM SUPORTE A DIFERENTES MARCADORES DE PONTA */}
       {shapeType === 'arrow' && (
         <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
-              {/* Ponta Triangular */}
-              <marker id={`start-triangle-${id}`} markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto">
-                <polygon points="8 0, 0 4, 8 8" fill={strokeVal} />
-              </marker>
-              <marker id={`end-triangle-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                <polygon points="0 0, 8 4, 0 8" fill={strokeVal} />
-              </marker>
+              <marker id={`start-triangle-${id}`} markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto"><polygon points="8 0, 0 4, 8 8" fill={strokeVal} /></marker>
+              <marker id={`end-triangle-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill={strokeVal} /></marker>
 
-              {/* Ponta Redonda */}
-              <marker id={`start-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <circle cx="4" cy="4" r="3" fill={strokeVal} />
-              </marker>
-              <marker id={`end-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <circle cx="4" cy="4" r="3" fill={strokeVal} />
-              </marker>
+              <marker id={`start-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
+              <marker id={`end-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
 
-              {/* Ponta Quadrada */}
-              <marker id={`start-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <rect x="1" y="1" width="6" height="6" fill={strokeVal} />
-              </marker>
-              <marker id={`end-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <rect x="1" y="1" width="6" height="6" fill={strokeVal} />
-              </marker>
+              <marker id={`start-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
+              <marker id={`end-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
 
-              {/* Ponta Losango */}
-              <marker id={`start-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} />
-              </marker>
-              <marker id={`end-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} />
-              </marker>
+              <marker id={`start-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
+              <marker id={`end-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
             </defs>
 
-            <line
-              x1="8"
-              y1="50"
-              x2="92"
-              y2="50"
-              stroke={strokeVal}
-              strokeWidth={widthNum || 2}
-              strokeDasharray={strokeDash}
-              markerStart={arrowStartHead !== 'none' ? `url(#start-${arrowStartHead}-${id})` : undefined}
-              markerEnd={arrowEndHead !== 'none' ? `url(#end-${arrowEndHead}-${id})` : undefined}
-            />
+            <line x1="8" y1="50" x2="92" y2="50" stroke={strokeVal} strokeWidth={widthNum || 2} strokeDasharray={strokeDash} markerStart={arrowStartHead !== 'none' ? `url(#start-${arrowStartHead}-${id})` : undefined} markerEnd={arrowEndHead !== 'none' ? `url(#end-${arrowEndHead}-${id})` : undefined} />
           </svg>
         </div>
       )}
 
-      {/* RETÂNGULO */}
       {shapeType === 'rectangle' && (
         <div className="w-full h-full flex items-center justify-center relative">
           <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -500,30 +383,20 @@ function CustomShapeNode({ id, data, selected }) {
   );
 }
 
-// -----------------------------------------------------------------
-// 7. CARDS DE ENTIDADES
-// -----------------------------------------------------------------
 function EntityCardNode({ id, data, selected }) {
   const { title, type, category, rotation = 0 } = data;
 
   const handleRotate = useCallback((deg) => {
-    if (data.onUpdateRotation) data.onUpdateRotation(id, deg);
+    if (data.onUpdateData) data.onUpdateData(id, { rotation: deg });
   }, [id, data]);
 
   return (
-    <div
-      className={`group relative bg-[#14141f] border border-purple-500/60 rounded-xl p-3 shadow-2xl w-full h-full text-left space-y-1.5 transition-all ${
-        selected ? 'ring-2 ring-sky-400' : ''
-      }`}
-      style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}
-    >
+    <div className={`group relative bg-[#14141f] border border-purple-500/60 rounded-xl p-3 shadow-2xl w-full h-full text-left space-y-1.5 transition-all ${selected ? 'ring-2 ring-sky-400' : ''}`} style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
       <NodeResizer minWidth={120} minHeight={50} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} />
       <ArrowDirectionalHandles />
       <strong className="block text-sm font-bold text-white select-none">{title}</strong>
-      <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>
-        {type || category}
-      </span>
+      <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getEntityBadgeTheme(type)}`}>{type || category}</span>
     </div>
   );
 }
@@ -540,12 +413,34 @@ function StoryboardContent({ projectId }) {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   const [selectedTool, setSelectedTool] = useState('select');
+
+  // ESTADOS DE FORMATAÇÃO PADRÃO
   const [fillColor, setFillColor] = useState('#1a1d24');
+  const [fillOpacity, setFillOpacity] = useState(100);
   const [noFill, setNoFill] = useState(false);
+
   const [strokeColor, setStrokeColor] = useState('#7C3AED');
+  const [strokeOpacity, setStrokeOpacity] = useState(100);
   const [strokeWidth, setStrokeWidth] = useState('2px');
   const [strokeStyle, setStrokeStyle] = useState('solid');
 
+  const [arrowStartHead, setArrowStartHead] = useState('none');
+  const [arrowEndHead, setArrowEndHead] = useState('triangle');
+
+  // FORMATAÇÃO DE TEXTO
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [textOpacity, setTextOpacity] = useState(100);
+  const [fontSize, setFontSize] = useState('medio');
+  const [fontFamily, setFontFamily] = useState('Arial');
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [isStrike, setIsStrike] = useState(false);
+  const [textAlign, setTextAlign] = useState('center');
+  const [textVAlign, setTextVAlign] = useState('middle');
+  const [textDirection, setTextDirection] = useState('horizontal');
+
+  const [selectedNodes, setSelectedNodes] = useState([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
 
   const isDrawingRef = useRef(false);
@@ -568,70 +463,56 @@ function StoryboardContent({ projectId }) {
     cenas: false,
   });
 
-  const onUpdateRotation = useCallback((nodeId, deg) => {
+  const onUpdateData = useCallback((nodeId, updatedProps) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, rotation: deg } };
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...updatedProps,
+            },
+          };
         }
         return node;
       })
     );
   }, [setNodes]);
 
-  const onUpdateCornerRadius = useCallback((nodeId, r) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, cornerRadius: r } };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  const onUpdateVertexOffset = useCallback((nodeId, offset) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, vertexOffset: offset } };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  const onUpdateLabel = useCallback((nodeId, text) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, label: text } };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  const nodeTypes = useMemo(
-    () => ({
-      customShape: CustomShapeNode,
-      entityNode: EntityCardNode,
-    }),
-    []
-  );
+  const nodeTypes = useMemo(() => ({ customShape: CustomShapeNode, entityNode: EntityCardNode }), []);
 
   useOnSelectionChange({
-    onChange: ({ nodes: selectedNodes }) => {
-      const ids = selectedNodes.map((n) => n.id);
+    onChange: ({ nodes: selNodes }) => {
+      setSelectedNodes(selNodes);
+      const ids = selNodes.map((n) => n.id);
       setSelectedNodeIds(ids);
 
-      if (selectedNodes.length === 1) {
-        const data = selectedNodes[0].data;
-        if (data.fillColor) setFillColor(data.fillColor);
+      if (selNodes.length === 1) {
+        const data = selNodes[0].data || {};
+        if (data.fillColor !== undefined) setFillColor(data.fillColor);
+        if (data.fillOpacity !== undefined) setFillOpacity(data.fillOpacity);
         if (data.noFill !== undefined) setNoFill(data.noFill);
-        if (data.strokeColor) setStrokeColor(data.strokeColor);
-        if (data.strokeWidth) setStrokeWidth(data.strokeWidth);
-        if (data.strokeStyle) setStrokeStyle(data.strokeStyle);
+
+        if (data.strokeColor !== undefined) setStrokeColor(data.strokeColor);
+        if (data.strokeOpacity !== undefined) setStrokeOpacity(data.strokeOpacity);
+        if (data.strokeWidth !== undefined) setStrokeWidth(data.strokeWidth);
+        if (data.strokeStyle !== undefined) setStrokeStyle(data.strokeStyle);
+
+        if (data.arrowStartHead !== undefined) setArrowStartHead(data.arrowStartHead);
+        if (data.arrowEndHead !== undefined) setArrowEndHead(data.arrowEndHead);
+
+        if (data.textColor !== undefined) setTextColor(data.textColor);
+        if (data.textOpacity !== undefined) setTextOpacity(data.textOpacity);
+        if (data.fontSize !== undefined) setFontSize(data.fontSize);
+        if (data.fontFamily !== undefined) setFontFamily(data.fontFamily);
+        if (data.isBold !== undefined) setIsBold(data.isBold);
+        if (data.isItalic !== undefined) setIsItalic(data.isItalic);
+        if (data.isUnderline !== undefined) setIsUnderline(data.isUnderline);
+        if (data.isStrike !== undefined) setIsStrike(data.isStrike);
+        if (data.textAlign !== undefined) setTextAlign(data.textAlign);
+        if (data.textVAlign !== undefined) setTextVAlign(data.textVAlign);
+        if (data.textDirection !== undefined) setTextDirection(data.textDirection);
       }
     },
   });
@@ -642,7 +523,13 @@ function StoryboardContent({ projectId }) {
       setNodes((nds) =>
         nds.map((node) => {
           if (selectedNodeIds.includes(node.id)) {
-            return { ...node, data: { ...node.data, [key]: value } };
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                [key]: value,
+              },
+            };
           }
           return node;
         })
@@ -651,18 +538,27 @@ function StoryboardContent({ projectId }) {
     [selectedNodeIds, setNodes]
   );
 
-  function changeZIndex(direction) {
+  // MANIPULAÇÃO DE CAMADAS
+  function changeZIndex(type) {
     if (selectedNodeIds.length === 0) return;
-    setNodes((nds) =>
-      nds.map((node) => {
+    setNodes((nds) => {
+      const allZ = nds.map((n) => n.zIndex || 1);
+      const maxZ = Math.max(...allZ, 1);
+      const minZ = Math.min(...allZ, 1);
+
+      return nds.map((node) => {
         if (selectedNodeIds.includes(node.id)) {
           const currentZ = node.zIndex || 1;
-          const newZ = direction === 'front' ? currentZ + 10 : Math.max(0, currentZ - 10);
+          let newZ = currentZ;
+          if (type === 'front-top') newZ = maxZ + 10;
+          else if (type === 'front-step') newZ = currentZ + 2;
+          else if (type === 'back-step') newZ = Math.max(1, currentZ - 2);
+          else if (type === 'back-bottom') newZ = Math.max(0, minZ - 10);
           return { ...node, zIndex: newZ };
         }
         return node;
-      })
-    );
+      });
+    });
   }
 
   const onConnect = useCallback(
@@ -683,40 +579,46 @@ function StoryboardContent({ projectId }) {
   const handleMouseDownCanvas = (event) => {
     if (event.button !== 0 || selectedTool === 'select') return;
 
-    const startPos = screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY,
-    });
+    const startPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
     isDrawingRef.current = true;
     drawStartRef.current = startPos;
     const newNodeId = `shape-${Date.now()}`;
     activeDrawNodeIdRef.current = newNodeId;
 
-    const initialWidth = selectedTool === 'text' ? 140 : 10;
-    const initialHeight = selectedTool === 'text' ? 45 : 10;
-
     const newNode = {
       id: newNodeId,
       type: 'customShape',
       position: startPos,
-      style: { width: initialWidth, height: initialHeight },
+      style: { width: 20, height: 20 },
       zIndex: 1,
       data: {
         shapeType: selectedTool,
         label: selectedTool === 'text' ? 'Texto Livre' : '',
         fillColor,
-        noFill,
+        fillOpacity,
+        noFill: selectedTool === 'arrow' ? true : noFill,
         strokeColor,
+        strokeOpacity,
         strokeWidth,
         strokeStyle,
+        arrowStartHead,
+        arrowEndHead,
+        textColor,
+        textOpacity,
+        fontSize,
+        fontFamily,
+        isBold,
+        isItalic,
+        isUnderline,
+        isStrike,
+        textAlign,
+        textVAlign,
+        textDirection,
         rotation: 0,
         cornerRadius: 8,
         vertexOffset: 50,
-        onUpdateRotation,
-        onUpdateCornerRadius,
-        onUpdateVertexOffset,
-        onUpdateLabel,
+        onUpdateData,
       },
     };
 
@@ -724,37 +626,32 @@ function StoryboardContent({ projectId }) {
   };
 
   const handleMouseMoveCanvas = (event) => {
-  if (!isDrawingRef.current || !drawStartRef.current || !activeDrawNodeIdRef.current) return;
+    if (!isDrawingRef.current || !drawStartRef.current || !activeDrawNodeIdRef.current) return;
 
-  const currentPos = screenToFlowPosition({
-    x: event.clientX,
-    y: event.clientY,
-  });
+    const currentPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-  const startX = drawStartRef.current.x;
-  const startY = drawStartRef.current.y;
+    const startX = drawStartRef.current.x;
+    const startY = drawStartRef.current.y;
 
-  // Permite redimensionamento livre a partir de 15px
-  const width = Math.max(15, Math.abs(currentPos.x - startX));
-  const height = Math.max(15, Math.abs(currentPos.y - startY));
+    const width = Math.max(20, Math.abs(currentPos.x - startX));
+    const height = Math.max(20, Math.abs(currentPos.y - startY));
 
-  const newX = currentPos.x < startX ? startX - width : startX;
-  const newY = currentPos.y < startY ? startY - height : startY;
+    const newX = currentPos.x < startX ? startX - width : startX;
+    const newY = currentPos.y < startY ? startY - height : startY;
 
-  setNodes((nds) =>
-    nds.map((node) => {
-      if (node.id === activeDrawNodeIdRef.current) {
-        return {
-          ...node,
-          position: { x: newX, y: newY },
-          style: { width, height },
-        };
-      }
-      return node;
-    })
-  );
-};
-
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === activeDrawNodeIdRef.current) {
+          return {
+            ...node,
+            position: { x: newX, y: newY },
+            style: { width, height },
+          };
+        }
+        return node;
+      })
+    );
+  };
 
   const handleMouseUpCanvas = () => {
     if (isDrawingRef.current) {
@@ -788,7 +685,7 @@ function StoryboardContent({ projectId }) {
           twists: resTwists.data || [],
         });
       } catch (err) {
-        console.error('Erro ao buscar entidades para o Storyboard:', err);
+        console.error('Erro ao buscar entidades:', err);
       }
     };
 
@@ -807,7 +704,7 @@ function StoryboardContent({ projectId }) {
         type: entity.type || category,
         category,
         rotation: 0,
-        onUpdateRotation,
+        onUpdateData,
       },
     };
 
@@ -818,39 +715,30 @@ function StoryboardContent({ projectId }) {
     setOpenEntityCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
   }
 
+  // Checa se o item selecionado suporta edição de texto
+  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
+  const isTextSupported = selectedTool === 'text' || (selectedNode && selectedNode.type === 'customShape');
+  const isArrowSelected = selectedNode && selectedNode.data?.shapeType === 'arrow';
+
   return (
     <main className="storyboard-page relative w-full h-[calc(100vh-2rem)] overflow-hidden bg-[#0a0a0f] text-gray-200 flex">
       <style>{`
         .react-flow__panel.react-flow__attribution,
-        .react-flow__attribution {
-          display: none !important;
-        }
-        .react-flow__node {
-          padding: 0 !important;
-          border: none !important;
-          background: transparent !important;
-        }
+        .react-flow__attribution { display: none !important; }
+        .react-flow__node { padding: 0 !important; border: none !important; background: transparent !important; }
       `}</style>
 
-      {/* PAINEL ESQUERDO */}
-      <aside
-        className={`relative z-20 h-full bg-[#12121a]/95 backdrop-blur border-r border-gray-800/80 transition-all duration-300 flex flex-col shrink-0 ${
-          isLeftPanelOpen ? 'w-72' : 'w-12'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setIsLeftPanelOpen((prev) => !prev)}
-          className="absolute -right-3 top-4 w-6 h-6 rounded-full bg-[#1c1c28] border border-gray-700 text-gray-300 flex items-center justify-center text-xs font-bold cursor-pointer hover:bg-purple-900 shadow-md z-30"
-        >
+      {/* PAINEL ESQUERDO DE FERRAMENTAS E FORMATAÇÃO */}
+      <aside className={`relative z-20 h-full bg-[#12121a]/95 backdrop-blur border-r border-gray-800/80 transition-all duration-300 flex flex-col shrink-0 ${isLeftPanelOpen ? 'w-80' : 'w-12'}`}>
+        <button type="button" onClick={() => setIsLeftPanelOpen((prev) => !prev)} className="absolute -right-3 top-4 w-6 h-6 rounded-full bg-[#1c1c28] border border-gray-700 text-gray-300 flex items-center justify-center text-xs font-bold cursor-pointer hover:bg-purple-900 shadow-md z-30">
           {isLeftPanelOpen ? '‹' : '›'}
         </button>
 
         {isLeftPanelOpen ? (
-          <div className="p-5 space-y-6 overflow-y-auto h-full custom-scrollbar">
+          <div className="p-4 space-y-5 overflow-y-auto h-full custom-scrollbar">
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">FERRAMENTAS</h3>
-              <div className="grid grid-cols-4 gap-2.5">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">FERRAMENTAS</h3>
+              <div className="grid grid-cols-4 gap-2">
                 {[
                   { id: 'select', label: 'Selecionar', icon: '➾' },
                   { id: 'rectangle', label: 'Retângulo', icon: '▭' },
@@ -864,58 +752,79 @@ function StoryboardContent({ projectId }) {
                     key={tool.id}
                     type="button"
                     onClick={() => setSelectedTool(tool.id)}
-                    className={`w-14 h-16 flex flex-col items-center justify-center rounded-2xl border transition-all cursor-pointer ${
+                    className={`w-16 h-14 flex flex-col items-center justify-center rounded-xl border transition-all cursor-pointer ${
                       selectedTool === tool.id
                         ? 'bg-purple-950/80 border-purple-500 text-purple-200 ring-1 ring-purple-500'
-                        : 'bg-[#181824] border-gray-800/90 text-gray-400 hover:border-gray-700 hover:text-gray-200'
+                        : 'bg-[#181824] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                     }`}
                   >
-                    <span className="text-xl mb-1">{tool.icon}</span>
-                    <span className="text-[10px] font-medium tracking-tight leading-none">{tool.label}</span>
+                    <span className="text-lg mb-0.5">{tool.icon}</span>
+                    <span className="text-[9px] font-medium tracking-tight leading-none">{tool.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* FORMATAÇÃO */}
-            <div className="space-y-5 pt-4 border-t border-gray-800/60">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">FORMATAÇÃO</h3>
+            {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA */}
+            <div className="space-y-4 pt-3 border-t border-gray-800/60">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">PREENCHIMENTO E BORDA</h3>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-9 h-9 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#1a1d24]">
-                    <input
-                      type="color"
-                      value={fillColor}
-                      disabled={noFill}
-                      onChange={(e) => {
-                        setFillColor(e.target.value);
-                        updateSelectedNodesStyle('fillColor', e.target.value);
-                      }}
-                      className="absolute -top-2 -left-2 w-14 h-14 cursor-pointer bg-transparent border-none"
-                    />
+              {!isArrowSelected && (
+                <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+                  <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#1a1d24]">
+                      <input
+                        type="color"
+                        value={fillColor}
+                        disabled={noFill}
+                        onChange={(e) => {
+                          setFillColor(e.target.value);
+                          updateSelectedNodesStyle('fillColor', e.target.value);
+                        }}
+                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between text-[10px] text-gray-400">
+                        <span>Opacidade</span>
+                        <span>{fillOpacity}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        disabled={noFill}
+                        value={fillOpacity}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setFillOpacity(val);
+                          updateSelectedNodesStyle('fillOpacity', val);
+                        }}
+                        className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+                      />
+                    </div>
                   </div>
-                  <span className="text-xs font-mono text-gray-400">{noFill ? 'Nenhum' : fillColor}</span>
+                  <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={noFill}
+                      onChange={(e) => {
+                        setNoFill(e.target.checked);
+                        updateSelectedNodesStyle('noFill', e.target.checked);
+                      }}
+                      className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
+                    />
+                    Sem preenchimento
+                  </label>
                 </div>
-                <label className="flex items-center gap-2.5 text-xs text-gray-300 cursor-pointer pt-1">
-                  <input
-                    type="checkbox"
-                    checked={noFill}
-                    onChange={(e) => {
-                      setNoFill(e.target.checked);
-                      updateSelectedNodesStyle('noFill', e.target.checked);
-                    }}
-                    className="w-4 h-4 rounded accent-purple-600 bg-[#181824] border-gray-700"
-                  />
-                  Sem preenchimento
-                </label>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-300 block">Cor da Borda</label>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-9 h-9 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#7C3AED]">
+              {/* BORDA / LINHA */}
+              <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+                <label className="text-xs font-semibold text-gray-300 block">Cor da Linha / Borda</label>
+                <div className="flex items-center gap-2.5">
+                  <div className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#7C3AED]">
                     <input
                       type="color"
                       value={strokeColor}
@@ -923,66 +832,324 @@ function StoryboardContent({ projectId }) {
                         setStrokeColor(e.target.value);
                         updateSelectedNodesStyle('strokeColor', e.target.value);
                       }}
-                      className="absolute -top-2 -left-2 w-14 h-14 cursor-pointer bg-transparent border-none"
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
                     />
                   </div>
-                  <span className="text-xs font-mono text-gray-400">{strokeColor}</span>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between text-[10px] text-gray-400">
+                      <span>Opacidade</span>
+                      <span>{strokeOpacity}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={strokeOpacity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setStrokeOpacity(val);
+                        updateSelectedNodesStyle('strokeOpacity', val);
+                      }}
+                      className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-400 block mb-1">Espessura</label>
+                    <select
+                      value={strokeWidth}
+                      onChange={(e) => {
+                        setStrokeWidth(e.target.value);
+                        updateSelectedNodesStyle('strokeWidth', e.target.value);
+                      }}
+                      className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+                    >
+                      <option value="0px">Nenhuma (0px)</option>
+                      <option value="1px">Fina (1px)</option>
+                      <option value="2px">Média (2px)</option>
+                      <option value="3px">Grossa (3px)</option>
+                      <option value="4px">Muito grossa (4px)</option>
+                      <option value="6px">Extra grossa (6px)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-400 block mb-1">Estilo</label>
+                    <select
+                      value={strokeStyle}
+                      onChange={(e) => {
+                        setStrokeStyle(e.target.value);
+                        updateSelectedNodesStyle('strokeStyle', e.target.value);
+                      }}
+                      className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+                    >
+                      <option value="solid">Sólida</option>
+                      <option value="dashed">Tracejada</option>
+                      <option value="dotted">Pontilhada</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-300 block">Espessura da Borda</label>
-                <select
-                  value={strokeWidth}
-                  onChange={(e) => {
-                    setStrokeWidth(e.target.value);
-                    updateSelectedNodesStyle('strokeWidth', e.target.value);
-                  }}
-                  className="w-full bg-[#14141f] border border-purple-500/80 rounded-xl p-2.5 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-                >
-                  <option value="0px">Nenhuma (0px)</option>
-                  <option value="1px">Fina (1px)</option>
-                  <option value="2px">Média (2px)</option>
-                  <option value="3px">Grossa (3px)</option>
-                  <option value="4px">Muito grossa (4px)</option>
-                  <option value="6px">Extra grossa (6px)</option>
-                </select>
-              </div>
+              {/* FORMATAÇÃO ESPECÍFICA DE SETAS */}
+              {isArrowSelected && (
+                <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+                  <label className="text-xs font-semibold text-gray-300 block">Estilo de Pontas da Seta</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-1">Ponta Inicial</label>
+                      <select
+                        value={arrowStartHead}
+                        onChange={(e) => {
+                          setArrowStartHead(e.target.value);
+                          updateSelectedNodesStyle('arrowStartHead', e.target.value);
+                        }}
+                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
+                      >
+                        <option value="none">Sem ponta</option>
+                        <option value="triangle">Triangular</option>
+                        <option value="circle">Redonda</option>
+                        <option value="square">Quadrada</option>
+                        <option value="diamond">Losango</option>
+                      </select>
+                    </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-300 block">Estilo da Borda</label>
-                <select
-                  value={strokeStyle}
-                  onChange={(e) => {
-                    setStrokeStyle(e.target.value);
-                    updateSelectedNodesStyle('strokeStyle', e.target.value);
-                  }}
-                  className="w-full bg-[#14141f] border border-gray-800 rounded-xl p-2.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-                >
-                  <option value="solid">Sólida</option>
-                  <option value="dashed">Tracejada</option>
-                  <option value="dotted">Pontilhada</option>
-                </select>
-              </div>
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-1">Ponta Final</label>
+                      <select
+                        value={arrowEndHead}
+                        onChange={(e) => {
+                          setArrowEndHead(e.target.value);
+                          updateSelectedNodesStyle('arrowEndHead', e.target.value);
+                        }}
+                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
+                      >
+                        <option value="none">Sem ponta</option>
+                        <option value="triangle">Triangular</option>
+                        <option value="circle">Redonda</option>
+                        <option value="square">Quadrada</option>
+                        <option value="diamond">Losango</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-              <div className="space-y-2 pt-3 border-t border-gray-800/60">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">CAMADAS</h3>
+            {/* FORMATAÇÃO DE TEXTO */}
+            {isTextSupported && (
+              <div className="space-y-3 pt-3 border-t border-gray-800/60 bg-[#161622] p-3 rounded-xl border border-gray-800/80">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">FORMATAÇÃO DE TEXTO</h3>
+
+                {/* ESTILOS DE FONTE: NEGRITO, ITÁLICO, SUBLINHADO, TACHADO */}
+                <div className="flex gap-1.5 bg-[#12121a] p-1 rounded-xl border border-gray-800">
+                  {[
+                    { id: 'bold', label: 'B', active: isBold, key: 'isBold' },
+                    { id: 'italic', label: 'I', active: isItalic, key: 'isItalic' },
+                    { id: 'underline', label: 'U', active: isUnderline, key: 'isUnderline' },
+                    { id: 'strike', label: 'S', active: isStrike, key: 'isStrike' },
+                  ].map((btn) => (
+                    <button
+                      key={btn.id}
+                      type="button"
+                      onClick={() => {
+                        const val = !btn.active;
+                        if (btn.key === 'isBold') setIsBold(val);
+                        if (btn.key === 'isItalic') setIsItalic(val);
+                        if (btn.key === 'isUnderline') setIsUnderline(val);
+                        if (btn.key === 'isStrike') setIsStrike(val);
+                        updateSelectedNodesStyle(btn.key, val);
+                      }}
+                      className={`flex-1 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                        btn.active
+                          ? 'bg-purple-600 text-white shadow'
+                          : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                      }`}
+                    >
+                      {btn.id === 'bold' ? <strong>{btn.label}</strong> : btn.id === 'italic' ? <em>{btn.label}</em> : btn.id === 'underline' ? <u>{btn.label}</u> : <s>{btn.label}</s>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* TAMANHO E TIPO DE FONTE */}
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('front')}
-                    className="p-2.5 rounded-xl bg-[#181824] border border-gray-800 text-xs text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ▲ Frente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('back')}
-                    className="p-2.5 rounded-xl bg-[#181824] border border-gray-800 text-xs text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ▼ Trás
-                  </button>
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Tamanho</label>
+                    <select
+                      value={fontSize}
+                      onChange={(e) => {
+                        setFontSize(e.target.value);
+                        updateSelectedNodesStyle('fontSize', e.target.value);
+                      }}
+                      className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
+                    >
+                      <option value="muito-pequeno">Muito pequeno</option>
+                      <option value="pequeno">Pequeno</option>
+                      <option value="medio">Médio</option>
+                      <option value="grande">Grande</option>
+                      <option value="gigante">Gigante</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Fonte</label>
+                    <select
+                      value={fontFamily}
+                      onChange={(e) => {
+                        setFontFamily(e.target.value);
+                        updateSelectedNodesStyle('fontFamily', e.target.value);
+                      }}
+                      className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
+                    >
+                      <option value="Aptos">Aptos</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Century Gothic">Century Gothic</option>
+                      <option value="Comic Sans MS">Comic Sans</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Verdana">Verdana</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* ALINHAMENTOS HORIZONTAL E VERTICAL */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Alinhamento H.</label>
+                    <div className="flex bg-[#12121a] p-1 rounded-lg border border-gray-800">
+                      {[
+                        { id: 'left', icon: '⯇' },
+                        { id: 'center', icon: '⯎' },
+                        { id: 'right', icon: '⯈' },
+                      ].map((align) => (
+                        <button
+                          key={align.id}
+                          type="button"
+                          onClick={() => {
+                            setTextAlign(align.id);
+                            updateSelectedNodesStyle('textAlign', align.id);
+                          }}
+                          className={`flex-1 text-xs p-1 rounded transition-all cursor-pointer ${
+                            textAlign === align.id ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {align.icon}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Alinhamento V.</label>
+                    <div className="flex bg-[#12121a] p-1 rounded-lg border border-gray-800">
+                      {[
+                        { id: 'top', icon: '▲' },
+                        { id: 'middle', icon: '⯎' },
+                        { id: 'bottom', icon: '▼' },
+                      ].map((align) => (
+                        <button
+                          key={align.id}
+                          type="button"
+                          onClick={() => {
+                            setTextVAlign(align.id);
+                            updateSelectedNodesStyle('textVAlign', align.id);
+                          }}
+                          className={`flex-1 text-xs p-1 rounded transition-all cursor-pointer ${
+                            textVAlign === align.id ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {align.icon}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* DIREÇÃO DE ESCRITA E COR DO TEXTO */}
+                <div className="space-y-2 pt-1">
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Direção da Escrita</label>
+                    <select
+                      value={textDirection}
+                      onChange={(e) => {
+                        setTextDirection(e.target.value);
+                        updateSelectedNodesStyle('textDirection', e.target.value);
+                      }}
+                      className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
+                    >
+                      <option value="horizontal">Horizontal (padrão)</option>
+                      <option value="vertical-lr">Vertical (esq. para dir.)</option>
+                      <option value="vertical-rl">Vertical (dir. para esq.)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1">Cor e Opacidade do Texto</label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-7 h-7 rounded border border-gray-700 overflow-hidden shrink-0 bg-white">
+                        <input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => {
+                            setTextColor(e.target.value);
+                            updateSelectedNodesStyle('textColor', e.target.value);
+                          }}
+                          className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
+                        />
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={textOpacity}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setTextOpacity(val);
+                          updateSelectedNodesStyle('textOpacity', val);
+                        }}
+                        className="flex-1 accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+                      />
+                      <span className="text-[10px] font-mono text-gray-400 w-8 text-right">{textOpacity}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* GERENCIAMENTO DE CAMADAS */}
+            <div className="space-y-2 pt-3 border-t border-gray-800/60">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">CAMADAS</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => changeZIndex('front-top')}
+                  className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
+                >
+                  ▲ Trazer para frente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeZIndex('front-step')}
+                  className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
+                >
+                  ↑ Mover para frente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeZIndex('back-step')}
+                  className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
+                >
+                  ↓ Mover para trás
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeZIndex('back-bottom')}
+                  className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
+                >
+                  ▼ Enviar para trás
+                </button>
               </div>
             </div>
           </div>
