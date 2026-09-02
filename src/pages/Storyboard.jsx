@@ -13,11 +13,14 @@ import {
   ReactFlowProvider,
   NodeResizer,
   useReactFlow,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import apiClient from '../api/apiClient';
 
-// Helper para converter HEX + Opacidade (%) em RGBA
+// Helper para converter HEX + Opacidade (%) em RGBA (para Nós)
 function hexToRgba(hex = '#181824', opacity = 100) {
   if (hex === 'none') return 'transparent';
   let cleanHex = hex.replace('#', '');
@@ -40,7 +43,75 @@ const FONT_SIZE_MAP = {
   gigante: '24px',
 };
 
-// SISTEMA DE CORES FIXAS E ESPECÍFICAS PARA AS TAGS / BADGES
+// EDGE/CONECTOR CUSTOMIZADO COM SUPORTE A OPACIDADE E BOTÃO DE EXCLUIR
+function CustomDeletableEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  markerStart,
+  selected,
+}) {
+  const { setEdges } = useReactFlow();
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const onEdgeClick = (evt) => {
+    evt.stopPropagation();
+    setEdges((edges) => edges.filter((edge) => edge.id !== id));
+  };
+
+  return (
+    <>
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        markerStart={markerStart}
+        style={{
+          ...style,
+          stroke: style.stroke || '#7C3AED',
+          strokeOpacity: style.strokeOpacity !== undefined ? style.strokeOpacity : 1,
+          strokeWidth: style.strokeWidth || 2,
+          outline: selected ? '2px solid #38bdf8' : 'none',
+        }}
+      />
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: 'all',
+          }}
+          className="nodrag nopan"
+        >
+          {selected && (
+            <button
+              type="button"
+              onClick={onEdgeClick}
+              className="w-5 h-5 bg-red-600 hover:bg-red-500 border border-white text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-md hover:scale-125 transition-transform cursor-pointer"
+              title="Excluir Conexão"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+// CORES E BADGES DE ENTIDADES
 function getEntityBadgeTheme(category = '', type = '') {
   const sanitize = (str) =>
     String(str || '')
@@ -79,34 +150,36 @@ function getEntityBadgeTheme(category = '', type = '') {
   return 'bg-gray-800 text-gray-300 border-gray-600 font-bold';
 }
 
+// PONTOS DE CONEXÃO ESTÁVEIS
 function ArrowDirectionalHandles() {
-  const arrowStyle = {
-    width: '16px',
-    height: '16px',
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    borderWidth: '0px',
+  const handleStyle = {
+    width: '12px',
+    height: '12px',
+    backgroundColor: '#38bdf8',
+    borderColor: '#ffffff',
+    borderWidth: '1.5px',
+    borderRadius: '50%',
     zIndex: 50,
   };
 
   return (
     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <Handle type="target" position={Position.Top} id="top-t" style={{ ...arrowStyle, top: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">↑</Handle>
-      <Handle type="source" position={Position.Top} id="top-s" style={{ ...arrowStyle, top: '-18px', opacity: 0 }} className="pointer-events-auto" />
+      <Handle type="target" position={Position.Top} id="top-t" style={{ ...handleStyle, top: '-6px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Top} id="top-s" style={{ ...handleStyle, top: '-6px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle type="target" position={Position.Right} id="right-t" style={{ ...arrowStyle, right: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">→</Handle>
-      <Handle type="source" position={Position.Right} id="right-s" style={{ ...arrowStyle, right: '-18px', opacity: 0 }} className="pointer-events-auto" />
+      <Handle type="target" position={Position.Right} id="right-t" style={{ ...handleStyle, right: '-6px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Right} id="right-s" style={{ ...handleStyle, right: '-6px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ ...arrowStyle, bottom: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">↓</Handle>
-      <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ ...arrowStyle, bottom: '-18px', opacity: 0 }} className="pointer-events-auto" />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ ...handleStyle, bottom: '-6px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ ...handleStyle, bottom: '-6px', opacity: 0 }} className="pointer-events-auto" />
 
-      <Handle type="target" position={Position.Left} id="left-t" style={{ ...arrowStyle, left: '-18px' }} className="pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center text-sky-400 font-bold text-xs select-none">←</Handle>
-      <Handle type="source" position={Position.Left} id="left-s" style={{ ...arrowStyle, left: '-18px', opacity: 0 }} className="pointer-events-auto" />
+      <Handle type="target" position={Position.Left} id="left-t" style={{ ...handleStyle, left: '-6px' }} className="pointer-events-auto hover:scale-125 transition-transform" />
+      <Handle type="source" position={Position.Left} id="left-s" style={{ ...handleStyle, left: '-6px', opacity: 0 }} className="pointer-events-auto" />
     </div>
   );
 }
 
-// MANIPULADOR DE ROTAÇÃO DE ALTA PRECISÃO (PESADO E CONTROLADO)
+// MANIPULADOR DE ROTAÇÃO
 function BottomRightRotateHandle({ onRotate, selected, currentRotation = 0 }) {
   if (!selected) return null;
 
@@ -123,22 +196,13 @@ function BottomRightRotateHandle({ onRotate, selected, currentRotation = 0 }) {
 
     const initialMouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
     const initialNodeRotation = Number(currentRotation) || 0;
-    const startX = e.clientX;
-    const startY = e.clientY;
 
     const onMouseMove = (moveEvent) => {
-      // Exige um movimento mínimo de 4px para ativar o giro
-      const distanceMoved = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
-      if (distanceMoved < 4) return;
-
       const currentMouseAngle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * (180 / Math.PI);
-      const rawDelta = currentMouseAngle - initialMouseAngle;
+      const angleDiff = currentMouseAngle - initialMouseAngle;
+      
+      let newAngle = initialNodeRotation + angleDiff;
 
-      // Fator de peso (damping = 0.4): desacelera a rotação para exigir arrasto intencional
-      const dampenedDelta = rawDelta * 0.4;
-      let newAngle = initialNodeRotation + dampenedDelta;
-
-      // Trava magnética (15° normal / 45° com Shift)
       const step = moveEvent.shiftKey ? 45 : 15;
       newAngle = Math.round(newAngle / step) * step;
 
@@ -158,8 +222,8 @@ function BottomRightRotateHandle({ onRotate, selected, currentRotation = 0 }) {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="nodrag nopan absolute -right-6 -bottom-6 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-all shadow-md flex items-center justify-center text-[11px] w-6 h-6 select-none font-bold"
-      title="Arraste para rotacionar (Segure Shift para travar a 45°)"
+      className="nodrag nopan absolute -right-6 -bottom-6 z-50 cursor-grab active:cursor-grabbing p-1 bg-white border border-sky-400 rounded-full text-sky-500 hover:scale-125 transition-transform shadow-md flex items-center justify-center text-[11px] w-6 h-6 select-none font-bold"
+      title="Arraste para rotacionar"
     >
       ↻
     </div>
@@ -369,81 +433,83 @@ function CustomShapeNode({ id, data, selected }) {
   }, [id, data]);
 
   return (
-    <div className="group relative w-full h-full min-w-[30px] min-h-[30px] flex items-center justify-center" style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
+    <div className="group relative w-full h-full min-w-[30px] min-h-[30px] flex items-center justify-center">
       <NodeResizer minWidth={30} minHeight={30} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
 
       <TopRightDeleteHandle onDelete={handleDeleteNode} selected={selected} />
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} currentRotation={rotation} />
       <ArrowDirectionalHandles />
 
-      {shapeType === 'rectangle' && (
-        <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
-      )}
+      <div className="w-full h-full flex items-center justify-center relative" style={{ transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' }}>
+        {shapeType === 'rectangle' && (
+          <YellowCornerRadiusHandle onUpdateRadius={handleRadiusChange} selected={selected} currentRadius={cornerRadius} />
+        )}
 
-      {shapeType === 'text' && (
-        <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
-      )}
-
-      {shapeType === 'circle' && (
-        <div className="w-full h-full flex items-center justify-center relative">
-          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <ellipse cx="50" cy="50" rx="46" ry="46" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
-          </svg>
+        {shapeType === 'text' && (
           <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
-        </div>
-      )}
+        )}
 
-      {shapeType === 'diamond' && (
-        <div className="w-full h-full flex items-center justify-center relative">
-          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polygon points="50,2 98,50 50,98 2,50" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
-          </svg>
-          <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
-        </div>
-      )}
-
-      {shapeType === 'triangle' && (
-        <>
-          <TriangleVertexHandle onUpdateOffset={handleVertexOffsetChange} selected={selected} />
+        {shapeType === 'circle' && (
           <div className="w-full h-full flex items-center justify-center relative">
             <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon points={`${vertexOffset},4 96,96 4,96`} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+              <ellipse cx="50" cy="50" rx="46" ry="46" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
             </svg>
             <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
           </div>
-        </>
-      )}
+        )}
 
-      {shapeType === 'arrow' && (
-        <div className="w-full h-full flex items-center justify-center relative">
-          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <defs>
-              <marker id={`start-triangle-${id}`} markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto"><polygon points="8 0, 0 4, 8 8" fill={strokeVal} /></marker>
-              <marker id={`end-triangle-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill={strokeVal} /></marker>
+        {shapeType === 'diamond' && (
+          <div className="w-full h-full flex items-center justify-center relative">
+            <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon points="50,2 98,50 50,98 2,50" fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+            </svg>
+            <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
+          </div>
+        )}
 
-              <marker id={`start-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
-              <marker id={`end-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
+        {shapeType === 'triangle' && (
+          <>
+            <TriangleVertexHandle onUpdateOffset={handleVertexOffsetChange} selected={selected} />
+            <div className="w-full h-full flex items-center justify-center relative">
+              <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polygon points={`${vertexOffset},4 96,96 4,96`} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+              </svg>
+              <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
+            </div>
+          </>
+        )}
 
-              <marker id={`start-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
-              <marker id={`end-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
+        {shapeType === 'arrow' && (
+          <div className="w-full h-full flex items-center justify-center relative">
+            <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <marker id={`start-triangle-${id}`} markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto"><polygon points="8 0, 0 4, 8 8" fill={strokeVal} /></marker>
+                <marker id={`end-triangle-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill={strokeVal} /></marker>
 
-              <marker id={`start-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
-              <marker id={`end-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
-            </defs>
+                <marker id={`start-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
+                <marker id={`end-circle-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill={strokeVal} /></marker>
 
-            <line x1="8" y1="50" x2="92" y2="50" stroke={strokeVal} strokeWidth={widthNum || 2} strokeDasharray={strokeDash} markerStart={arrowStartHead !== 'none' ? `url(#start-${arrowStartHead}-${id})` : undefined} markerEnd={arrowEndHead !== 'none' ? `url(#end-${arrowEndHead}-${id})` : undefined} />
-          </svg>
-        </div>
-      )}
+                <marker id={`start-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
+                <marker id={`end-square-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><rect x="1" y="1" width="6" height="6" fill={strokeVal} /></marker>
 
-      {shapeType === 'rectangle' && (
-        <div className="w-full h-full flex items-center justify-center relative">
-          <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect x="2" y="2" width="96" height="96" rx={cornerRadius} ry={cornerRadius} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
-          </svg>
-          <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
-        </div>
-      )}
+                <marker id={`start-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
+                <marker id={`end-diamond-${id}`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><polygon points="4 0, 8 4, 4 8, 0 4" fill={strokeVal} /></marker>
+              </defs>
+
+              <line x1="8" y1="50" x2="92" y2="50" stroke={strokeVal} strokeWidth={widthNum || 2} strokeDasharray={strokeDash} markerStart={arrowStartHead !== 'none' ? `url(#start-${arrowStartHead}-${id})` : undefined} markerEnd={arrowEndHead !== 'none' ? `url(#end-${arrowEndHead}-${id})` : undefined} />
+            </svg>
+          </div>
+        )}
+
+        {shapeType === 'rectangle' && (
+          <div className="w-full h-full flex items-center justify-center relative">
+            <svg className="w-full h-full absolute inset-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <rect x="2" y="2" width="96" height="96" rx={cornerRadius} ry={cornerRadius} fill={fillVal} stroke={strokeVal} strokeWidth={widthNum} strokeDasharray={strokeDash} />
+            </svg>
+            <EditableNodeText id={id} data={data} onUpdateData={handleUpdateData} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -491,46 +557,46 @@ function EntityCardNode({ id, data, selected }) {
   const badgeTheme = getEntityBadgeTheme(category || '', type || title);
 
   return (
-    <div
-      className={`group relative rounded-xl p-3.5 shadow-2xl w-full h-full text-left flex flex-col justify-between transition-all ${
-        selected ? 'ring-2 ring-sky-400' : ''
-      }`}
-      style={{
-        transform: `rotate(${rotation}deg)`,
-        transformOrigin: 'center center',
-        backgroundColor: bgStyle,
-        borderColor: borderColVal,
-        borderWidth: strokeWidth,
-        borderStyle: borderStyleVal,
-      }}
-    >
+    <div className="group relative w-full h-full">
       <NodeResizer minWidth={140} minHeight={60} isVisible={selected} lineClassName="border-sky-400 border-dashed" handleClassName="h-2.5 w-2.5 bg-sky-400 border border-white rounded-full z-40" />
       <TopRightDeleteHandle onDelete={handleDeleteNode} selected={selected} />
       <BottomRightRotateHandle onRotate={handleRotate} selected={selected} currentRotation={rotation} />
       <ArrowDirectionalHandles />
 
-      {/* Título do Card */}
-      <div className="pr-2 overflow-hidden">
-        <strong
-          className="block truncate select-none leading-tight"
-          style={{
-            color: hexToRgba(textColor, textOpacity),
-            fontSize: FONT_SIZE_MAP[fontSize] || '14px',
-            fontFamily: fontFamily || 'Arial',
-            fontWeight: isBold ? 'bold' : 'normal',
-            fontStyle: isItalic ? 'italic' : 'normal',
-            textDecoration: textDecorations || 'none',
-          }}
-        >
-          {title}
-        </strong>
-      </div>
+      <div
+        className={`rounded-xl p-3.5 shadow-2xl w-full h-full text-left flex flex-col justify-between ${
+          selected ? 'ring-2 ring-sky-400' : ''
+        }`}
+        style={{
+          transform: `rotate(${rotation}deg)`,
+          transformOrigin: 'center center',
+          backgroundColor: bgStyle,
+          borderColor: borderColVal,
+          borderWidth: strokeWidth,
+          borderStyle: borderStyleVal,
+        }}
+      >
+        <div className="pr-2 overflow-hidden">
+          <strong
+            className="block truncate select-none leading-tight"
+            style={{
+              color: hexToRgba(textColor, textOpacity),
+              fontSize: FONT_SIZE_MAP[fontSize] || '14px',
+              fontFamily: fontFamily || 'Arial',
+              fontWeight: isBold ? 'bold' : 'normal',
+              fontStyle: isItalic ? 'italic' : 'normal',
+              textDecoration: textDecorations || 'none',
+            }}
+          >
+            {title}
+          </strong>
+        </div>
 
-      {/* Tag / Badge */}
-      <div className="pt-2">
-        <span className={`inline-block border px-2.5 py-0.5 rounded-md text-[10px] tracking-wide shadow-sm select-none ${badgeTheme}`}>
-          {type || category}
-        </span>
+        <div className="pt-2">
+          <span className={`inline-block border px-2.5 py-0.5 rounded-md text-[10px] tracking-wide shadow-sm select-none ${badgeTheme}`}>
+            {type || category}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -570,23 +636,29 @@ function StoryboardContent({ projectId }) {
 
   const [selectedNodes, setSelectedNodes] = useState([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState([]);
 
   const isDrawingRef = useRef(false);
   const drawStartRef = useRef(null);
   const activeDrawNodeIdRef = useRef(null);
 
-  const deleteSelectedNodes = useCallback(() => {
-    if (selectedNodeIds.length === 0) return;
-    setNodes((nds) => nds.filter((node) => !selectedNodeIds.includes(node.id)));
-    setSelectedNodeIds([]);
-  }, [selectedNodeIds, setNodes]);
+  const deleteSelectedItems = useCallback(() => {
+    if (selectedNodeIds.length > 0) {
+      setNodes((nds) => nds.filter((node) => !selectedNodeIds.includes(node.id)));
+      setSelectedNodeIds([]);
+    }
+    if (selectedEdgeIds.length > 0) {
+      setEdges((eds) => eds.filter((edge) => !selectedEdgeIds.includes(edge.id)));
+      setSelectedEdgeIds([]);
+    }
+  }, [selectedNodeIds, selectedEdgeIds, setNodes, setEdges]);
 
   const onDeleteNode = useCallback((nodeId) => {
     setNodes((nds) => nds.filter((node) => node.id !== nodeId));
     setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId));
   }, [setNodes]);
 
-  // FUNÇÕES DE ALINHAMENTO, DISTRIBUIÇÃO E GRADE
+  // ALINHAMENTO
   const alignNodes = useCallback((alignmentType) => {
     if (selectedNodeIds.length < 1) return;
 
@@ -715,12 +787,16 @@ function StoryboardContent({ projectId }) {
   }, [setNodes]);
 
   const nodeTypes = useMemo(() => ({ customShape: CustomShapeNode, entityNode: EntityCardNode }), []);
+  const edgeTypes = useMemo(() => ({ customDeletable: CustomDeletableEdge }), []);
 
   useOnSelectionChange({
-    onChange: ({ nodes: selNodes }) => {
+    onChange: ({ nodes: selNodes, edges: selEdges }) => {
       setSelectedNodes(selNodes);
-      const ids = selNodes.map((n) => n.id);
-      setSelectedNodeIds(ids);
+      const nodeIds = selNodes.map((n) => n.id);
+      const edgeIds = selEdges.map((e) => e.id);
+
+      setSelectedNodeIds(nodeIds);
+      setSelectedEdgeIds(edgeIds);
 
       if (selNodes.length === 1) {
         const data = selNodes[0].data || {};
@@ -745,29 +821,70 @@ function StoryboardContent({ projectId }) {
         if (data.isUnderline !== undefined) setIsUnderline(data.isUnderline);
         if (data.isStrike !== undefined) setIsStrike(data.isStrike);
         if (data.textDirection !== undefined) setTextDirection(data.textDirection);
+      } else if (selEdges.length === 1) {
+        const edge = selEdges[0];
+        if (edge.style?.stroke) setStrokeColor(edge.style.stroke);
+        if (edge.style?.strokeOpacity !== undefined) setStrokeOpacity(Math.round(edge.style.strokeOpacity * 100));
+        if (edge.style?.strokeWidth) setStrokeWidth(`${edge.style.strokeWidth}px`);
+        setStrokeStyle(edge.animated ? 'dashed' : 'solid');
       }
     },
   });
 
-  const updateSelectedNodesStyle = useCallback(
+  const updateSelectedStyle = useCallback(
     (key, value) => {
-      if (selectedNodeIds.length === 0) return;
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (selectedNodeIds.includes(node.id)) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                [key]: value,
-              },
-            };
-          }
-          return node;
-        })
-      );
+      // 1. Atualização para Nós
+      if (selectedNodeIds.length > 0) {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (selectedNodeIds.includes(node.id)) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  [key]: value,
+                },
+              };
+            }
+            return node;
+          })
+        );
+      }
+
+      // 2. Atualização para Conectores/Edges
+      if (selectedEdgeIds.length > 0) {
+        setEdges((eds) =>
+          eds.map((edge) => {
+            if (selectedEdgeIds.includes(edge.id)) {
+              const updatedStyle = { ...edge.style };
+
+              if (key === 'strokeColor') {
+                updatedStyle.stroke = value;
+              }
+
+              if (key === 'strokeOpacity') {
+                updatedStyle.strokeOpacity = Number(value) / 100;
+              }
+
+              if (key === 'strokeWidth') {
+                updatedStyle.strokeWidth = parseInt(value, 10) || 2;
+              }
+
+              if (key === 'strokeStyle') {
+                edge.animated = value === 'dashed';
+              }
+
+              return {
+                ...edge,
+                style: updatedStyle,
+              };
+            }
+            return edge;
+          })
+        );
+      }
     },
-    [selectedNodeIds, setNodes]
+    [selectedNodeIds, selectedEdgeIds, setNodes, setEdges]
   );
 
   function changeZIndex(type) {
@@ -840,13 +957,18 @@ function StoryboardContent({ projectId }) {
         addEdge(
           {
             ...params,
+            type: 'customDeletable',
             animated: strokeStyle === 'dashed',
-            style: { stroke: strokeColor, strokeWidth: parseInt(strokeWidth, 10) || 2 },
+            style: {
+              stroke: strokeColor,
+              strokeOpacity: strokeOpacity / 100,
+              strokeWidth: parseInt(strokeWidth, 10) || 2,
+            },
           },
           eds
         )
       ),
-    [setEdges, strokeColor, strokeWidth, strokeStyle]
+    [setEdges, strokeColor, strokeOpacity, strokeWidth, strokeStyle]
   );
 
   const handleMouseDownCanvas = (event) => {
@@ -1108,11 +1230,13 @@ function StoryboardContent({ projectId }) {
                 </div>
               </div>
 
-              {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA */}
+              {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA / LINHA */}
               <div className="space-y-4 pt-3 border-t border-gray-800/60">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">PREENCHIMENTO E BORDA</h3>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  {selectedEdgeIds.length > 0 ? 'ESTILO DA CONEXÃO' : 'PREENCHIMENTO E BORDA'}
+                </h3>
 
-                {!isArrowSelected && (
+                {selectedEdgeIds.length === 0 && !isArrowSelected && (
                   <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
                     <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
                     <div className="flex items-center gap-2.5">
@@ -1123,7 +1247,7 @@ function StoryboardContent({ projectId }) {
                           disabled={noFill}
                           onChange={(e) => {
                             setFillColor(e.target.value);
-                            updateSelectedNodesStyle('fillColor', e.target.value);
+                            updateSelectedStyle('fillColor', e.target.value);
                           }}
                           className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
                         />
@@ -1142,7 +1266,7 @@ function StoryboardContent({ projectId }) {
                           onChange={(e) => {
                             const val = Number(e.target.value);
                             setFillOpacity(val);
-                            updateSelectedNodesStyle('fillOpacity', val);
+                            updateSelectedStyle('fillOpacity', val);
                           }}
                           className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
                         />
@@ -1154,7 +1278,7 @@ function StoryboardContent({ projectId }) {
                         checked={noFill}
                         onChange={(e) => {
                           setNoFill(e.target.checked);
-                          updateSelectedNodesStyle('noFill', e.target.checked);
+                          updateSelectedStyle('noFill', e.target.checked);
                         }}
                         className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
                       />
@@ -1164,7 +1288,9 @@ function StoryboardContent({ projectId }) {
                 )}
 
                 <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-                  <label className="text-xs font-semibold text-gray-300 block">Cor da Linha / Borda</label>
+                  <label className="text-xs font-semibold text-gray-300 block">
+                    {selectedEdgeIds.length > 0 ? 'Cor da Linha' : 'Cor da Borda'}
+                  </label>
                   <div className="flex items-center gap-2.5">
                     <div className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#7C3AED]">
                       <input
@@ -1172,7 +1298,7 @@ function StoryboardContent({ projectId }) {
                         value={strokeColor}
                         onChange={(e) => {
                           setStrokeColor(e.target.value);
-                          updateSelectedNodesStyle('strokeColor', e.target.value);
+                          updateSelectedStyle('strokeColor', e.target.value);
                         }}
                         className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
                       />
@@ -1190,7 +1316,7 @@ function StoryboardContent({ projectId }) {
                         onChange={(e) => {
                           const val = Number(e.target.value);
                           setStrokeOpacity(val);
-                          updateSelectedNodesStyle('strokeOpacity', val);
+                          updateSelectedStyle('strokeOpacity', val);
                         }}
                         className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
                       />
@@ -1204,11 +1330,11 @@ function StoryboardContent({ projectId }) {
                         value={strokeWidth}
                         onChange={(e) => {
                           setStrokeWidth(e.target.value);
-                          updateSelectedNodesStyle('strokeWidth', e.target.value);
+                          updateSelectedStyle('strokeWidth', e.target.value);
                         }}
                         className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
                       >
-                        <option value="0px">Nenhuma (0px)</option>
+                        {selectedEdgeIds.length === 0 && <option value="0px">Nenhuma (0px)</option>}
                         <option value="1px">Fina (1px)</option>
                         <option value="2px">Média (2px)</option>
                         <option value="3px">Grossa (3px)</option>
@@ -1223,64 +1349,21 @@ function StoryboardContent({ projectId }) {
                         value={strokeStyle}
                         onChange={(e) => {
                           setStrokeStyle(e.target.value);
-                          updateSelectedNodesStyle('strokeStyle', e.target.value);
+                          updateSelectedStyle('strokeStyle', e.target.value);
                         }}
                         className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
                       >
                         <option value="solid">Sólida</option>
-                        <option value="dashed">Tracejada</option>
-                        <option value="dotted">Pontilhada</option>
+                        <option value="dashed">Tracejada / Animada</option>
+                        {selectedEdgeIds.length === 0 && <option value="dotted">Pontilhada</option>}
                       </select>
                     </div>
                   </div>
                 </div>
-
-                {isArrowSelected && (
-                  <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-                    <label className="text-xs font-semibold text-gray-300 block">Estilo de Pontas da Seta</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-gray-400 block mb-1">Ponta Inicial</label>
-                        <select
-                          value={arrowStartHead}
-                          onChange={(e) => {
-                            setArrowStartHead(e.target.value);
-                            updateSelectedNodesStyle('arrowStartHead', e.target.value);
-                          }}
-                          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
-                        >
-                          <option value="none">Sem ponta</option>
-                          <option value="triangle">Triangular</option>
-                          <option value="circle">Redonda</option>
-                          <option value="square">Quadrada</option>
-                          <option value="diamond">Losango</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-gray-400 block mb-1">Ponta Final</label>
-                        <select
-                          value={arrowEndHead}
-                          onChange={(e) => {
-                            setArrowEndHead(e.target.value);
-                            updateSelectedNodesStyle('arrowEndHead', e.target.value);
-                          }}
-                          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
-                        >
-                          <option value="none">Sem ponta</option>
-                          <option value="triangle">Triangular</option>
-                          <option value="circle">Redonda</option>
-                          <option value="square">Quadrada</option>
-                          <option value="diamond">Losango</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* FORMATAÇÃO DE TEXTO */}
-              {isTextSupported && (
+              {isTextSupported && selectedEdgeIds.length === 0 && (
                 <div className="space-y-3 pt-3 border-t border-gray-800/60 bg-[#161622] p-3 rounded-xl border border-gray-800/80">
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">FORMATAÇÃO DE TEXTO</h3>
 
@@ -1300,7 +1383,7 @@ function StoryboardContent({ projectId }) {
                           if (btn.key === 'isItalic') setIsItalic(val);
                           if (btn.key === 'isUnderline') setIsUnderline(val);
                           if (btn.key === 'isStrike') setIsStrike(val);
-                          updateSelectedNodesStyle(btn.key, val);
+                          updateSelectedStyle(btn.key, val);
                         }}
                         className={`flex-1 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
                           btn.active
@@ -1320,7 +1403,7 @@ function StoryboardContent({ projectId }) {
                         value={fontSize}
                         onChange={(e) => {
                           setFontSize(e.target.value);
-                          updateSelectedNodesStyle('fontSize', e.target.value);
+                          updateSelectedStyle('fontSize', e.target.value);
                         }}
                         className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
                       >
@@ -1338,7 +1421,7 @@ function StoryboardContent({ projectId }) {
                         value={fontFamily}
                         onChange={(e) => {
                           setFontFamily(e.target.value);
-                          updateSelectedNodesStyle('fontFamily', e.target.value);
+                          updateSelectedStyle('fontFamily', e.target.value);
                         }}
                         className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-1.5 text-xs text-gray-200"
                       >
@@ -1352,85 +1435,31 @@ function StoryboardContent({ projectId }) {
                       </select>
                     </div>
                   </div>
-
-                  <div className="space-y-2 pt-1">
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Cor e Opacidade do Texto</label>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-7 h-7 rounded border border-gray-700 overflow-hidden shrink-0 bg-white">
-                          <input
-                            type="color"
-                            value={textColor}
-                            onChange={(e) => {
-                              setTextColor(e.target.value);
-                              updateSelectedNodesStyle('textColor', e.target.value);
-                            }}
-                            className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
-                          />
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={textOpacity}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setTextOpacity(val);
-                            updateSelectedNodesStyle('textOpacity', val);
-                          }}
-                          className="flex-1 accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
-                        />
-                        <span className="text-[10px] font-mono text-gray-400 w-8 text-right">{textOpacity}%</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 
               {/* GERENCIAMENTO DE CAMADAS */}
-              <div className="space-y-2 pt-3 border-t border-gray-800/60">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">CAMADAS</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('front-top')}
-                    className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ▲ Trazer para frente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('front-step')}
-                    className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ↑ Mover para frente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('back-step')}
-                    className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ↓ Mover para trás
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => changeZIndex('back-bottom')}
-                    className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium"
-                  >
-                    ▼ Enviar para trás
-                  </button>
+              {selectedEdgeIds.length === 0 && (
+                <div className="space-y-2 pt-3 border-t border-gray-800/60">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">CAMADAS</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => changeZIndex('front-top')} className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium">▲ Trazer para frente</button>
+                    <button type="button" onClick={() => changeZIndex('front-step')} className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium">↑ Mover para frente</button>
+                    <button type="button" onClick={() => changeZIndex('back-step')} className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium">↓ Mover para trás</button>
+                    <button type="button" onClick={() => changeZIndex('back-bottom')} className="p-2 rounded-xl bg-[#181824] border border-gray-800 text-[11px] text-gray-300 hover:border-purple-600 transition-all cursor-pointer font-medium">▼ Enviar para trás</button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* BOTÃO DE EXCLUIR */}
             <div className="pt-4 border-t border-gray-800/60 mt-auto">
               <button
                 type="button"
-                onClick={deleteSelectedNodes}
-                disabled={selectedNodeIds.length === 0}
+                onClick={deleteSelectedItems}
+                disabled={selectedNodeIds.length === 0 && selectedEdgeIds.length === 0}
                 className={`w-full p-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  selectedNodeIds.length > 0
+                  selectedNodeIds.length > 0 || selectedEdgeIds.length > 0
                     ? 'bg-red-900/40 border border-red-600/60 text-red-300 hover:bg-red-800/60 shadow-lg'
                     : 'bg-gray-800/30 border border-gray-800 text-gray-600 cursor-not-allowed'
                 }`}
@@ -1457,6 +1486,7 @@ function StoryboardContent({ projectId }) {
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
