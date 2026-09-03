@@ -1065,23 +1065,26 @@ function StoryboardContent({ projectId }) {
 
     const fetchProjectEntities = async () => {
       try {
-        const [resChars, resWorld, resStruct, resScenes, resMysteries, resTwists, resBoard] = await Promise.all([
+        const [resChars, resWorld, resStruct, resScenes, resMysteries, resTwists, resTimeline, resBoard] = await Promise.all([
           apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/world`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/estrutura-dramatica/cards`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/mysteries`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/ritmo-timeline/cards`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/storyboard`).catch(() => ({ data: { nodes: [], edges: [] } })),
         ]);
 
         setEntities({
           personagens: resChars.data || [],
           mundo: resWorld.data || [],
-          estrutura: resStruct.data || [],
           cenas: resScenes.data || [],
           misterios: resMysteries.data || [],
+          estrutura: resStruct.data || [],
+          timeline: resTimeline.data || [],
           twists: resTwists.data || [],
+
         });
 
         // Restaura os Nós e Conexões salvos
@@ -1292,137 +1295,146 @@ function StoryboardContent({ projectId }) {
                 </div>
               </div>
 
-              {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA / LINHA */}
-              <div className="space-y-4 pt-3 border-t border-gray-800/60">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  {selectedEdgeIds.length > 0 ? 'ESTILO DA CONEXÃO' : 'PREENCHIMENTO E BORDA'}
-                </h3>
+             {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA / LINHA */}
+<div className="space-y-4 pt-3 border-t border-gray-800/60">
+  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+    {selectedEdgeIds.length > 0 ? 'ESTILO DA CONEXÃO' : 'PREENCHIMENTO E BORDA'}
+  </h3>
 
-                {selectedEdgeIds.length === 0 && !isArrowSelected && (
-                  <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-                    <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
-                    <div className="flex items-center gap-2.5">
-                      <div className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#1a1d24]">
-                        <input
-                          type="color"
-                          value={fillColor}
-                          disabled={noFill}
-                          onChange={(e) => {
-                            setFillColor(e.target.value);
-                            updateSelectedStyle('fillColor', e.target.value);
-                          }}
-                          className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex justify-between text-[10px] text-gray-400">
-                          <span>Opacidade</span>
-                          <span>{fillOpacity}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          disabled={noFill}
-                          value={fillOpacity}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setFillColor(val);
-                            updateSelectedStyle('fillOpacity', val);
-                          }}
-                          className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        checked={noFill}
-                        onChange={(e) => {
-                          setNoFill(e.target.checked);
-                          updateSelectedStyle('noFill', e.target.checked);
-                        }}
-                        className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
-                      />
-                      Sem preenchimento
-                    </label>
-                  </div>
-                )}
+  {/* 1. QUADRADO E CONTROLES DE PREENCHIMENTO */}
+  {selectedEdgeIds.length === 0 && !isArrowSelected && (
+    <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+      <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
+      <div className="flex items-center gap-2.5">
+        <div 
+          className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
+          style={{ backgroundColor: noFill ? 'transparent' : fillColor }}
+        >
+          <input
+            type="color"
+            value={fillColor}
+            disabled={noFill}
+            onChange={(e) => {
+              setFillColor(e.target.value);
+              updateSelectedStyle('fillColor', e.target.value);
+            }}
+            className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
+          />
+        </div>
+        <div className="flex-1 space-y-1">
+          <div className="flex justify-between text-[10px] text-gray-400">
+            <span>Opacidade</span>
+            <span>{fillOpacity}%</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            disabled={noFill}
+            value={fillOpacity}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setFillOpacity(val);
+              updateSelectedStyle('fillOpacity', val);
+            }}
+            className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+          />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer pt-1">
+        <input
+          type="checkbox"
+          checked={noFill}
+          onChange={(e) => {
+            setNoFill(e.target.checked);
+            updateSelectedStyle('noFill', e.target.checked);
+          }}
+          className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
+        />
+        Sem preenchimento
+      </label>
+    </div>
+  )}
 
-                <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-                  <label className="text-xs font-semibold text-gray-300 block">
-                    {selectedEdgeIds.length > 0 ? 'Cor da Linha' : 'Cor da Borda'}
-                  </label>
-                  <div className="flex items-center gap-2.5">
-                    <div className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 bg-[#7C3AED]">
-                      <input
-                        type="color"
-                        value={strokeColor}
-                        onChange={(e) => {
-                          setStrokeColor(e.target.value);
-                          updateSelectedStyle('strokeColor', e.target.value);
-                        }}
-                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer bg-transparent border-none"
-                      />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Opacidade</span>
-                        <span>{strokeOpacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={strokeOpacity}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setStrokeOpacity(val);
-                          updateSelectedStyle('strokeOpacity', val);
-                        }}
-                        className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
-                      />
-                    </div>
-                  </div>
+  {/* 2. QUADRADO E CONTROLES DE COR DA BORDA / LINHA */}
+  <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+    <label className="text-xs font-semibold text-gray-300 block">
+      {selectedEdgeIds.length > 0 ? 'Cor da Linha' : 'Cor da Borda'}
+    </label>
+    <div className="flex items-center gap-2.5">
+      {/* QUADRADINHO DA COR DA BORDA/LINHA CORRIGIDO */}
+      <div 
+        className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
+        style={{ backgroundColor: strokeColor }}
+      >
+        <input
+          type="color"
+          value={strokeColor}
+          onChange={(e) => {
+            setStrokeColor(e.target.value);
+            updateSelectedStyle('strokeColor', e.target.value);
+          }}
+          className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
+        />
+      </div>
+      <div className="flex-1 space-y-1">
+        <div className="flex justify-between text-[10px] text-gray-400">
+          <span>Opacidade</span>
+          <span>{strokeOpacity}%</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={strokeOpacity}
+          onChange={(e) => {
+            const val = Number(e.target.value);
+            setStrokeOpacity(val);
+            updateSelectedStyle('strokeOpacity', val);
+          }}
+          className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+        />
+      </div>
+    </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <div>
-                      <label className="text-[10px] font-medium text-gray-400 block mb-1">Espessura</label>
-                      <select
-                        value={strokeWidth}
-                        onChange={(e) => {
-                          setStrokeWidth(e.target.value);
-                          updateSelectedStyle('strokeWidth', e.target.value);
-                        }}
-                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
-                      >
-                        {selectedEdgeIds.length === 0 && <option value="0px">Nenhuma (0px)</option>}
-                        <option value="1px">Fina (1px)</option>
-                        <option value="2px">Média (2px)</option>
-                        <option value="3px">Grossa (3px)</option>
-                        <option value="4px">Muito grossa (4px)</option>
-                        <option value="6px">Extra grossa (6px)</option>
-                      </select>
-                    </div>
+    <div className="grid grid-cols-2 gap-2 pt-2">
+      <div>
+        <label className="text-[10px] font-medium text-gray-400 block mb-1">Espessura</label>
+        <select
+          value={strokeWidth}
+          onChange={(e) => {
+            setStrokeWidth(e.target.value);
+            updateSelectedStyle('strokeWidth', e.target.value);
+          }}
+          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+        >
+          {selectedEdgeIds.length === 0 && <option value="0px">Nenhuma (0px)</option>}
+          <option value="1px">Fina (1px)</option>
+          <option value="2px">Média (2px)</option>
+          <option value="3px">Grossa (3px)</option>
+          <option value="4px">Muito grossa (4px)</option>
+          <option value="6px">Extra grossa (6px)</option>
+        </select>
+      </div>
 
-                    <div>
-                      <label className="text-[10px] font-medium text-gray-400 block mb-1">Estilo</label>
-                      <select
-                        value={strokeStyle}
-                        onChange={(e) => {
-                          setStrokeStyle(e.target.value);
-                          updateSelectedStyle('strokeStyle', e.target.value);
-                        }}
-                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
-                      >
-                        <option value="solid">Sólida</option>
-                        <option value="dashed">Tracejada / Animada</option>
-                        {selectedEdgeIds.length === 0 && <option value="dotted">Pontilhada</option>}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <div>
+        <label className="text-[10px] font-medium text-gray-400 block mb-1">Estilo</label>
+        <select
+          value={strokeStyle}
+          onChange={(e) => {
+            setStrokeStyle(e.target.value);
+            updateSelectedStyle('strokeStyle', e.target.value);
+          }}
+          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+        >
+          <option value="solid">Sólida</option>
+          <option value="dashed">Tracejada / Animada</option>
+          {selectedEdgeIds.length === 0 && <option value="dotted">Pontilhada</option>}
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
 
               {/* FORMATAÇÃO DE TEXTO */}
               {isTextSupported && selectedEdgeIds.length === 0 && (
@@ -1592,6 +1604,7 @@ function StoryboardContent({ projectId }) {
                 { key: 'personagens', label: 'Personagens', color: 'bg-purple-500' },
                 { key: 'mundo', label: 'Mundo', color: 'bg-emerald-500' },
                 { key: 'estrutura', label: 'Estrutura', color: 'bg-blue-500' },
+                { key: 'timeline', label: 'Ritmo & Timeline', color: 'bg-cyan-500' },
                 { key: 'cenas', label: 'Cenas', color: 'bg-amber-500' },
                 { key: 'misterios', label: 'Mistérios', color: 'bg-pink-500' },
                 { key: 'twists', label: 'Plot Twists', color: 'bg-purple-500' },
