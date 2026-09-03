@@ -890,4 +890,60 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
   }
 });
 
+// ==========================================
+// STORYBOARD (PERSISTÊNCIA DE DIAGRAMA)
+// ==========================================
+
+const getStoryboardHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({
+      where: { projectId: String(projectId), type: 'STORYBOARD' },
+    });
+    res.json(entity ? entity.data : { nodes: [], edges: [] });
+  } catch (error) {
+    console.error('Erro ao buscar Storyboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.get('/projects/:projectId/storyboard', getStoryboardHandler);
+router.get('/entities/projects/:projectId/storyboard', getStoryboardHandler);
+
+const saveStoryboardHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { nodes = [], edges = [] } = req.body;
+
+    const existing = await prisma.entity.findFirst({
+      where: { projectId: String(projectId), type: 'STORYBOARD' },
+    });
+
+    if (existing) {
+      const updated = await prisma.entity.update({
+        where: { id: existing.id },
+        data: { data: { nodes, edges } },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId: String(projectId),
+        type: 'STORYBOARD',
+        title: 'Storyboard Diagram',
+        data: { nodes, edges },
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Storyboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.post('/projects/:projectId/storyboard', saveStoryboardHandler);
+router.post('/entities/projects/:projectId/storyboard', saveStoryboardHandler);
+
 export default router;

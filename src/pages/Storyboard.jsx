@@ -130,7 +130,7 @@ function getEntityBadgeTheme(category = '', type = '') {
       return 'bg-red-900/90 text-red-200 border-red-500 font-bold';
     }
     if (normType.includes('secundario') || normType.includes('coadjuvante')) {
-      return 'bg-blue-900/90 text-blue-200 border-blue-500 font-bold';
+      return 'bg-blue-900/90 text-blue-200 border-blue-400 font-bold';
     }
     return 'bg-purple-950/90 text-purple-300 border-purple-700/60 font-bold';
   }
@@ -605,6 +605,7 @@ function EntityCardNode({ id, data, selected }) {
 function StoryboardContent({ projectId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const { screenToFlowPosition } = useReactFlow();
 
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
@@ -642,6 +643,28 @@ function StoryboardContent({ projectId }) {
   const drawStartRef = useRef(null);
   const activeDrawNodeIdRef = useRef(null);
 
+  const onDeleteNode = useCallback((nodeId) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId));
+  }, [setNodes]);
+
+  const onUpdateData = useCallback((nodeId, updatedProps) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...updatedProps,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
   const deleteSelectedItems = useCallback(() => {
     if (selectedNodeIds.length > 0) {
       setNodes((nds) => nds.filter((node) => !selectedNodeIds.includes(node.id)));
@@ -652,11 +675,6 @@ function StoryboardContent({ projectId }) {
       setSelectedEdgeIds([]);
     }
   }, [selectedNodeIds, selectedEdgeIds, setNodes, setEdges]);
-
-  const onDeleteNode = useCallback((nodeId) => {
-    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-    setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId));
-  }, [setNodes]);
 
   // ALINHAMENTO
   const alignNodes = useCallback((alignmentType) => {
@@ -768,23 +786,6 @@ function StoryboardContent({ projectId }) {
     estrutura: false,
     cenas: false,
   });
-
-  const onUpdateData = useCallback((nodeId, updatedProps) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              ...updatedProps,
-            },
-          };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
 
   const nodeTypes = useMemo(() => ({ customShape: CustomShapeNode, entityNode: EntityCardNode }), []);
   const edgeTypes = useMemo(() => ({ customDeletable: CustomDeletableEdge }), []);
@@ -1056,18 +1057,22 @@ function StoryboardContent({ projectId }) {
     }
   };
 
+  // ==========================================
+  // CARREGAR DADOS + STORYBOARD DO BACKEND
+  // ==========================================
   useEffect(() => {
     if (!projectId) return;
 
     const fetchProjectEntities = async () => {
       try {
-        const [resChars, resWorld, resStruct, resScenes, resMysteries, resTwists] = await Promise.all([
+        const [resChars, resWorld, resStruct, resScenes, resMysteries, resTwists, resBoard] = await Promise.all([
           apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/world`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/estrutura-dramatica/cards`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/mysteries`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/storyboard`).catch(() => ({ data: { nodes: [], edges: [] } })),
         ]);
 
         setEntities({
@@ -1078,13 +1083,63 @@ function StoryboardContent({ projectId }) {
           misterios: resMysteries.data || [],
           twists: resTwists.data || [],
         });
+
+        // Restaura os Nós e Conexões salvos
+        if (resBoard.data && Array.isArray(resBoard.data.nodes)) {
+          const restoredNodes = resBoard.data.nodes.map((node) => ({
+            ...node,
+            data: {
+              ...node.data,
+              onUpdateData,
+              onDeleteNode,
+            },
+          }));
+          setNodes(restoredNodes);
+        }
+
+        if (resBoard.data && Array.isArray(resBoard.data.edges)) {
+          setEdges(resBoard.data.edges);
+        }
       } catch (err) {
-        console.error('Erro ao buscar entidades:', err);
+        console.error('Erro ao buscar dados do Storyboard:', err);
       }
     };
 
     fetchProjectEntities();
-  }, [projectId]);
+  }, [projectId, onDeleteNode, onUpdateData, setNodes, setEdges]);
+
+  // ==========================================
+  // SALVAR STORYBOARD NO BACKEND
+  // ==========================================
+  const handleSaveStoryboard = useCallback(async () => {
+    if (!projectId) return;
+    setIsSaving(true);
+    try {
+      const cleanNodes = nodes.map(({ data, ...rest }) => {
+        const { onUpdateData: _u, onDeleteNode: _d, ...cleanData } = data || {};
+        return { ...rest, data: cleanData };
+      });
+
+      await apiClient.post(`/entities/projects/${projectId}/storyboard`, {
+        nodes: cleanNodes,
+        edges,
+      });
+    } catch (err) {
+      console.error('Erro ao salvar Storyboard:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [projectId, nodes, edges]);
+
+  // Auto-salvar no backend 1.5s após alterações
+  useEffect(() => {
+    if (nodes.length === 0 && edges.length === 0) return;
+    const timer = setTimeout(() => {
+      handleSaveStoryboard();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [nodes, edges, handleSaveStoryboard]);
 
   function addEntityToCanvas(entity, category) {
     const entitySubtype =
@@ -1170,6 +1225,13 @@ function StoryboardContent({ projectId }) {
           height: 14px !important;
         }
       `}</style>
+
+      {/* STATUS DE SALVAMENTO NO TOPO DO CANVAS */}
+      <div className="absolute top-4 left-20 z-30 flex items-center gap-2 bg-[#12121a]/90 backdrop-blur border border-gray-800 px-3 py-1.5 rounded-xl shadow-lg text-xs font-semibold pointer-events-none">
+        <span className={isSaving ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}>
+          {isSaving ? '⏳ Salvando...' : '✓ Salvo no Banco'}
+        </span>
+      </div>
 
       {/* PAINEL ESQUERDO DE FERRAMENTAS E FORMATAÇÃO */}
       <aside className={`relative z-20 h-full bg-[#12121a]/95 backdrop-blur border-r border-gray-800/80 transition-all duration-300 flex flex-col shrink-0 ${isLeftPanelOpen ? 'w-80' : 'w-12'}`}>
@@ -1265,7 +1327,7 @@ function StoryboardContent({ projectId }) {
                           value={fillOpacity}
                           onChange={(e) => {
                             const val = Number(e.target.value);
-                            setFillOpacity(val);
+                            setFillColor(val);
                             updateSelectedStyle('fillOpacity', val);
                           }}
                           className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
