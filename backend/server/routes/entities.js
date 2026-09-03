@@ -1,14 +1,11 @@
 import express from 'express';
 import prisma from '../config/prisma.js';
 
-
 const router = express.Router();
 
 // ==========================================
-// PROJETOS
+// LISTAR TODOS OS PROJETOS
 // ==========================================
-
-// GET: Buscar todos os projetos
 router.get('/projects', async (req, res) => {
   try {
     const projects = await prisma.project.findMany({
@@ -21,42 +18,93 @@ router.get('/projects', async (req, res) => {
   }
 });
 
-// POST: Criar novo projeto
-router.post('/projects', async (req, res) => {
-  try {
-    const { title, format } = req.body;
+// ==========================================
+// RELAÇÕES (Corrigido para Prisma CharacterRelation)
+// ==========================================
 
-    let defaultUser = await prisma.user.findFirst();
-    if (!defaultUser) {
-      defaultUser = await prisma.user.create({
+const getRelationsHandler = async (req, res) => {
+  const { projectId } = req.params;
+  try {
+    const relations = await prisma.characterRelation.findMany({
+      where: { projectId: String(projectId) },
+      orderBy: { id: 'asc' },
+    });
+    res.json(relations);
+  } catch (err) {
+    console.error('Erro ao buscar relações:', err);
+    res.status(500).json({ error: 'Erro ao carregar relações' });
+  }
+};
+
+router.get('/projects/:projectId/relations', getRelationsHandler);
+router.get('/entities/projects/:projectId/relations', getRelationsHandler);
+
+const saveRelationHandler = async (req, res) => {
+  const { id, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
+
+  if (!projectId || !charAId || !charBId) {
+    return res.status(400).json({ error: 'Projeto e Personagens são obrigatórios.' });
+  }
+
+  try {
+    let savedRelation;
+
+    if (id && !isNaN(Number(id))) {
+      savedRelation = await prisma.characterRelation.update({
+        where: { id: Number(id) },
         data: {
-          email: 'autor@storyforge.com',
-          name: 'Autor StoryForge',
-          password: 'password_hash_teste',
+          charAId: String(charAId),
+          charBId: String(charBId),
+          type: type || 'Amizade',
+          intensity: Number(intensity) || 6,
+          sceneId: sceneId ? String(sceneId) : null,
+          description: description || '',
+        },
+      });
+    } else {
+      savedRelation = await prisma.characterRelation.create({
+        data: {
+          projectId: String(projectId),
+          charAId: String(charAId),
+          charBId: String(charBId),
+          type: type || 'Amizade',
+          intensity: Number(intensity) || 6,
+          sceneId: sceneId ? String(sceneId) : null,
+          description: description || '',
         },
       });
     }
 
-    const newProject = await prisma.project.create({
-      data: {
-        title: title || 'Sem título',
-        description: format || 'Romance / Livro',
-        userId: defaultUser.id,
-      },
-    });
-
-    res.status(201).json(newProject);
-  } catch (error) {
-    console.error('Erro ao criar projeto no Prisma:', error);
-    res.status(500).json({ error: error.message });
+    res.status(200).json(savedRelation);
+  } catch (err) {
+    console.error('Erro ao salvar relação no Prisma:', err);
+    res.status(500).json({ error: 'Erro ao salvar a relação no banco de dados.' });
   }
-});
+};
+
+router.post('/relations', saveRelationHandler);
+router.post('/entities/relations', saveRelationHandler);
+
+const deleteRelationHandler = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.characterRelation.delete({
+      where: { id: Number(id) },
+    });
+    res.json({ success: true, message: 'Relação removida com sucesso' });
+  } catch (err) {
+    console.error('Erro ao deletar relação:', err);
+    res.status(500).json({ error: 'Erro ao excluir relação' });
+  }
+};
+
+router.delete('/relations/:id', deleteRelationHandler);
+router.delete('/entities/relations/:id', deleteRelationHandler);
 
 // ==========================================
-// CONFIGURAÇÕES DO PROJETO (Identidade, Essência, Engenharia)
+// CONFIGURAÇÕES DO PROJETO (Identity, Essência, Engenharia)
 // ==========================================
 
-// GET/POST Identidade
 router.get('/projects/:projectId/identity', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -82,7 +130,6 @@ router.post('/projects/:projectId/identity', async (req, res) => {
   }
 });
 
-// GET/POST Essência
 router.get('/projects/:projectId/essencia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -108,7 +155,6 @@ router.post('/projects/:projectId/essencia', async (req, res) => {
   }
 });
 
-// GET/POST Engenharia
 router.get('/projects/:projectId/engenharia', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -138,7 +184,6 @@ router.post('/projects/:projectId/engenharia', async (req, res) => {
 // ESTRUTURA DRAMÁTICA
 // ==========================================
 
-// GET: Para o Módulo "Estrutura Dramática" (Retorna o objeto completo para edição)
 router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -149,7 +194,6 @@ router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   }
 });
 
-// GET: Para o Apoio Visual da "Escrita" (Converte o objeto gravado em lista de Cards)
 router.get('/projects/:projectId/estrutura-dramatica/cards', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -188,7 +232,6 @@ router.get('/projects/:projectId/estrutura-dramatica/cards', async (req, res) =>
   }
 });
 
-// POST: Salvar Estrutura Dramática
 router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -204,12 +247,10 @@ router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
   }
 });
 
-
 // ==========================================
 // RITMO & TIMELINE
 // ==========================================
 
-// GET: Para o Módulo "Ritmo & Timeline" (Retorna o objeto completo para edição)
 router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -220,7 +261,6 @@ router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
   }
 });
 
-// GET: Para o Apoio Visual da "Escrita" (Converte os eventos salvos em Cards)
 router.get('/projects/:projectId/ritmo-timeline/cards', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -251,7 +291,6 @@ router.get('/projects/:projectId/ritmo-timeline/cards', async (req, res) => {
   }
 });
 
-// POST: Salvar Ritmo & Timeline
 router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -267,12 +306,11 @@ router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
   }
 });
 
-
 // ==========================================
 // PERSONAGENS
 // ==========================================
 
-router.get('/projects/:projectId/characters', async (req, res) => {
+const getCharactersHandler = async (req, res) => {
   try {
     const { projectId } = req.params;
     const characters = await prisma.character.findMany({
@@ -292,7 +330,10 @@ router.get('/projects/:projectId/characters', async (req, res) => {
     console.error('Erro ao buscar personagens:', error);
     res.status(500).json({ error: error.message });
   }
-});
+};
+
+router.get('/projects/:projectId/characters', getCharactersHandler);
+router.get('/entities/projects/:projectId/characters', getCharactersHandler);
 
 router.post('/projects/:projectId/characters', async (req, res) => {
   try {
@@ -388,7 +429,7 @@ router.post('/projects/:projectId/world', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, type, customType, description } = req.body;
-    const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
+    const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
     const newElement = await prisma.entity.create({
       data: {
@@ -420,7 +461,7 @@ router.put('/world/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, customType, description } = req.body;
-    const finalType = type === 'Outros' && customType.trim() ? customType.trim() : type;
+    const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
     const updated = await prisma.entity.update({
       where: { id },
@@ -462,7 +503,7 @@ router.delete('/world/:id', async (req, res) => {
 // CENAS
 // ==========================================
 
-router.get('/projects/:projectId/scenes', async (req, res) => {
+const getScenesHandler = async (req, res) => {
   try {
     const { projectId } = req.params;
     const scenes = await prisma.entity.findMany({
@@ -481,7 +522,10 @@ router.get('/projects/:projectId/scenes', async (req, res) => {
     console.error('Erro ao buscar cenas:', error);
     res.status(500).json({ error: error.message });
   }
-});
+};
+
+router.get('/projects/:projectId/scenes', getScenesHandler);
+router.get('/entities/projects/:projectId/scenes', getScenesHandler);
 
 router.post('/projects/:projectId/scenes', async (req, res) => {
   try {
@@ -802,10 +846,9 @@ router.delete('/chapters/:id', async (req, res) => {
 });
 
 // ==========================================
-// CHECKLIST DE DESENVOLVIMENTO
+// CHECKLIST
 // ==========================================
 
-// GET: Buscar estado do Checklist
 router.get('/projects/:projectId/checklist', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -818,7 +861,6 @@ router.get('/projects/:projectId/checklist', async (req, res) => {
   }
 });
 
-// POST: Salvar estado do Checklist
 router.post('/projects/:projectId/checklist', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -843,54 +885,6 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
       },
     });
     res.status(201).json(created.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==========================================
-// CENAS, MISTÉRIOS, PLOT TWISTS E RELAÇÕES
-// ==========================================
-
-// GET: Buscar Cenas do Projeto
-router.get('/projects/:projectId/scenes', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'SCENES' } });
-    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET: Buscar Mistérios do Projeto
-router.get('/projects/:projectId/mysteries', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'MYSTERIES' } });
-    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET: Buscar Plot Twists do Projeto
-router.get('/projects/:projectId/twists', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'TWISTS' } });
-    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET: Buscar Relações do Projeto
-router.get('/projects/:projectId/relations', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RELATIONS' } });
-    res.json(entity && Array.isArray(entity.data) ? entity.data : []);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

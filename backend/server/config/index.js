@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import authRoutes from '../routes/auth.js';
-import entityRoutes from '../routes/entities.js';
+import entitiesRoutes from '../routes/entities.js';
 import uploadRoutes from '../routes/upload.js';
 
 dotenv.config();
@@ -14,11 +14,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Registro da rota de entidades (projetos, personagens, etc)
-app.use('/api/entities', entityRoutes);
+// Registro de Rotas da Aplicação
 app.use('/api/auth', authRoutes);
+app.use('/api/entities', entitiesRoutes);
 app.use('/api/upload', uploadRoutes);
 
+app.get('/', (req, res) => {
+  res.send('Servidor StoryForge Operacional');
+});
+
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor backend rodando com sucesso na porta ${PORT}`);
 });

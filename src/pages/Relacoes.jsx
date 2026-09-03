@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../api/apiClient';
 
-// CONFIGURAÇÃO DE CORES E INICIAIS DAS RELAÇÕES
 const RELATION_TYPES = {
   Amizade: { label: 'Amizade', color: '#10b981', letter: 'A' },
   Família: { label: 'Família', color: '#eab308', letter: 'F' },
@@ -22,14 +21,6 @@ const INTENSITY_OPTIONS = [
   { value: 10, label: 'Muito Grossa (9 - 10)' },
 ];
 
-const MOCK_CHARACTERS = [
-  { id: 'c1', name: 'Bento', role: 'Secundario' },
-  { id: 'c2', name: 'Leticia', role: 'Protagonista' },
-  { id: 'c3', name: 'Palhaço', role: 'Antagonista' },
-  { id: 'c4', name: 'Domenico', role: 'Secundario' },
-];
-
-// MAPEAMENTO DE BORDAS DOS PERSONAGENS
 function getCharacterBorderColor(char = {}) {
   const sanitize = (str) =>
     String(str || '')
@@ -49,9 +40,9 @@ function getCharacterBorderColor(char = {}) {
     .map(sanitize)
     .join(' ');
 
-  if (combinedProps.includes('protagonista')) return '#f97316'; // Laranja
-  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return '#ef4444'; // Vermelho
-  return '#3b82f6'; // Azul (Secundários)
+  if (combinedProps.includes('protagonista')) return '#f97316';
+  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return '#ef4444';
+  return '#3b82f6';
 }
 
 function getStrokeWidthFromIntensity(val = 6) {
@@ -82,33 +73,32 @@ export default function Relacoes({ projectId }) {
   const [description, setDescription] = useState('');
 
   useEffect(() => {
-  let isMounted = true;
+    let isMounted = true;
 
-  const fetchData = async () => {
-    try {
-      const [resChars, resScenes, resRels] = await Promise.all([
-        apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
-        apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
-        apiClient.get(`/entities/projects/${projectId}/relations`).catch(() => ({ data: [] })),
-      ]);
+    const fetchData = async () => {
+      try {
+        const [resChars, resScenes, resRels] = await Promise.all([
+          apiClient.get(`/entities/projects/${projectId}/characters`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/scenes`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/relations`).catch(() => ({ data: [] })),
+        ]);
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      // Se houver resposta do backend/Postgres, usa a resposta
-      setCharacters(Array.isArray(resChars?.data) ? resChars.data : []);
-      setScenes(Array.isArray(resScenes?.data) ? resScenes.data : []);
-      setRelations(Array.isArray(resRels?.data) ? resRels.data : []);
-    } catch (err) {
-      console.error('Erro ao sincronizar com PostgreSQL:', err);
+        setCharacters(Array.isArray(resChars?.data) ? resChars.data : []);
+        setScenes(Array.isArray(resScenes?.data) ? resScenes.data : []);
+        setRelations(Array.isArray(resRels?.data) ? resRels.data : []);
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+      }
+    };
+
+    if (projectId) {
+      fetchData();
     }
-  };
 
-  if (projectId) {
-    fetchData();
-  }
-
-  return () => { isMounted = false; };
-}, [projectId]);
+    return () => { isMounted = false; };
+  }, [projectId]);
 
   const nodePositions = useMemo(() => {
     if (!Array.isArray(characters) || characters.length === 0) return {};
@@ -140,7 +130,6 @@ export default function Relacoes({ projectId }) {
     });
   }, [relations, selectedSceneFilter]);
 
-  // AGRUPAR CONEXÕES PELOS PARES DE PERSONAGENS
   const pairedRelationGroups = useMemo(() => {
     const groups = {};
 
@@ -176,47 +165,47 @@ export default function Relacoes({ projectId }) {
   };
 
   const handleSaveRelation = async (e) => {
-  e.preventDefault();
-  if (!charA || !charB || charA === charB) {
-    alert('Selecione dois personagens diferentes.');
-    return;
-  }
+    e.preventDefault();
+    if (!charA || !charB || charA === charB) {
+      alert('Selecione dois personagens diferentes.');
+      return;
+    }
 
-  const payload = {
-    projectId,
-    charAId: charA,
-    charBId: charB,
-    type: relType,
-    intensity,
-    sceneId: relSceneId || null,
-    description,
+    const payload = {
+      id: editingId,
+      projectId,
+      charAId: charA,
+      charBId: charB,
+      type: relType,
+      intensity,
+      sceneId: relSceneId || null,
+      description,
+    };
+
+    try {
+      const res = await apiClient.post(`/entities/relations`, payload);
+      if (editingId) {
+        setRelations((prev) => prev.map((r) => (r.id === editingId ? res.data : r)));
+      } else {
+        setRelations((prev) => [...prev, res.data]);
+      }
+      setIsFormOpen(false);
+    } catch (err) {
+      console.error('Erro ao salvar relação:', err);
+      alert('Não foi possível salvar a relação no banco de dados.');
+    }
   };
 
-  try {
-    if (editingId) {
-      const res = await apiClient.put(`/entities/relations/${editingId}`, payload);
-      setRelations((prev) => prev.map((r) => (r.id === editingId ? res.data : r)));
-    } else {
-      const res = await apiClient.post(`/entities/relations`, payload);
-      setRelations((prev) => [...prev, res.data]);
-    }
-    setIsFormOpen(false);
-  } catch (err) {
-    console.error('Erro ao salvar no PostgreSQL:', err);
-    alert('Não foi possível salvar a relação no banco de dados.');
-  }
-};
-
   const handleDeleteRelation = async (id, e) => {
-  e.stopPropagation();
-  try {
-    await apiClient.delete(`/entities/relations/${id}`);
-    setRelations((prev) => prev.filter((r) => r.id !== id));
-  } catch (err) {
-    console.error('Erro ao excluir no PostgreSQL:', err);
-    alert('Não foi possível excluir a relação.');
-  }
-};
+    e.stopPropagation();
+    try {
+      await apiClient.delete(`/entities/relations/${id}`);
+      setRelations((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      console.error('Erro ao deletar relação:', err);
+      alert('Erro ao excluir relação.');
+    }
+  };
 
   return (
     <div className="w-full min-h-screen bg-[#0b0c10] text-gray-200 p-6 font-sans">
@@ -227,7 +216,6 @@ export default function Relacoes({ projectId }) {
         </p>
       </header>
 
-      {/* GUIA DO MÓDULO */}
       <section className="mb-6 bg-[#12131a] border border-gray-800/80 rounded-xl overflow-hidden shadow-lg">
         <button
           type="button"
@@ -299,7 +287,6 @@ export default function Relacoes({ projectId }) {
         )}
       </section>
 
-      {/* LEGENDAS E BARRA DE AÇÕES COM FILTRO DE CENA E BOTÃO + NOVA RELAÇÃO */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400 font-medium">
           {Object.entries(RELATION_TYPES).map(([key, config]) => (
@@ -332,7 +319,6 @@ export default function Relacoes({ projectId }) {
         </div>
       </div>
 
-      {/* FORMULÁRIO DE CRIAR / EDITAR RELAÇÃO */}
       {isFormOpen && (
         <form onSubmit={handleSaveRelation} className="mb-6 p-4 bg-[#12131a] border border-purple-900/50 rounded-2xl space-y-4 shadow-xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -429,7 +415,6 @@ export default function Relacoes({ projectId }) {
         </form>
       )}
 
-      {/* ÁREA DO GRAFO E CARDS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[#12131a] border border-gray-800/80 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[500px] relative shadow-2xl">
           {characters.length === 0 ? (
@@ -514,7 +499,6 @@ export default function Relacoes({ projectId }) {
                 });
               })}
 
-              {/* NÓS DOS PERSONAGENS */}
               {Object.entries(nodePositions).map(([id, node]) => (
                 <g key={id} className="cursor-pointer">
                   <circle
