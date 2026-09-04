@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Registro de Rotas da Aplicação
+// Registro de Rotas da Aplicação (Versão Original que funcionava)
 app.use('/api/auth', authRoutes);
 app.use('/api/entities', entitiesRoutes);
 app.use('/api/upload', uploadRoutes);
