@@ -16,13 +16,21 @@ import Checklist from './pages/Checklist';
 import StoryBible from './pages/StoryBible';
 import Storyboard from './pages/Storyboard';
 import Relacoes from './pages/Relacoes';
+import MapaEmocional from './pages/MapaEmocional';
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
   { title: 'Fundação', items: [['Identidade', 'identidade'], ['Essência da História', 'essencia'], ['Engenharia Narrativa', 'engenharia']] },
   { title: 'Estrutura', items: [['Estrutura Dramática', 'estrutura'], ['Ritmo & Timeline', 'ritmo']] },
   { title: 'Conteúdo', items: [['Personagens', 'personagens'], ['Mundo', 'mundo'], ['Cenas', 'cenas'], ['Relações', 'relacoes']] },
-  { title: 'Camadas', items: [['Mistérios', 'misterios'], ['Plot Twists', 'plot-twists']] },
+  { 
+    title: 'Camadas', 
+    items: [
+      ['Mistérios', 'misterios'], 
+      ['Plot Twists', 'plot-twists'],
+      ['Mapa Emocional', 'mapa-emocional'] // <--- 1. ADICIONADO AQUI ABAIXO DE PLOT TWISTS
+    ] 
+  },
   { title: 'Escrita', items: [['Escrita & Manuscrito', 'escrita'], ['Storyboard', 'storyboard']] },
   { title: 'Verificação', items: [['Checklist', 'checklist'], ['Story Bible', 'story-bible']] },
 ];
@@ -118,6 +126,8 @@ export default function App() {
         return <Misterios projectId={currentProject.id} />;
       case 'plot-twists':
         return <PlotTwists projectId={currentProject.id} />;
+      case 'mapa-emocional': // <--- 2. ADICIONADO AQUI
+        return <MapaEmocional projectId={currentProject.id} />;
       case 'storyboard':
         return <Storyboard projectId={currentProject.id} />;
       case 'checklist':

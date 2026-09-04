@@ -946,4 +946,60 @@ const saveStoryboardHandler = async (req, res) => {
 router.post('/projects/:projectId/storyboard', saveStoryboardHandler);
 router.post('/entities/projects/:projectId/storyboard', saveStoryboardHandler);
 
+// ==========================================
+// MAPA EMOCIONAL (PERSISTÊNCIA DE PONTOS)
+// ==========================================
+
+const getMapaEmocionalHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const entity = await prisma.entity.findFirst({
+      where: { projectId: String(projectId), type: 'MAPA_EMOCIONAL' },
+    });
+    res.json(entity ? entity.data : []);
+  } catch (error) {
+    console.error('Erro ao buscar Mapa Emocional:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.get('/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
+router.get('/entities/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
+
+const saveMapaEmocionalHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const points = req.body; // Array de pontos emocionais
+
+    const existing = await prisma.entity.findFirst({
+      where: { projectId: String(projectId), type: 'MAPA_EMOCIONAL' },
+    });
+
+    if (existing) {
+      const updated = await prisma.entity.update({
+        where: { id: existing.id },
+        data: { data: points },
+      });
+      return res.json(updated.data);
+    }
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId: String(projectId),
+        type: 'MAPA_EMOCIONAL',
+        title: 'Mapa Emocional',
+        data: points,
+      },
+    });
+
+    res.status(201).json(created.data);
+  } catch (error) {
+    console.error('Erro ao salvar Mapa Emocional:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.post('/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
+router.post('/entities/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
+
 export default router;
