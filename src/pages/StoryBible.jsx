@@ -24,6 +24,167 @@ const MILESTONE_THEMES = {
   'Epílogo': { color: 'bg-pink-600 shadow-pink-600/80 ring-pink-950 text-pink-200', border: 'border-pink-500/40', text: 'text-pink-400' }
 };
 
+// Estrutura idêntica das 10 Categorias e cores na ordem exata da página Checklist
+const CHECKLIST_CATEGORIES_ORDER = [
+  {
+    title: 'Personagens & Arcos',
+    badgeStyle: 'bg-purple-950/60 text-purple-300 border-purple-800/40',
+    checkColor: 'bg-purple-600 text-white',
+    boxStyle: 'bg-[#151322] border-purple-800/40 text-purple-200',
+    items: [
+      'O protagonista mudou ao longo da história?',
+      'O protagonista tem um desejo consciente claro?',
+      'O protagonista tem uma necessidade inconsciente?',
+      'O protagonista tem um ponto-cego ou ferida interior?',
+      'O antagonista acredita ser o herói da própria história?',
+      'O antagonista representa a antítese do tema da obra?',
+      'Cada personagem principal tem um arco dramático definido?',
+      'Os personagens secundários têm função narrativa clara?',
+      'Existe coerência psicológica nas atitudes e reações?',
+      'Os personagens têm fraquezas e virtudes equilibradas?',
+      'A voz e o vocabulário dos diálogos distinguem cada personagem?',
+    ],
+  },
+  {
+    title: 'Diálogos & Subtexto',
+    badgeStyle: 'bg-amber-950/60 text-amber-300 border-amber-800/40',
+    checkColor: 'bg-amber-500 text-gray-950',
+    boxStyle: 'bg-[#1c1813] border-amber-800/40 text-amber-200',
+    items: [
+      'Existe um conflito de intenções ou forças opostas no diálogo?',
+      'As vozes permanecem distintas e reconhecíveis mesmo sem os nomes?',
+      'Há informação e intenção transmitidas via subtexto sem exposição direta?',
+      'Foram incluídos gestos, ações e linguagem corporal durante as falas?',
+      'Evitou-se a repetição artificial do nome do interlocutor durante a conversa?',
+      'As falas têm ritmo dinâmico e progridem a cena ao invés de estagnar?',
+      'A camada sonora / atmosfera reflete a tensão do momento do diálogo?',
+    ],
+  },
+  {
+    title: 'Relações & Dinâmica entre Personagens',
+    badgeStyle: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40',
+    checkColor: 'bg-emerald-500 text-gray-950',
+    boxStyle: 'bg-[#121c18] border-emerald-800/40 text-emerald-200',
+    items: [
+      'As relações entre os personagens evoluem ou se desgastam conforme a história avança?',
+      'Existem alianças, rivalidades ou segredos compartilhados que geram tensão secundária?',
+      'As mudanças de relacionamento são motivadas por eventos e cenas específicas?',
+      'O nível de intensidade da relação (amizade, ódio, amor, rivalidade) condiz com os atos dos personagens?',
+      'A rede/grafo de relacionamentos evita personagens isolados sem função narrativa?',
+      'Existem conflitos de interesse claros entre aliados na mesma cena?',
+    ],
+  },
+  {
+    title: 'Conflito & Dilemas',
+    badgeStyle: 'bg-red-950/60 text-red-300 border-red-800/40',
+    checkColor: 'bg-red-500 text-white',
+    boxStyle: 'bg-[#1c1315] border-red-800/40 text-red-200',
+    items: [
+      'Existe um dilema moral central sem escolha óbvia?',
+      'Existe conflito interno relevante no protagonista?',
+      'Existe conflito externo claro que impele a trama?',
+      'O conflito escala de forma progressiva ao longo da narrativa?',
+      'O conflito se resolve de forma tematicamente coerente e sem Deus Ex Machina?',
+      'A força opositora reage ativamente às ações do protagonista?',
+    ],
+  },
+  {
+    title: 'Estrutura, Pacing & Mapa Emocional',
+    badgeStyle: 'bg-blue-950/60 text-blue-300 border-blue-800/40',
+    checkColor: 'bg-blue-500 text-white',
+    boxStyle: 'bg-[#121824] border-blue-800/40 text-blue-200',
+    items: [
+      'O incidente incitante acontece nos primeiros 10% a 15% da história?',
+      'O midpoint muda a dinâmica ou inverte as apostas da história?',
+      'O clímax é o ponto mais alto de tensão e responde à Pergunta Dramática Central?',
+      'A resolução mostra as consequências práticas da transformação?',
+      'A estrutura escolhida serve ao ritmo e tom da história?',
+      'As transições entre cenas e capítulos mantêm a fluidez narrativa?',
+      'A curva do gráfico emocional alterna entre picos de tensão/medo e vales de alívio/esperança?',
+      'Há variedade de sentimentos (curiosidade, choque, tristeza, alegria) ao longo dos pontos-chave?',
+      'O tom emocional da cena final/resolução cumpre a promessa feita no início da narrativa?',
+    ],
+  },
+  {
+    title: 'Cenas & Construção Dramática',
+    badgeStyle: 'bg-indigo-950/60 text-indigo-300 border-indigo-800/40',
+    checkColor: 'bg-indigo-500 text-white',
+    boxStyle: 'bg-[#151528] border-indigo-800/40 text-indigo-200',
+    items: [
+      'Toda cena muda o estado emocional ou narrativo da história?',
+      'Toda cena tem um objetivo claro para o personagem de POV?',
+      'Toda cena contém um conflito ou oposição de intenções?',
+      'Toda cena termina com um gancho/mola de tensão para a próxima?',
+      'Nenhuma cena é redundante ou descartável?',
+      'As informações essenciais são reveladas via ação e diálogo (Show, Don’t Tell)?',
+      'Os cenários interagem fisicamente com os personagens durante as cenas?',
+      'Cada ponto emocional marcante está devidamente vinculado a uma cena, mistério ou plot twist?',
+    ],
+  },
+  {
+    title: 'Mistério, Suspense & Subtramas',
+    badgeStyle: 'bg-orange-950/60 text-orange-300 border-orange-800/40',
+    checkColor: 'bg-orange-500 text-gray-950',
+    boxStyle: 'bg-[#1e1713] border-orange-800/40 text-orange-200',
+    items: [
+      'Existe foreshadowing (pistas sutis) plantado com antecedência?',
+      'Todo foreshadowing tem um payoff (recompensa) satisfatório?',
+      'Os mistérios e pistas não trapaceiam com a atenção do leitor?',
+      'As pistas essenciais estão disponíveis antes da grande revelação?',
+      'Os plot twists parecem inevitáveis em retrospecto, embora surpreendentes?',
+      'As consequências psicológicas e práticas dos twists são exploradas?',
+      'As subtramas enriquecem ou espelham o tema da trama principal?',
+    ],
+  },
+  {
+    title: 'Mundo & Regras do Universo',
+    badgeStyle: 'bg-cyan-950/60 text-cyan-300 border-cyan-800/40',
+    checkColor: 'bg-cyan-500 text-gray-950',
+    boxStyle: 'bg-[#121b20] border-cyan-800/40 text-cyan-200',
+    items: [
+      'O mundo e a ambientação refletem o tema central da história?',
+      'Os sistemas (magia, tecnologia, economia, poder) têm regras e limitações consistentes?',
+      'As facções e instituições têm motivações e ideologias claras?',
+      'A história e o folclore do mundo afetam o presente da narrativa?',
+      'O cenário ativa os cinco sentidos do leitor em momentos-chave?',
+      'O cenário possui contrastes sociais, geográficos ou culturais visíveis?',
+      'Os limites físicos, geográficos ou tecnológicos do mundo geram obstáculos na trama?',
+    ],
+  },
+  {
+    title: 'Tema, Mensagem & Promessa',
+    badgeStyle: 'bg-pink-950/60 text-pink-300 border-pink-800/40',
+    checkColor: 'bg-pink-500 text-white',
+    boxStyle: 'bg-[#1e131b] border-pink-800/40 text-pink-200',
+    items: [
+      'O tema permeia os dilemas da obra sem soar panfletário ou didático?',
+      'A conclusão responde à pergunta filosófica central levantada no início?',
+      'A promessa de gênero feita nos primeiros capítulos é cumprida no final?',
+      'O título e a premissa encontram ressonância ao longo do texto?',
+      'A história possui um dilema filosófico onde duas verdades entram em colisão?',
+      'O desfecho deixa uma sensação de encerramento emocional satisfatório para o leitor?',
+    ],
+  },
+  {
+    title: 'Prosa, Ritmo & Emoção',
+    badgeStyle: 'bg-[#28241e] text-[#e0d3bf] border-[#5a4f3e]',
+    checkColor: 'bg-[#b39368] text-gray-950',
+    boxStyle: 'bg-[#1a1714] border-[#5a4f3e]/60 text-[#e0d3bf]',
+    items: [
+      'O ritmo varia adequadamente entre picos de tensão e momentos de alívio?',
+      'A jornada emocional do leitor é variada ao longo dos atos?',
+      'O tom do final corresponde ao pacto estabelecido com leitor?',
+      'O estilo de prosa e o ritmo de frases casam com o nível de ação da cena?',
+      'A voz narrativa (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
+      'Os diálogos soam naturais quando lidos em voz alta?',
+      'Verbos de ação precisos foram preferidos a adjetivos e advérbios em excesso?',
+      'Os parágrafos variam de tamanho conforme a velocidade/urgência do momento da cena?',
+      'Evitou-se a repetição excessiva de palavras ou ecos sonoros próximos no mesmo parágrafo?',
+      'A narrativa evita exposição de informações (info-dumping) em blocos longos de texto?',
+    ],
+  },
+];
+
 function getCharacterBadgeStyle(type = '') {
   const norm = String(type).toLowerCase();
   if (norm.includes('protagonista')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
@@ -124,10 +285,8 @@ export default function StoryBible({ projectId }) {
         const rawValues = resStructure.data?.values || structureData.values || {};
         const backendCards = Array.isArray(resStructureCards.data) ? resStructureCards.data : [];
 
-        // Montagem unificada dos cards de todos os frameworks
         const compiledCards = [];
 
-        // 1. Incluir cards vindos do endpoint de cards se existirem
         backendCards.forEach((card) => {
           if (card && (card.title || card.name)) {
             compiledCards.push({
@@ -139,7 +298,6 @@ export default function StoryBible({ projectId }) {
           }
         });
 
-        // 2. Extrair diretamente de `values` do backend para cobrir todos os frameworks salvos
         const frameworkKeysMap = [
           { key: 'acts', name: '3 Atos' },
           { key: 'sequences', name: '8 Sequências (Paul Gulino)' },
@@ -206,7 +364,6 @@ export default function StoryBible({ projectId }) {
     return found ? (found.name || found.nome) : `Personagem (${charId?.slice(0, 5)}...)`;
   }
 
-  // Filtra de forma flexível garantindo correspondência mesmo com pequenas variações nos nomes dos frameworks
   const filteredStructureCards = data.structureCards.filter((card) => {
     if (!data.structureFrameworks || data.structureFrameworks.length === 0) return true;
     const cardFw = String(card.framework || card.type || '').toLowerCase();
@@ -605,7 +762,6 @@ export default function StoryBible({ projectId }) {
 
                   return (
                     <div key={card.id || index} className="bg-[#161622] border border-gray-800/80 rounded-xl overflow-hidden shadow-md">
-                      {/* Cabeçalho do Card */}
                       <div className="p-3.5 bg-[#1a1a28] border-b border-gray-800/80 flex flex-wrap justify-between items-center gap-2">
                         <div>
                           <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">
@@ -628,7 +784,6 @@ export default function StoryBible({ projectId }) {
                         </div>
                       </div>
 
-                      {/* Conteúdo das Falas */}
                       <div className="p-4 bg-[#0d0d14] font-serif text-xs text-gray-300 space-y-2 leading-relaxed">
                         {Array.isArray(card.lines) && card.lines.length > 0 ? (
                           card.lines.map((line, i) => (
@@ -695,7 +850,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 7. CHECKLIST */}
+      {/* 7. CHECKLIST ORGANIZADO EM CATEGORIAS IDÊNTICAS AO MÓDULO CHECKLIST */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button
           type="button"
@@ -706,31 +861,60 @@ export default function StoryBible({ projectId }) {
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <span>✅</span> 7. Checklist de Qualidade Narrativa
             </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Organizado pelas 10 Categorias de Qualidade</p>
           </div>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40">
-            {checklistDoneCount} Concluídos
+          <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40">
+            {checklistDoneCount} Verificações Concluídas
           </span>
         </button>
 
         {openSections.checklist && (
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {Object.entries(data.checklist).map(([itemText, isDone]) => (
-                <div
-                  key={itemText}
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs leading-relaxed ${
-                    isDone ? 'bg-[#151824] border-emerald-800/50 text-gray-200' : 'bg-[#14141d] border-gray-800/60 text-gray-500'
-                  }`}
-                >
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 ${
-                    isDone ? 'bg-emerald-500 text-gray-950' : 'border border-gray-700 text-transparent'
-                  }`}>
-                    ✓
-                  </span>
-                  <span className={isDone ? 'line-through opacity-80' : ''}>{itemText}</span>
+          <div className="p-6 space-y-8">
+            {CHECKLIST_CATEGORIES_ORDER.map((catGroup) => {
+              // Filtra quais itens desta categoria foram concluídos ou registrados no banco
+              const catDoneItems = catGroup.items.filter((itemText) => !!data.checklist[itemText]);
+
+              if (catDoneItems.length === 0) return null;
+
+              return (
+                <div key={catGroup.title} className="space-y-3">
+                  {/* Título e Badge da Categoria */}
+                  <div className="flex justify-between items-center border-b border-gray-800 pb-2 px-1">
+                    <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+                      <span>•</span> {catGroup.title}
+                    </h3>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catGroup.badgeStyle}`}>
+                      {catDoneItems.length} / {catGroup.items.length} Concluídos
+                    </span>
+                  </div>
+
+                  {/* Grid de itens concluídos da Categoria */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {catDoneItems.map((itemText) => (
+                      <div
+                        key={itemText}
+                        className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs leading-relaxed transition-all ${catGroup.boxStyle}`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 ${catGroup.checkColor}`}
+                        >
+                          ✓
+                        </span>
+                        <span className="line-through opacity-90 font-medium">
+                          {itemText}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+
+            {checklistDoneCount === 0 && (
+              <p className="text-xs text-gray-500 italic text-center py-4">
+                Nenhum item do checklist foi marcado como concluído ainda.
+              </p>
+            )}
           </div>
         )}
       </section>

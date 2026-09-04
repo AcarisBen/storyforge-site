@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
-// Configuração das 8 categorias com 60 itens exatos
+// Configuração das categorias do checklist com paleta de cores 100% exclusiva
 const checklistCategories = [
   {
     title: 'Personagens & Arcos',
-    badgeStyle: 'bg-purple-950/40 text-purple-300 border-purple-800/40',
+    badgeStyle: 'bg-purple-950/50 text-purple-300 border-purple-700/50',
     checkColor: 'bg-purple-600 border-purple-400 text-white',
     items: [
       'O protagonista mudou ao longo da história?',
@@ -22,9 +22,23 @@ const checklistCategories = [
     ],
   },
   {
+    title: 'Diálogos & Subtexto',
+    badgeStyle: 'bg-amber-950/50 text-amber-300 border-amber-700/50',
+    checkColor: 'bg-amber-500 border-amber-300 text-gray-950',
+    items: [
+      'Existe um conflito de intenções ou forças opostas no diálogo?',
+      'As vozes permanecem distintas e reconhecíveis mesmo sem os nomes?',
+      'Há informação e intenção transmitidas via subtexto sem exposição direta?',
+      'Foram incluídos gestos, ações e linguagem corporal durante as falas?',
+      'Evitou-se a repetição artificial do nome do interlocutor durante a conversa?',
+      'As falas têm ritmo dinâmico e progridem a cena ao invés de estagnar?',
+      'A camada sonora / atmosfera reflete a tensão do momento do diálogo?',
+    ],
+  },
+  {
     title: 'Relações & Dinâmica entre Personagens',
-    badgeStyle: 'bg-indigo-950/40 text-indigo-300 border-indigo-800/40',
-    checkColor: 'bg-indigo-600 border-indigo-400 text-white',
+    badgeStyle: 'bg-emerald-950/50 text-emerald-300 border-emerald-700/50',
+    checkColor: 'bg-emerald-500 border-emerald-300 text-gray-950',
     items: [
       'As relações entre os personagens evoluem ou se desgastam conforme a história avança?',
       'Existem alianças, rivalidades ou segredos compartilhados que geram tensão secundária?',
@@ -36,7 +50,7 @@ const checklistCategories = [
   },
   {
     title: 'Conflito & Dilemas',
-    badgeStyle: 'bg-red-950/40 text-red-300 border-red-800/40',
+    badgeStyle: 'bg-red-950/50 text-red-300 border-red-700/50',
     checkColor: 'bg-red-500 border-red-400 text-white',
     items: [
       'Existe um dilema moral central sem escolha óbvia?',
@@ -49,7 +63,7 @@ const checklistCategories = [
   },
   {
     title: 'Estrutura, Pacing & Mapa Emocional',
-    badgeStyle: 'bg-blue-950/40 text-blue-300 border-blue-800/40',
+    badgeStyle: 'bg-blue-950/50 text-blue-300 border-blue-700/50',
     checkColor: 'bg-blue-500 border-blue-400 text-white',
     items: [
       'O incidente incitante acontece nos primeiros 10% a 15% da história?',
@@ -65,8 +79,8 @@ const checklistCategories = [
   },
   {
     title: 'Cenas & Construção Dramática',
-    badgeStyle: 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40',
-    checkColor: 'bg-emerald-500 border-emerald-400 text-gray-950',
+    badgeStyle: 'bg-indigo-950/50 text-indigo-300 border-indigo-700/50',
+    checkColor: 'bg-indigo-500 border-indigo-400 text-white',
     items: [
       'Toda cena muda o estado emocional ou narrativo da história?',
       'Toda cena tem um objetivo claro para o personagem de POV?',
@@ -80,8 +94,8 @@ const checklistCategories = [
   },
   {
     title: 'Mistério, Suspense & Subtramas',
-    badgeStyle: 'bg-amber-950/40 text-amber-300 border-amber-800/40',
-    checkColor: 'bg-amber-500 border-amber-400 text-gray-950',
+    badgeStyle: 'bg-orange-950/50 text-orange-300 border-orange-700/50',
+    checkColor: 'bg-orange-500 border-orange-300 text-gray-950',
     items: [
       'Existe foreshadowing (pistas sutis) plantado com antecedência?',
       'Todo foreshadowing tem um payoff (recompensa) satisfatório?',
@@ -94,8 +108,8 @@ const checklistCategories = [
   },
   {
     title: 'Mundo & Regras do Universo',
-    badgeStyle: 'bg-cyan-950/40 text-cyan-300 border-cyan-800/40',
-    checkColor: 'bg-cyan-500 border-cyan-400 text-gray-950',
+    badgeStyle: 'bg-cyan-950/50 text-cyan-300 border-cyan-700/50',
+    checkColor: 'bg-cyan-500 border-cyan-300 text-gray-950',
     items: [
       'O mundo e a ambientação refletem o tema central da história?',
       'Os sistemas (magia, tecnologia, economia, poder) têm regras e limitações consistentes?',
@@ -108,7 +122,7 @@ const checklistCategories = [
   },
   {
     title: 'Tema, Mensagem & Promessa',
-    badgeStyle: 'bg-pink-950/40 text-pink-300 border-pink-800/40',
+    badgeStyle: 'bg-pink-950/50 text-pink-300 border-pink-700/50',
     checkColor: 'bg-pink-500 border-pink-400 text-white',
     items: [
       'O tema permeia os dilemas da obra sem soar panfletário ou didático?',
@@ -126,7 +140,7 @@ const checklistCategories = [
     items: [
       'O ritmo varia adequadamente entre picos de tensão e momentos de alívio?',
       'A jornada emocional do leitor é variada ao longo dos atos?',
-      'O tom do final corresponde ao pacto estabelecido com o leitor?',
+      'O tom do final corresponde ao pacto estabelecido com leitor?',
       'O estilo de prosa e o ritmo de frases casam com o nível de ação da cena?',
       'A voz narrativa (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
       'Os diálogos soam naturais quando lidos em voz alta?',
@@ -147,12 +161,10 @@ export default function Checklist({ projectId }) {
   const completedCount = Object.values(checkedItems).filter(Boolean).length;
   const progressPercentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
 
-  // Parâmetros do SVG Donut
   const radius = 28;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
 
-  // 1. Carregar do Banco
   useEffect(() => {
     if (!projectId) return;
 
@@ -170,7 +182,6 @@ export default function Checklist({ projectId }) {
     fetchChecklist();
   }, [projectId]);
 
-  // 2. Auto-save
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -203,7 +214,6 @@ export default function Checklist({ projectId }) {
 
   return (
     <main className="module-page checklist-page space-y-10 max-w-5xl mx-auto pb-24">
-      {/* Cabeçalho */}
       <header className="module-header flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Checklist de Desenvolvimento</h1>
@@ -216,7 +226,6 @@ export default function Checklist({ projectId }) {
         </span>
       </header>
 
-      {/* CARD DE RESUMO CENTRAL */}
       <div className="bg-[#111118] border border-gray-800/80 p-8 rounded-2xl flex items-center gap-8 shadow-2xl">
         <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 68 68">
@@ -263,14 +272,12 @@ export default function Checklist({ projectId }) {
         </div>
       </div>
 
-      {/* CATEGORIAS DO CHECKLIST COM ESPAÇAMENTO EXPANDIDO */}
       <div className="space-y-12">
         {checklistCategories.map((category) => {
           const categoryCompleted = category.items.filter((item) => checkedItems[item]).length;
 
           return (
             <section key={category.title} className="space-y-5">
-              {/* Título da Categoria */}
               <div className="flex justify-between items-center px-1">
                 <h2 className="text-xl font-bold text-white tracking-wide">
                   {category.title}
@@ -280,7 +287,6 @@ export default function Checklist({ projectId }) {
                 </span>
               </div>
 
-              {/* LISTA COM ALTURA E ESPAÇAMENTO */}
               <div className="space-y-4">
                 {category.items.map((item) => {
                   const isChecked = !!checkedItems[item];
@@ -295,7 +301,6 @@ export default function Checklist({ projectId }) {
                           : 'bg-[#111118] border-gray-800/80 text-gray-300 hover:border-gray-700 hover:bg-[#151520]'
                       }`}
                     >
-                      {/* CÍRCULO VERDE/COLORIDO MAIOR (32px / w-8 h-8) */}
                       <span
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-base font-bold shrink-0 transition-all ${
                           isChecked
@@ -306,7 +311,6 @@ export default function Checklist({ projectId }) {
                         ✓
                       </span>
 
-                      {/* TEXTO DO ITEM COM FONTE E LINE-HEIGHT AMPLIADOS */}
                       <span className={`text-lg font-medium leading-relaxed ${isChecked ? 'line-through opacity-60 text-gray-400' : ''}`}>
                         {item}
                       </span>

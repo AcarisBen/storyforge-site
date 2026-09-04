@@ -44,7 +44,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
     misteriosList: [],
     twistsList: [],
     checklistDone: 0,
-    checklistTotal: 70,
+    checklistTotal: 77,
     mapaEmocionalPoints: [],
     relationsList: [],
     allCharacters: []
@@ -124,7 +124,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
           misteriosList: mysteries.map((m) => m.title || m.name || 'Mistério sem título'),
           twistsList: twists.map((t) => t.title || t.name || 'Plot Twist sem título'),
           checklistDone: completedChecklist,
-          checklistTotal: 70,
+          checklistTotal: 77,
           mapaEmocionalPoints: emotionalPoints,
           relationsList: relations,
           allCharacters: chars
