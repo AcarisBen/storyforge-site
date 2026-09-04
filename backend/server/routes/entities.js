@@ -1002,4 +1002,102 @@ const saveMapaEmocionalHandler = async (req, res) => {
 router.post('/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
 router.post('/entities/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
 
+// ==========================================
+// DIÁLOGOS (Adicionar junto às outras entidades)
+// ==========================================
+
+const getDialoguesHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const dialogues = await prisma.entity.findMany({
+      where: { projectId, type: 'DIALOGUE' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = dialogues.map((d) => ({
+      id: d.id,
+      title: d.title,
+      ...(d.data || {}),
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Erro ao buscar diálogos:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.get('/projects/:projectId/dialogues', getDialoguesHandler);
+router.get('/entities/projects/:projectId/dialogues', getDialoguesHandler);
+
+const saveDialogueHandler = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, ...restData } = req.body;
+
+    const created = await prisma.entity.create({
+      data: {
+        projectId,
+        type: 'DIALOGUE',
+        title: title || 'Diálogo sem título',
+        data: restData || {},
+      },
+    });
+
+    res.status(201).json({
+      id: created.id,
+      title: created.title,
+      ...(created.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao criar diálogo:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.post('/projects/:projectId/dialogues', saveDialogueHandler);
+router.post('/entities/projects/:projectId/dialogues', saveDialogueHandler);
+
+const updateDialogueHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, ...restData } = req.body;
+
+    const updated = await prisma.entity.update({
+      where: { id },
+      data: {
+        title: title || 'Diálogo sem título',
+        data: restData || {},
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      title: updated.title,
+      ...(updated.data || {}),
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar diálogo:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.put('/dialogues/:id', updateDialogueHandler);
+router.put('/entities/dialogues/:id', updateDialogueHandler);
+
+const deleteDialogueHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.entity.delete({ where: { id } });
+    res.json({ message: 'Diálogo excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir diálogo:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.delete('/dialogues/:id', deleteDialogueHandler);
+router.delete('/entities/dialogues/:id', deleteDialogueHandler);
+
+
 export default router;

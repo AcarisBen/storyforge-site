@@ -17,12 +17,22 @@ import StoryBible from './pages/StoryBible';
 import Storyboard from './pages/Storyboard';
 import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
+import DialogEngine from './pages/DialogEngine'; // <-- Importado aqui
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
   { title: 'Fundação', items: [['Identidade', 'identidade'], ['Essência da História', 'essencia'], ['Engenharia Narrativa', 'engenharia']] },
   { title: 'Estrutura', items: [['Estrutura Dramática', 'estrutura'], ['Ritmo & Timeline', 'ritmo']] },
-  { title: 'Conteúdo', items: [['Personagens', 'personagens'], ['Mundo', 'mundo'], ['Cenas', 'cenas'], ['Relações', 'relacoes']] },
+  { 
+    title: 'Conteúdo', 
+    items: [
+      ['Personagens', 'personagens'], 
+      ['Mundo', 'mundo'], 
+      ['Cenas', 'cenas'], 
+      ['Diálogos', 'dialogos'], // <-- Adicionado ao menu lateral
+      ['Relações', 'relacoes']
+    ] 
+  },
   { 
     title: 'Camadas', 
     items: [
@@ -120,6 +130,8 @@ export default function App() {
         return <Mundo projectId={currentProject.id} />;
       case 'cenas':
         return <Cenas projectId={currentProject.id} />;
+      case 'dialogos': // <-- Renderiza a nova página de Engenharia de Diálogos
+        return <DialogEngine projectId={currentProject.id} />;
       case 'relacoes':
         return <Relacoes projectId={currentProject.id} />;
       case 'misterios':
