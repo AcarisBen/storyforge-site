@@ -28,7 +28,7 @@ const navigation = [
     items: [
       ['Mistérios', 'misterios'], 
       ['Plot Twists', 'plot-twists'],
-      ['Mapa Emocional', 'mapa-emocional'] // <--- 1. ADICIONADO AQUI ABAIXO DE PLOT TWISTS
+      ['Mapa Emocional', 'mapa-emocional'] 
     ] 
   },
   { title: 'Escrita', items: [['Escrita & Manuscrito', 'escrita'], ['Storyboard', 'storyboard']] },
@@ -126,7 +126,7 @@ export default function App() {
         return <Misterios projectId={currentProject.id} />;
       case 'plot-twists':
         return <PlotTwists projectId={currentProject.id} />;
-      case 'mapa-emocional': // <--- 2. ADICIONADO AQUI
+      case 'mapa-emocional': 
         return <MapaEmocional projectId={currentProject.id} />;
       case 'storyboard':
         return <Storyboard projectId={currentProject.id} />;

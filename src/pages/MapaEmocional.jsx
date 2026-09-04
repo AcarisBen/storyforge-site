@@ -54,6 +54,7 @@ export default function MapaEmocional({ projectId }) {
   const [isGuideOpen, setIsGuideOpen] = useState(true);
   const [activeGuideTab, setActiveGuideTab] = useState('objetivo');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Listas para vínculos
   const [characters, setCharacters] = useState([]);
@@ -62,8 +63,12 @@ export default function MapaEmocional({ projectId }) {
   const [mysteries, setMysteries] = useState([]);
   const [twists, setTwists] = useState([]);
 
+  // 1. CARREGAR DADOS DO BACKEND
   useEffect(() => {
     if (!projectId) return;
+
+    let isMounted = true;
+    setIsLoaded(false);
 
     const fetchData = async () => {
       try {
@@ -76,25 +81,35 @@ export default function MapaEmocional({ projectId }) {
           apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
         ]);
 
-        setPoints(Array.isArray(resPoints.data) ? resPoints.data : []);
-        setCharacters(resChars.data || []);
-        setWorldElements(resWorld.data || []);
-        setScenes(resScenes.data || []);
-        setMysteries(resMysteries.data || []);
-        setTwists(resTwists.data || []);
+        if (isMounted) {
+          const loadedPoints = Array.isArray(resPoints.data) ? resPoints.data : [];
+          setPoints(loadedPoints);
+          setCharacters(resChars.data || []);
+          setWorldElements(resWorld.data || []);
+          setScenes(resScenes.data || []);
+          setMysteries(resMysteries.data || []);
+          setTwists(resTwists.data || []);
+          setIsLoaded(true);
+        }
       } catch (err) {
         console.error('Erro ao carregar dados do Mapa Emocional:', err);
+        if (isMounted) setIsLoaded(true);
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [projectId]);
 
-  const savePoints = useCallback(async (updatedPoints) => {
+  // 2. FUNÇÃO DE SALVAMENTO DIRETO NO BACKEND
+  const savePointsToBackend = useCallback(async (dataToSave) => {
     if (!projectId) return;
     setIsSaving(true);
     try {
-      await apiClient.post(`/entities/projects/${projectId}/mapa-emocional`, updatedPoints);
+      await apiClient.post(`/entities/projects/${projectId}/mapa-emocional`, dataToSave);
     } catch (err) {
       console.error('Erro ao salvar Mapa Emocional:', err);
     } finally {
@@ -102,13 +117,18 @@ export default function MapaEmocional({ projectId }) {
     }
   }, [projectId]);
 
+  // 3. AUTO-SAVE DO TIMER CORRIGIDO (Chama a função certa)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      savePoints(points);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [points, savePoints]);
+    if (!isLoaded) return;
 
+    const timer = setTimeout(() => {
+      savePointsToBackend(points); // 👈 NOME DA FUNÇÃO CORRIGIDO AQUI!
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [points, isLoaded, savePointsToBackend]);
+
+  // 4. AÇÕES DE MANIPULAÇÃO DE PONTOS
   const handleAddPoint = () => {
     const defaultName = points.length === 0 ? 'Abertura' : points.length === 1 ? 'Midpoint' : 'Clímax';
     const newPoint = {
@@ -128,19 +148,29 @@ export default function MapaEmocional({ projectId }) {
       mysteryId: '',
       twistId: '',
     };
-    setPoints((prev) => [...prev, newPoint]);
+    
+    setPoints((prev) => {
+      const updated = [...prev, newPoint];
+      if (isLoaded) savePointsToBackend(updated);
+      return updated;
+    });
   };
 
   const handleDeletePoint = (id) => {
-    setPoints((prev) => prev.filter((p) => p.id !== id));
+    setPoints((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      if (isLoaded) savePointsToBackend(updated);
+      return updated;
+    });
   };
 
   const handleUpdatePoint = (id, field, value) => {
-    setPoints((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
+    setPoints((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, [field]: value } : p));
+      return updated;
+    });
   };
-
+  
   return (
     <div className="p-6 space-y-6 bg-[#0a0a0f] text-gray-200 min-h-screen">
       <div className="flex justify-between items-center">
