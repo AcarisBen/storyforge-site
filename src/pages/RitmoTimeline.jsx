@@ -38,6 +38,7 @@ const tabs = {
 };
 
 const milestones = [
+  ['Prólogo', 'O contexto inicial, a ambientação histórica ou um vislumbre do passado que antecede a trama.'],
   ['Incidente Incitante', 'O evento que rompe o equilíbrio inicial e coloca a história em movimento.'],
   ['1º Ponto de Virada', 'A decisão ou acontecimento que leva o protagonista a entrar no conflito principal.'],
   ['Midpoint', 'O ponto central que inverte ou escala o conflito de forma significativa.'],
@@ -65,7 +66,8 @@ export default function RitmoTimeline({ projectId }) {
       try {
         const res = await apiClient.get(`/entities/projects/${projectId}/ritmo-timeline`);
         if (res.data && Object.keys(res.data).length > 0) {
-          setEvents((prev) => ({ ...prev, ...res.data }));
+          const rawData = res.data.data || res.data;
+          setEvents((prev) => ({ ...prev, ...rawData }));
         }
       } catch (err) {
         console.error('Erro ao buscar dados do Ritmo & Timeline:', err);
@@ -75,7 +77,7 @@ export default function RitmoTimeline({ projectId }) {
     fetchTimeline();
   }, [projectId]);
 
-  // 2. Auto-save com Debounce de 1.5s ao alterar a lista de eventos
+  // 2. Auto-save com Debounce ao alterar a lista de eventos
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -140,72 +142,79 @@ export default function RitmoTimeline({ projectId }) {
     }));
   }
 
-// Função auxiliar para definir as cores dos 7 marcos narrativos
-function getMilestoneTheme(name) {
-  const norm = String(name).toLowerCase();
-  if (norm.includes('incitante')) {
+  function getMilestoneTheme(name) {
+    const norm = String(name).toLowerCase();
+    if (norm.includes('prólogo') || norm.includes('prologo')) {
+      return {
+        cardBorder: 'border-indigo-900/50 hover:border-indigo-600/70',
+        numberBg: 'bg-indigo-950 text-indigo-300 border-indigo-800/60',
+        badge: 'bg-indigo-900/60 text-indigo-300 border-indigo-500/50',
+        button: 'bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-200 border-indigo-700/50'
+      };
+    }
+    if (norm.includes('incitante')) {
+      return {
+        cardBorder: 'border-purple-900/50 hover:border-purple-600/70',
+        numberBg: 'bg-purple-950 text-purple-300 border-purple-800/60',
+        badge: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
+        button: 'bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 border-purple-700/50'
+      };
+    }
+    if (norm.includes('1º ponto') || norm.includes('virada')) {
+      return {
+        cardBorder: 'border-blue-900/50 hover:border-blue-600/70',
+        numberBg: 'bg-blue-950 text-blue-300 border-blue-800/60',
+        badge: 'bg-blue-900/60 text-blue-300 border-blue-500/50',
+        button: 'bg-blue-900/40 hover:bg-blue-800/60 text-blue-200 border-blue-700/50'
+      };
+    }
+    if (norm.includes('midpoint')) {
+      return {
+        cardBorder: 'border-cyan-900/50 hover:border-cyan-600/70',
+        numberBg: 'bg-cyan-950 text-cyan-300 border-cyan-800/60',
+        badge: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/50',
+        button: 'bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 border-cyan-700/50'
+      };
+    }
+    if (norm.includes('crise')) {
+      return {
+        cardBorder: 'border-amber-900/50 hover:border-amber-600/70',
+        numberBg: 'bg-amber-950 text-amber-300 border-amber-800/60',
+        badge: 'bg-amber-900/60 text-amber-300 border-amber-500/50',
+        button: 'bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border-amber-700/50'
+      };
+    }
+    if (norm.includes('clímax') || norm.includes('climax')) {
+      return {
+        cardBorder: 'border-red-900/50 hover:border-red-600/70',
+        numberBg: 'bg-red-950 text-red-300 border-red-800/60',
+        badge: 'bg-red-900/60 text-red-300 border-red-500/50',
+        button: 'bg-red-900/40 hover:bg-red-800/60 text-red-200 border-red-700/50'
+      };
+    }
+    if (norm.includes('resolução') || norm.includes('resolucao')) {
+      return {
+        cardBorder: 'border-emerald-900/50 hover:border-emerald-600/70',
+        numberBg: 'bg-emerald-950 text-emerald-300 border-emerald-800/60',
+        badge: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50',
+        button: 'bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-200 border-emerald-700/50'
+      };
+    }
+    if (norm.includes('epílogo') || norm.includes('epilogo')) {
+      return {
+        cardBorder: 'border-pink-900/50 hover:border-pink-600/70',
+        numberBg: 'bg-pink-950 text-pink-300 border-pink-800/60',
+        badge: 'bg-pink-900/60 text-pink-300 border-pink-500/50',
+        button: 'bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 border-pink-700/50'
+      };
+    }
     return {
-      cardBorder: 'border-purple-900/50 hover:border-purple-600/70',
-      numberBg: 'bg-purple-950 text-purple-300 border-purple-800/60',
+      cardBorder: 'border-gray-800',
+      numberBg: 'bg-gray-800 text-gray-300',
       badge: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
-      button: 'bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 border-purple-700/50'
+      button: 'bg-purple-900/40 text-purple-200'
     };
   }
-  if (norm.includes('1º ponto') || norm.includes('virada')) {
-    return {
-      cardBorder: 'border-blue-900/50 hover:border-blue-600/70',
-      numberBg: 'bg-blue-950 text-blue-300 border-blue-800/60',
-      badge: 'bg-blue-900/60 text-blue-300 border-blue-500/50',
-      button: 'bg-blue-900/40 hover:bg-blue-800/60 text-blue-200 border-blue-700/50'
-    };
-  }
-  if (norm.includes('midpoint')) {
-    return {
-      cardBorder: 'border-cyan-900/50 hover:border-cyan-600/70',
-      numberBg: 'bg-cyan-950 text-cyan-300 border-cyan-800/60',
-      badge: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/50',
-      button: 'bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 border-cyan-700/50'
-    };
-  }
-  if (norm.includes('crise')) {
-    return {
-      cardBorder: 'border-amber-900/50 hover:border-amber-600/70',
-      numberBg: 'bg-amber-950 text-amber-300 border-amber-800/60',
-      badge: 'bg-amber-900/60 text-amber-300 border-amber-500/50',
-      button: 'bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border-amber-700/50'
-    };
-  }
-  if (norm.includes('clímax') || norm.includes('climax')) {
-    return {
-      cardBorder: 'border-red-900/50 hover:border-red-600/70',
-      numberBg: 'bg-red-950 text-red-300 border-red-800/60',
-      badge: 'bg-red-900/60 text-red-300 border-red-500/50',
-      button: 'bg-red-900/40 hover:bg-red-800/60 text-red-200 border-red-700/50'
-    };
-  }
-  if (norm.includes('resolução') || norm.includes('resolucao')) {
-    return {
-      cardBorder: 'border-emerald-900/50 hover:border-emerald-600/70',
-      numberBg: 'bg-emerald-950 text-emerald-300 border-emerald-800/60',
-      badge: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50',
-      button: 'bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-200 border-emerald-700/50'
-    };
-  }
-  if (norm.includes('epílogo') || norm.includes('epilogo')) {
-    return {
-      cardBorder: 'border-pink-900/50 hover:border-pink-600/70',
-      numberBg: 'bg-pink-950 text-pink-300 border-pink-800/60',
-      badge: 'bg-pink-900/60 text-pink-300 border-pink-500/50',
-      button: 'bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 border-pink-700/50'
-    };
-  }
-  return {
-    cardBorder: 'border-gray-800',
-    numberBg: 'bg-gray-800 text-gray-300',
-    badge: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
-    button: 'bg-purple-900/40 text-purple-200'
-  };
-}
 
   return (
     <main className="module-page timeline-page">
@@ -224,7 +233,7 @@ function getMilestoneTheme(name) {
       <div className="module-progress-track"><div style={{ width: `${progress}%` }} /></div>
 
       <section className="module-guide">
-        <button className="guide-toggle" type="button" aria-expanded={isGuideOpen} aria-controls="timeline-guide-content" onClick={() => setIsGuideOpen((c) => !c)}>
+        <button className="guide-toggle cursor-pointer" type="button" aria-expanded={isGuideOpen} aria-controls="timeline-guide-content" onClick={() => setIsGuideOpen((c) => !c)}>
           <span><b aria-hidden="true">!</b> Guia do Módulo</span>
           <span aria-hidden="true">{isGuideOpen ? '⌃' : '⌄'}</span>
         </button>
@@ -232,7 +241,7 @@ function getMilestoneTheme(name) {
           <div className="guide-content" id="timeline-guide-content">
             <nav className="guide-tabs" aria-label="Guia do módulo">
               {Object.entries(tabs).map(([label, tab]) => (
-                <button className={activeTab === label ? 'guide-tab active' : 'guide-tab'} type="button" key={label} onClick={() => setActiveTab(label)}>
+                <button className={activeTab === label ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'} type="button" key={label} onClick={() => setActiveTab(label)}>
                   <span aria-hidden="true">{tab.icon}</span>{label}
                 </button>
               ))}
@@ -246,52 +255,54 @@ function getMilestoneTheme(name) {
       
       <section className="timeline-list" aria-label="Marcos narrativos">
         {milestones.map(([name, description], index) => {
-  const milestoneEvents = events[name] || [];
-  const theme = getMilestoneTheme(name);
+          const milestoneEvents = events[name] || [];
+          const theme = getMilestoneTheme(name);
 
-  return (
-    <article className={`timeline-milestone bg-[#14141e] border rounded-xl p-5 mb-4 transition-all ${theme.cardBorder}`} key={name}>
-      <header className="milestone-header flex justify-between items-center mb-2">
-        <div className="milestone-title flex items-center gap-2">
-          <span className={`w-6 h-6 rounded-full border flex items-center justify-center font-bold text-xs ${theme.numberBg}`}>
-            {index + 1}
-          </span>
-          <strong className="text-white text-base font-bold">{name}</strong>
-          {milestoneEvents.length > 0 && (
-            <small className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${theme.badge}`}>
-              {milestoneEvents.length} evento{milestoneEvents.length > 1 ? 's' : ''}
-            </small>
-          )}
-        </div>
-        <button 
-          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${theme.button}`} 
-          type="button" 
-          onClick={() => openEventForm(name)}
-        >
-          + Evento
-        </button>
-      </header>
+          return (
+            <article className={`timeline-milestone bg-[#14141e] border rounded-xl p-5 mb-4 transition-all ${theme.cardBorder}`} key={name}>
+              <header className="milestone-header flex justify-between items-center mb-2">
+                <div className="milestone-title flex items-center gap-2">
+                  <span className={`w-6 h-6 rounded-full border flex items-center justify-center font-bold text-xs ${theme.numberBg}`}>
+                    {index + 1}
+                  </span>
+                  <strong className="text-white text-base font-bold">{name}</strong>
+                  {milestoneEvents.length > 0 && (
+                    <small className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${theme.badge}`}>
+                      {milestoneEvents.length} evento{milestoneEvents.length > 1 ? 's' : ''}
+                    </small>
+                  )}
+                </div>
+                <button 
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${theme.button}`} 
+                  type="button" 
+                  onClick={() => openEventForm(name)}
+                >
+                  + Evento
+                </button>
+              </header>
 
-      <p className="milestone-description text-gray-400 text-xs mb-3">{description}</p>
+              <p className="milestone-description text-gray-400 text-xs mb-3">{description}</p>
               
               {openMilestone === name && (
-                <div className="event-form">
+                <div className="event-form space-y-2 mb-3 bg-[#1a1a26] p-4 rounded-lg border border-gray-800">
                   <input
                     type="text"
+                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white"
                     placeholder="Título do evento..."
                     value={draft.title}
                     onChange={(event) => setDraft({ ...draft, title: event.target.value })}
                   />
                   <textarea
+                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white"
                     placeholder="Descrição do evento..."
                     value={draft.description}
                     onChange={(event) => setDraft({ ...draft, description: event.target.value })}
                   />
-                  <div className="event-form-actions">
-                    <button className="event-save cursor-pointer" type="button" onClick={() => saveEvent(name)}>
+                  <div className="event-form-actions flex gap-2">
+                    <button className="event-save px-3 py-1 bg-purple-600 text-white rounded text-xs cursor-pointer" type="button" onClick={() => saveEvent(name)}>
                       {editingEvent ? 'Salvar' : 'Adicionar'}
                     </button>
-                    <button className="event-cancel cursor-pointer" type="button" onClick={cancelEvent}>
+                    <button className="event-cancel px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs cursor-pointer" type="button" onClick={cancelEvent}>
                       Cancelar
                     </button>
                   </div>
@@ -299,14 +310,14 @@ function getMilestoneTheme(name) {
               )}
 
               {milestoneEvents.map((event) => (
-                <div className="timeline-event" key={event.id}>
+                <div className="timeline-event bg-[#181824] p-3 rounded-lg border border-gray-800/80 mb-2 flex justify-between items-start" key={event.id}>
                   <div>
-                    <strong>{event.title}</strong>
-                    <p>{event.description}</p>
+                    <strong className="text-white text-xs block mb-0.5">{event.title}</strong>
+                    <p className="text-gray-400 text-[11px]">{event.description}</p>
                   </div>
-                  <div className="event-actions">
-                    <button type="button" aria-label={`Editar ${event.title}`} onClick={() => editEvent(name, event)}>✎</button>
-                    <button type="button" aria-label={`Excluir ${event.title}`} onClick={() => deleteEvent(name, event.id)}>🗑</button>
+                  <div className="event-actions flex gap-2 text-xs text-gray-500">
+                    <button className="hover:text-purple-400 cursor-pointer" type="button" aria-label={`Editar ${event.title}`} onClick={() => editEvent(name, event)}>✎</button>
+                    <button className="hover:text-red-400 cursor-pointer" type="button" aria-label={`Excluir ${event.title}`} onClick={() => deleteEvent(name, event.id)}>🗑</button>
                   </div>
                 </div>
               ))}

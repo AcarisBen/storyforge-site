@@ -44,7 +44,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
     misteriosList: [],
     twistsList: [],
     checklistDone: 0,
-    checklistTotal: 43,
+    checklistTotal: 70,
     mapaEmocionalPoints: [],
     relationsList: [],
     allCharacters: []
@@ -58,16 +58,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
     ritmo: 0
   });
 
-  const [timelineMilestones, setTimelineMilestones] = useState({
-    prologue: false,
-    incitingIncident: false,
-    firstPlotPoint: false,
-    midpoint: false,
-    crisis: false,
-    climax: false,
-    resolution: false,
-    epilogue: false
-  });
+  const [timelineEvents, setTimelineEvents] = useState({});
 
   useEffect(() => {
     if (!projectId) return;
@@ -133,7 +124,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
           misteriosList: mysteries.map((m) => m.title || m.name || 'Mistério sem título'),
           twistsList: twists.map((t) => t.title || t.name || 'Plot Twist sem título'),
           checklistDone: completedChecklist,
-          checklistTotal: 43,
+          checklistTotal: 70,
           mapaEmocionalPoints: emotionalPoints,
           relationsList: relations,
           allCharacters: chars
@@ -170,14 +161,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
           if (selectedFrameworks.length === 0) return 0;
 
           const values = dataObj.values || {};
-
-          const acts = values.acts || {};
-          const sequences = values.sequences || {};
-          const hero = values.hero || {};
-          const storyCircle = values.storyCircle || {};
-          const saveTheCat = values.saveTheCat || {};
-          const freytag = values.freytag || {};
-
           const countFilled = (obj) => Object.values(obj).filter((val) => typeof val === 'string' && val.trim() !== '').length;
 
           let selectedFieldCount = 0;
@@ -185,27 +168,27 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
 
           if (selectedFrameworks.includes('3 Atos')) {
             selectedFieldCount += 3;
-            completedFieldCount += countFilled(acts);
+            completedFieldCount += countFilled(values.acts || {});
           }
           if (selectedFrameworks.includes('8 Sequências (Paul Gulino)')) {
             selectedFieldCount += 8;
-            completedFieldCount += countFilled(sequences);
+            completedFieldCount += countFilled(values.sequences || {});
           }
           if (selectedFrameworks.includes('Jornada do Herói')) {
             selectedFieldCount += 12;
-            completedFieldCount += countFilled(hero);
+            completedFieldCount += countFilled(values.hero || {});
           }
           if (selectedFrameworks.includes('Story Circle (Dan Harmon)')) {
             selectedFieldCount += 8;
-            completedFieldCount += countFilled(storyCircle);
+            completedFieldCount += countFilled(values.storyCircle || {});
           }
           if (selectedFrameworks.includes('Save the Cat (Blake Snyder)')) {
             selectedFieldCount += 15;
-            completedFieldCount += countFilled(saveTheCat);
+            completedFieldCount += countFilled(values.saveTheCat || {});
           }
           if (selectedFrameworks.includes('Freytag (Pirâmide Dramática)')) {
             selectedFieldCount += 5;
-            completedFieldCount += countFilled(freytag);
+            completedFieldCount += countFilled(values.freytag || {});
           }
 
           if (selectedFieldCount === 0) return 0;
@@ -232,35 +215,28 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
           return Math.round((filled.length / keys.length) * 100);
         };
 
+        const tObj = unwrapObject(resTimeline);
+        setTimelineEvents(tObj);
+
+        const timelineKeys = [
+          'Prólogo',
+          'Incidente Incitante',
+          '1º Ponto de Virada',
+          'Midpoint',
+          'Crise',
+          'Clímax',
+          'Resolução',
+          'Epílogo'
+        ];
+        const activeTimelineCount = timelineKeys.filter(key => Array.isArray(tObj[key]) && tObj[key].length > 0).length;
+        const ritmoPercent = Math.round((activeTimelineCount / 8) * 100);
+
         setModuleProgress({
           identidade: calcPercent(resIdentity),
           essencia: calcEssenciaPercent(resEssence),
           engenharia: calcPercent(resEng),
           estrutura: calcEstruturaPercent(resDrama),
-          ritmo: calcPercent(resTimeline)
-        });
-
-        const tObj = unwrapObject(resTimeline);
-        const checkMilestone = (...keys) => {
-          return keys.some((key) => {
-            const val = tObj[key];
-            if (!val) return false;
-            if (typeof val === 'string') return val.trim().length > 0;
-            if (Array.isArray(val)) return val.length > 0;
-            if (typeof val === 'object') return Object.keys(val).length > 0;
-            return true;
-          });
-        };
-
-        setTimelineMilestones({
-          prologue: checkMilestone('prologue', 'prologo', 'Prólogo'),
-          incitingIncident: checkMilestone('incitingIncident', 'incidenteIncitante', 'Incidente Incitante'),
-          firstPlotPoint: checkMilestone('firstPlotPoint', 'primeiraVirada', '1ª Virada', 'primeira_virada'),
-          midpoint: checkMilestone('midpoint', 'Midpoint'),
-          crisis: checkMilestone('crisis', 'crise', 'Crise'),
-          climax: checkMilestone('climax', 'Clímax'),
-          resolution: checkMilestone('resolution', 'resolucao', 'Resolução'),
-          epilogue: checkMilestone('epilogue', 'epilogo', 'Epílogo')
+          ritmo: ritmoPercent
         });
 
       } catch (err) {
@@ -286,31 +262,17 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
     return <div className="text-center py-20 text-purple-400 font-medium">Carregando Dashboard do Projeto...</div>;
   }
 
+  // Mapeamento dos 8 marcos com cores específicas do módulo Ritmo & Timeline
   const milestonesList = [
-    { key: 'prologue', label: 'Prólogo', active: timelineMilestones.prologue },
-    { key: 'incitingIncident', label: 'Incidente Incitante', active: timelineMilestones.incitingIncident },
-    { key: 'firstPlotPoint', label: '1ª Virada', active: timelineMilestones.firstPlotPoint },
-    { key: 'midpoint', label: 'Midpoint', active: timelineMilestones.midpoint },
-    { key: 'crisis', label: 'Crise', active: timelineMilestones.crisis },
-    { key: 'climax', label: 'Clímax', active: timelineMilestones.climax },
-    { key: 'resolution', label: 'Resolução', active: timelineMilestones.resolution },
-    { key: 'epilogue', label: 'Epílogo', active: timelineMilestones.epilogue }
+    { label: 'Prólogo', active: Array.isArray(timelineEvents['Prólogo']) && timelineEvents['Prólogo'].length > 0, activeColor: 'bg-indigo-600 shadow-indigo-600/80 ring-indigo-950 text-indigo-200' },
+    { label: 'I. Incitante', active: Array.isArray(timelineEvents['Incidente Incitante']) && timelineEvents['Incidente Incitante'].length > 0, activeColor: 'bg-purple-600 shadow-purple-600/80 ring-purple-950 text-purple-200' },
+    { label: '1ª Virada', active: Array.isArray(timelineEvents['1º Ponto de Virada']) && timelineEvents['1º Ponto de Virada'].length > 0, activeColor: 'bg-blue-600 shadow-blue-600/80 ring-blue-950 text-blue-200' },
+    { label: 'Midpoint', active: Array.isArray(timelineEvents['Midpoint']) && timelineEvents['Midpoint'].length > 0, activeColor: 'bg-cyan-600 shadow-cyan-600/80 ring-cyan-950 text-cyan-200' },
+    { label: 'Crise', active: Array.isArray(timelineEvents['Crise']) && timelineEvents['Crise'].length > 0, activeColor: 'bg-amber-600 shadow-amber-600/80 ring-amber-950 text-amber-200' },
+    { label: 'Clímax', active: Array.isArray(timelineEvents['Clímax']) && timelineEvents['Clímax'].length > 0, activeColor: 'bg-red-600 shadow-red-600/80 ring-red-950 text-red-200' },
+    { label: 'Resolução', active: Array.isArray(timelineEvents['Resolução']) && timelineEvents['Resolução'].length > 0, activeColor: 'bg-emerald-600 shadow-emerald-600/80 ring-emerald-950 text-emerald-200' },
+    { label: 'Epílogo', active: Array.isArray(timelineEvents['Epílogo']) && timelineEvents['Epílogo'].length > 0, activeColor: 'bg-pink-600 shadow-pink-600/80 ring-pink-950 text-pink-200' }
   ];
-
-  // Cálculo da posição de início e fim da barra com base no primeiro e último ponto ativo
-  const activeIndices = milestonesList
-    .map((m, idx) => (m.active ? idx : -1))
-    .filter((idx) => idx !== -1);
-
-  const totalPoints = milestonesList.length;
-  const firstActiveIndex = activeIndices.length > 0 ? activeIndices[0] : null;
-  const lastActiveIndex = activeIndices.length > 0 ? activeIndices[activeIndices.length - 1] : null;
-
-  const barLeftPercent = firstActiveIndex !== null ? (firstActiveIndex / (totalPoints - 1)) * 100 : 0;
-  const barWidthPercent =
-    firstActiveIndex !== null && lastActiveIndex !== null && lastActiveIndex !== firstActiveIndex
-      ? ((lastActiveIndex - firstActiveIndex) / (totalPoints - 1)) * 100
-      : 0;
 
   const getRelationGraphData = () => {
     const chars = counts.allCharacters;
@@ -407,7 +369,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Personagens Cadastrados</p>
               </div>
             </div>
-            <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -423,7 +385,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Elementos do Mundo</p>
               </div>
             </div>
-            <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -439,7 +401,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Cenas Mapeadas</p>
               </div>
             </div>
-            <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -449,7 +411,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-2xl">🔍</span>
-                <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+                {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
               </div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Mistérios</p>
               {counts.misteriosList.length > 0 ? (
@@ -478,7 +440,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-2xl">⚡</span>
-                <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+                {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
               </div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Plot Twists</p>
               {counts.twistsList.length > 0 ? (
@@ -513,7 +475,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Itens da Checklist</p>
               </div>
             </div>
-            <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
         </div>
@@ -531,7 +493,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <span className="text-xl">📈</span>
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">MAPA EMOCIONAL</span>
               </div>
-              <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+              {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
             </div>
 
             <div className="w-full h-44 bg-[#181824] rounded-xl p-4 border border-gray-800 flex flex-col justify-between relative overflow-hidden">
@@ -614,7 +576,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <span className="text-xl">🕸️</span>
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">RELAÇÕES DE PERSONAGENS</span>
               </div>
-              <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span>
+              {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
             </div>
 
             <div className="w-full h-44 bg-[#181824] rounded-xl p-4 border border-gray-800 flex items-center justify-center relative overflow-hidden">
@@ -717,7 +679,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
         </div>
       </section>
 
-      {/* 4. LINHA DO TEMPO (BARRA CONTÍNUA DO PRIMEIRA AO ÚLTIMO PONTO ATIVO) */}
+      {/* 4. LINHA DO TEMPO (ROXO AO LARANJA + CORES INDIVIDUAIS NOS NÓS + ESPESSURA H-1) */}
       <section className="space-y-4">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
           LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)
@@ -726,21 +688,47 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
         <div className="p-8 bg-[#12121a] border border-gray-800/80 rounded-2xl shadow-xl">
           <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
             
-            {/* Linha horizontal cinza de fundo */}
-            <div className="absolute top-3 left-4 right-4 h-1 bg-[#181824] z-0" />
+            {/* Linha base cinza no fundo com espessura h-1 */}
+            <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
 
-            {/* Barra acesa contínua que liga do PRIMEIRO ao ÚLTIMO ponto ativo */}
-            {firstActiveIndex !== null && (
-              <div
-                className="absolute top-3 h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500 z-0 transition-all duration-500 shadow-[0_0_12px_rgba(168,85,247,0.6)]"
-                style={{
-                  left: `calc(1rem + ${barLeftPercent}% * 0.94)`,
-                  width: `calc(${barWidthPercent}% * 0.94)`
-                }}
-              />
-            )}
+            {/* Linhas conectoras com gradiente contínuo Roxo (#9333ea) -> Laranja (#f97316) */}
+            <div className="absolute top-3 left-6 right-6 h-1 z-0 flex pointer-events-none">
+              {milestonesList.slice(0, -1).map((m, idx) => {
+                const nextM = milestonesList[idx + 1];
+                const isSegmentActive = m.active && nextM.active;
 
-            {/* Nós dos 8 marcos */}
+                const totalSegments = milestonesList.length - 1;
+                const startRatio = idx / totalSegments;
+                const endRatio = (idx + 1) / totalSegments;
+
+                // Interpolação Hex pura de Roxo (9333ea) para Laranja (f97316)
+                const startR = Math.round(147 + (249 - 147) * startRatio);
+                const startG = Math.round(51 + (115 - 51) * startRatio);
+                const startB = Math.round(234 + (22 - 234) * startRatio);
+
+                const endR = Math.round(147 + (249 - 147) * endRatio);
+                const endG = Math.round(51 + (115 - 51) * endRatio);
+                const endB = Math.round(234 + (22 - 234) * endRatio);
+
+                return (
+                  <div key={idx} className="flex-1 h-full relative">
+                    {isSegmentActive && (
+                      <div
+                        className="w-full h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
+                        style={{
+                          background: `linear-gradient(to right, 
+                            rgb(${startR}, ${startG}, ${startB}), 
+                            rgb(${endR}, ${endG}, ${endB})
+                          )`
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Renderização dos nós dos 8 marcos com a cor do módulo individual */}
             {milestonesList.map((m, idx) => (
               <div
                 key={idx}
@@ -750,7 +738,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                     m.active
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/80 ring-4 ring-purple-950 scale-110'
+                      ? `${m.activeColor} shadow-lg ring-4 scale-110`
                       : 'bg-[#181824] border-2 border-gray-700 text-gray-600 group-hover:border-purple-500'
                   }`}
                 >

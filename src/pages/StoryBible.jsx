@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
-// Ordem dramática fixa para os Marcos Narrativos da Timeline
+// Ordem dramática exata dos 8 Marcos Narrativos
 const NARRATIVE_ORDER = [
   'Prólogo',
-  'Ato I',
-  'Inciting Incident',
-  'Gatilho',
-  'Ato II',
+  'Incidente Incitante',
+  '1º Ponto de Virada',
   'Midpoint',
-  'Ponto de Virada',
+  'Crise',
   'Clímax',
-  'Ato III',
   'Resolução',
   'Epílogo'
 ];
+
+const MILESTONE_THEMES = {
+  'Prólogo': { color: 'bg-indigo-600 shadow-indigo-600/80 ring-indigo-950 text-indigo-200', border: 'border-indigo-500/40', text: 'text-indigo-400' },
+  'Incidente Incitante': { color: 'bg-purple-600 shadow-purple-600/80 ring-purple-950 text-purple-200', border: 'border-purple-500/40', text: 'text-purple-400' },
+  '1º Ponto de Virada': { color: 'bg-blue-600 shadow-blue-600/80 ring-blue-950 text-blue-200', border: 'border-blue-500/40', text: 'text-blue-400' },
+  'Midpoint': { color: 'bg-cyan-600 shadow-cyan-600/80 ring-cyan-950 text-cyan-200', border: 'border-cyan-500/40', text: 'text-cyan-400' },
+  'Crise': { color: 'bg-amber-600 shadow-amber-600/80 ring-amber-950 text-amber-200', border: 'border-amber-500/40', text: 'text-amber-400' },
+  'Clímax': { color: 'bg-red-600 shadow-red-600/80 ring-red-950 text-red-200', border: 'border-red-500/40', text: 'text-red-400' },
+  'Resolução': { color: 'bg-emerald-600 shadow-emerald-600/80 ring-emerald-950 text-emerald-200', border: 'border-emerald-500/40', text: 'text-emerald-400' },
+  'Epílogo': { color: 'bg-pink-600 shadow-pink-600/80 ring-pink-950 text-pink-200', border: 'border-pink-500/40', text: 'text-pink-400' }
+};
 
 function getCharacterBadgeStyle(type = '') {
   const norm = String(type).toLowerCase();
@@ -105,22 +113,24 @@ export default function StoryBible({ projectId }) {
           apiClient.get(`/entities/projects/${projectId}/chapters`).catch(() => ({ data: [] })),
         ]);
 
+        const unwrap = (r) => (r.data?.data ? r.data.data : r.data || {});
+
         setData({
-          identity: resIdentity.data || {},
-          essencia: resEssencia.data || {},
-          engenharia: resEngenharia.data || {},
-          structureFrameworks: resStructure.data?.selectedFrameworks || [],
-          structureCards: resStructureCards.data || [],
-          timelineEvents: resTimeline.data || {},
-          world: resWorld.data || [],
-          characters: resChars.data || [],
-          relations: resRelations.data || [],
-          scenes: resScenes.data || [],
-          mysteries: resMysteries.data || [],
-          twists: resTwists.data || [],
-          emotionalPoints: resEmotionalMap.data || [],
-          checklist: resChecklist.data || {},
-          chapters: resChapters.data || [],
+          identity: unwrap(resIdentity),
+          essencia: unwrap(resEssencia),
+          engenharia: unwrap(resEngenharia),
+          structureFrameworks: resStructure.data?.selectedFrameworks || resStructure.data?.data?.selectedFrameworks || [],
+          structureCards: Array.isArray(resStructureCards.data) ? resStructureCards.data : [],
+          timelineEvents: unwrap(resTimeline),
+          world: Array.isArray(resWorld.data) ? resWorld.data : [],
+          characters: Array.isArray(resChars.data) ? resChars.data : [],
+          relations: Array.isArray(resRelations.data) ? resRelations.data : [],
+          scenes: Array.isArray(resScenes.data) ? resScenes.data : [],
+          mysteries: Array.isArray(resMysteries.data) ? resMysteries.data : [],
+          twists: Array.isArray(resTwists.data) ? resTwists.data : [],
+          emotionalPoints: Array.isArray(resEmotionalMap.data) ? resEmotionalMap.data : [],
+          checklist: unwrap(resChecklist),
+          chapters: Array.isArray(resChapters.data) ? resChapters.data : [],
         });
       } catch (err) {
         console.error('Erro ao montar a Story Bible completa:', err);
@@ -136,26 +146,34 @@ export default function StoryBible({ projectId }) {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // Helper para resolver ID do personagem em Nome Real
   function getCharacterName(charId) {
     const found = data.characters.find((c) => String(c.id) === String(charId));
     return found ? (found.name || found.nome) : `Personagem (${charId?.slice(0, 5)}...)`;
   }
 
-  // Filtro: Apenas os cards que pertencem aos Frameworks selecionados
   const filteredStructureCards = data.structureCards.filter((card) =>
     data.structureFrameworks.includes(card.framework || card.type)
   );
 
-  // Ordenação dos Marcos da Timeline baseada na ordem dramática clássica
-  const sortedTimelineKeys = Object.keys(data.timelineEvents).sort((a, b) => {
-    const indexA = NARRATIVE_ORDER.findIndex((item) => item.toLowerCase() === a.toLowerCase());
-    const indexB = NARRATIVE_ORDER.findIndex((item) => item.toLowerCase() === b.toLowerCase());
+  // Mapeamento dos 8 marcos narrativos em ordem idêntica à Dashboard e RitmoTimeline
+  const milestonesList = NARRATIVE_ORDER.map((name) => {
+    const events = data.timelineEvents[name] || [];
+    const active = Array.isArray(events) && events.length > 0;
+    const theme = MILESTONE_THEMES[name] || { color: 'bg-purple-600', text: 'text-purple-400' };
+    
+    let displayLabel = name;
+    if (name === 'Incidente Incitante') displayLabel = 'I. Incitante';
+    if (name === '1º Ponto de Virada') displayLabel = '1ª Virada';
 
-    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-    if (indexA !== -1) return -1;
-    if (indexB !== -1) return 1;
-    return a.localeCompare(b);
+    return {
+      name,
+      label: displayLabel,
+      active,
+      events,
+      activeColor: theme.color,
+      textClass: theme.text,
+      borderClass: theme.border
+    };
   });
 
   const checklistDoneCount = Object.values(data.checklist).filter(Boolean).length;
@@ -256,8 +274,83 @@ export default function StoryBible({ projectId }) {
 
         {openSections.estrutura && (
           <div className="p-6 space-y-8">
-            {/* Apenas exibe elementos se pertencerem aos frameworks selecionados */}
+            
+            {/* LINHA DO TEMPO GRÁFICA (MESMA ORDEM DA DASHBOARD) */}
             <div>
+              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">
+                LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)
+              </h3>
+
+              <div className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
+                <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
+                  
+                  {/* Linha base cinza no fundo com espessura h-1 */}
+                  <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
+
+                  {/* Linhas conectoras com gradiente contínuo Roxo (#9333ea) -> Laranja (#f97316) */}
+                  <div className="absolute top-3 left-6 right-6 h-1 z-0 flex pointer-events-none">
+                    {milestonesList.slice(0, -1).map((m, idx) => {
+                      const nextM = milestonesList[idx + 1];
+                      const isSegmentActive = m.active && nextM.active;
+
+                      const totalSegments = milestonesList.length - 1;
+                      const startRatio = idx / totalSegments;
+                      const endRatio = (idx + 1) / totalSegments;
+
+                      const startR = Math.round(147 + (249 - 147) * startRatio);
+                      const startG = Math.round(51 + (115 - 51) * startRatio);
+                      const startB = Math.round(234 + (22 - 234) * startRatio);
+
+                      const endR = Math.round(147 + (249 - 147) * endRatio);
+                      const endG = Math.round(51 + (115 - 51) * endRatio);
+                      const endB = Math.round(234 + (22 - 234) * endRatio);
+
+                      return (
+                        <div key={idx} className="flex-1 h-full relative">
+                          {isSegmentActive && (
+                            <div
+                              className="w-full h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
+                              style={{
+                                background: `linear-gradient(to right, 
+                                  rgb(${startR}, ${startG}, ${startB}), 
+                                  rgb(${endR}, ${endG}, ${endB})
+                                )`
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Renderização dos nós dos 8 marcos */}
+                  {milestonesList.map((m, idx) => (
+                    <div key={idx} className="relative z-10 flex flex-col items-center group">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
+                          m.active
+                            ? `${m.activeColor} shadow-lg ring-4 scale-110`
+                            : 'bg-[#181824] border-2 border-gray-700 text-gray-600'
+                        }`}
+                      >
+                        <span className="text-[10px] font-extrabold">{m.active ? '✦' : '◇'}</span>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold mt-3 text-center transition-colors max-w-[70px] leading-tight ${
+                          m.active ? 'text-purple-300 font-extrabold' : 'text-gray-500'
+                        }`}
+                      >
+                        {m.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* FRAMEWORKS SELECIONADOS */}
+            <div className="pt-4 border-t border-gray-800/60">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
                 Frameworks Selecionados: {data.structureFrameworks.join(', ') || 'Nenhum selecionado'}
               </h3>
@@ -280,29 +373,39 @@ export default function StoryBible({ projectId }) {
               )}
             </div>
 
-            {/* Linha do Tempo Ordenada Logicamente */}
+            {/* DETALHAMENTO DOS EVENTOS DA TIMELINE NA MESMA ORDEM */}
             <div className="pt-4 border-t border-gray-800/60">
-              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">Linha do Tempo de Marcos Narrativos (Ordem Lógica)</h3>
+              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">
+                Detalhamento dos Marcos e Eventos da Timeline
+              </h3>
               <div className="space-y-4">
-                {sortedTimelineKeys.map((milestone) => {
-                  const events = data.timelineEvents[milestone];
-                  return (
-                    <div key={milestone} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                        {milestone} ({Array.isArray(events) ? events.length : 0} eventos)
-                      </h4>
-                      {Array.isArray(events) && events.map((e) => (
-                        <div key={e.id} className="pl-4 border-l-2 border-cyan-500/40 my-1">
+                {milestonesList.map((m) => (
+                  <div key={m.name} className={`p-4 bg-[#171724] rounded-xl border ${m.borderClass} space-y-2`}>
+                    <h4 className="text-sm font-bold text-white flex items-center justify-between">
+                      <span className={`flex items-center gap-2 ${m.textClass}`}>
+                        <span className="w-2 h-2 rounded-full bg-current" />
+                        {m.name}
+                      </span>
+                      <span className="text-xs text-gray-400 font-normal">
+                        {m.events.length} evento{m.events.length !== 1 ? 's' : ''}
+                      </span>
+                    </h4>
+
+                    {m.events.length === 0 ? (
+                      <p className="text-xs text-gray-600 italic pl-4">Nenhum evento registrado neste marco.</p>
+                    ) : (
+                      m.events.map((e) => (
+                        <div key={e.id} className="pl-4 border-l-2 border-gray-700/80 my-1">
                           <strong className="text-xs text-gray-200 block">{e.title}</strong>
                           <p className="text-xs text-gray-400">{e.description}</p>
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
+                      ))
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
+
           </div>
         )}
       </section>
@@ -365,7 +468,6 @@ export default function StoryBible({ projectId }) {
               </div>
             </div>
 
-            {/* Relações com Nomes Resolvidos (Substitui UUIDs) */}
             <div className="pt-4 border-t border-gray-800/60">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Relações entre Personagens</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
