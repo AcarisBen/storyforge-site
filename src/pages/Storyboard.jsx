@@ -676,13 +676,28 @@ function StoryboardContent({ projectId }) {
     }
   }, [selectedNodeIds, selectedEdgeIds, setNodes, setEdges]);
 
-  // ALINHAMENTO
+  // ALINHAMENTO E DISTRIBUIÇÃO 
   const alignNodes = useCallback((alignmentType) => {
     if (selectedNodeIds.length < 1) return;
 
     setNodes((prevNodes) => {
       const selected = prevNodes.filter((n) => selectedNodeIds.includes(n.id));
       if (selected.length === 0) return prevNodes;
+
+      // Helper para obter largura e altura exatas do nó
+      const getNodeDimensions = (node) => {
+        const w =
+          node.measured?.width ||
+          parseInt(node.style?.width, 10) ||
+          node.width ||
+          150;
+        const h =
+          node.measured?.height ||
+          parseInt(node.style?.height, 10) ||
+          node.height ||
+          80;
+        return { w, h };
+      };
 
       if (alignmentType === 'grid') {
         const GRID_SIZE = 20;
@@ -700,12 +715,11 @@ function StoryboardContent({ projectId }) {
         });
       }
 
+      // Calcula os limites extremos da seleção
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
       selected.forEach((node) => {
-        const w = node.measured?.width || parseInt(node.style?.width, 10) || 150;
-        const h = node.measured?.height || parseInt(node.style?.height, 10) || 80;
-        
+        const { w, h } = getNodeDimensions(node);
         if (node.position.x < minX) minX = node.position.x;
         if (node.position.x + w > maxX) maxX = node.position.x + w;
         if (node.position.y < minY) minY = node.position.y;
@@ -715,43 +729,71 @@ function StoryboardContent({ projectId }) {
       const groupCenterX = minX + (maxX - minX) / 2;
       const groupCenterY = minY + (maxY - minY) / 2;
 
+      // DISTRIBUIÇÃO HORIZONTAL CORRIGIDA
       if (alignmentType === 'distribute-h' && selected.length >= 3) {
+        // Ordena nós da esquerda para a direita
         const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
-        const totalWidth = sorted.reduce((sum, n) => sum + (n.measured?.width || parseInt(n.style?.width, 10) || 150), 0);
-        const gap = (maxX - minX - totalWidth) / (sorted.length - 1);
+        
+        const firstNode = sorted[0];
+        const lastNode = sorted[sorted.length - 1];
 
-        let currentX = minX;
+        const startX = firstNode.position.x;
+        const endX = lastNode.position.x;
+
+        // Soma as larguras dos nós intermediários
+        const totalNodesWidth = sorted.reduce((sum, n) => sum + getNodeDimensions(n).w, 0);
+        const firstWidth = getNodeDimensions(firstNode).w;
+        const lastWidth = getNodeDimensions(lastNode).w;
+
+        // Espaço livre entre a borda direita do primeiro nó e a borda esquerda do último nó
+        const totalSpan = (endX + lastWidth) - startX;
+        const innerGap = (totalSpan - totalNodesWidth) / (sorted.length - 1);
+
+        let currentX = startX;
         const posMap = new Map();
+
         sorted.forEach((n) => {
           posMap.set(n.id, currentX);
-          const w = n.measured?.width || parseInt(n.style?.width, 10) || 150;
-          currentX += w + gap;
+          currentX += getNodeDimensions(n).w + innerGap;
         });
 
         return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, x: posMap.get(n.id) } } : n);
       }
 
+      // DISTRIBUIÇÃO VERTICAL CORRIGIDA
       if (alignmentType === 'distribute-v' && selected.length >= 3) {
+        // Ordena nós de cima para baixo
         const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
-        const totalHeight = sorted.reduce((sum, n) => sum + (n.measured?.height || parseInt(n.style?.height, 10) || 80), 0);
-        const gap = (maxY - minY - totalHeight) / (sorted.length - 1);
 
-        let currentY = minY;
+        const firstNode = sorted[0];
+        const lastNode = sorted[sorted.length - 1];
+
+        const startY = firstNode.position.y;
+        const endY = lastNode.position.y;
+
+        const totalNodesHeight = sorted.reduce((sum, n) => sum + getNodeDimensions(n).h, 0);
+        const firstHeight = getNodeDimensions(firstNode).h;
+        const lastHeight = getNodeDimensions(lastNode).h;
+
+        const totalSpan = (endY + lastHeight) - startY;
+        const innerGap = (totalSpan - totalNodesHeight) / (sorted.length - 1);
+
+        let currentY = startY;
         const posMap = new Map();
+
         sorted.forEach((n) => {
           posMap.set(n.id, currentY);
-          const h = n.measured?.height || parseInt(n.style?.height, 10) || 80;
-          currentY += h + gap;
+          currentY += getNodeDimensions(n).h + innerGap;
         });
 
         return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, y: posMap.get(n.id) } } : n);
       }
 
+      // ALINHAMENTOS PADRÃO (Esq, Dir, Topo, Base, Centro)
       return prevNodes.map((node) => {
         if (!selectedNodeIds.includes(node.id)) return node;
 
-        const w = node.measured?.width || parseInt(node.style?.width, 10) || 150;
-        const h = node.measured?.height || parseInt(node.style?.height, 10) || 80;
+        const { w, h } = getNodeDimensions(node);
 
         let newX = node.position.x;
         let newY = node.position.y;
@@ -1136,8 +1178,7 @@ function StoryboardContent({ projectId }) {
 
   // Auto-salvar no backend 1.5s após alterações
   useEffect(() => {
-    if (nodes.length === 0 && edges.length === 0) return;
-    const timer = setTimeout(() => {
+        const timer = setTimeout(() => {
       handleSaveStoryboard();
     }, 1500);
 
