@@ -22,6 +22,19 @@ const checklistCategories = [
     ],
   },
   {
+    title: 'Relações & Dinâmica entre Personagens',
+    badgeStyle: 'bg-indigo-950/40 text-indigo-300 border-indigo-800/40',
+    checkColor: 'bg-indigo-600 border-indigo-400 text-white',
+    items: [
+      'As relações entre os personagens evoluem ou se desgastam conforme a história avança?',
+      'Existem alianças, rivalidades ou segredos compartilhados que geram tensão secundária?',
+      'As mudanças de relacionamento são motivadas por eventos e cenas específicas?',
+      'O nível de intensidade da relação (amizade, ódio, amor, rivalidade) condiz com os atos dos personagens?',
+      'A rede/grafo de relacionamentos evita personagens isolados sem função narrativa?',
+      'Existem conflitos de interesse claros entre aliados na mesma cena?',
+    ],
+  },
+  {
     title: 'Conflito & Dilemas',
     badgeStyle: 'bg-red-950/40 text-red-300 border-red-800/40',
     checkColor: 'bg-red-500 border-red-400 text-white',
@@ -35,7 +48,7 @@ const checklistCategories = [
     ],
   },
   {
-    title: 'Estrutura & Pacing',
+    title: 'Estrutura, Pacing & Mapa Emocional',
     badgeStyle: 'bg-blue-950/40 text-blue-300 border-blue-800/40',
     checkColor: 'bg-blue-500 border-blue-400 text-white',
     items: [
@@ -45,6 +58,9 @@ const checklistCategories = [
       'A resolução mostra as consequências práticas da transformação?',
       'A estrutura escolhida serve ao ritmo e tom da história?',
       'As transições entre cenas e capítulos mantêm a fluidez narrativa?',
+      'A curva do gráfico emocional alterna entre picos de tensão/medo e vales de alívio/esperança?',
+      'Há variedade de sentimentos (curiosidade, choque, tristeza, alegria) ao longo dos pontos-chave?',
+      'O tom emocional da cena final/resolução cumpre a promessa feita no início da narrativa?',
     ],
   },
   {
@@ -59,6 +75,7 @@ const checklistCategories = [
       'Nenhuma cena é redundante ou descartável?',
       'As informações essenciais são reveladas via ação e diálogo (Show, Don’t Tell)?',
       'Os cenários interagem fisicamente com os personagens durante as cenas?',
+      'Cada ponto emocional marcante está devidamente vinculado a uma cena, mistério ou plot twist?',
     ],
   },
   {
