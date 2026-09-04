@@ -49,6 +49,7 @@ export default function StoryBible({ projectId }) {
     estrutura: true,
     universo: true,
     jornada: true,
+    dialogos: true,
     mapaEmocional: true,
     checklist: true,
     manuscrito: true,
@@ -70,6 +71,7 @@ export default function StoryBible({ projectId }) {
     emotionalPoints: [],
     checklist: {},
     chapters: [],
+    dialogues: [],
   });
 
   useEffect(() => {
@@ -95,6 +97,7 @@ export default function StoryBible({ projectId }) {
           resEmotionalMap,
           resChecklist,
           resChapters,
+          resDialogues,
         ] = await Promise.all([
           apiClient.get(`/entities/projects/${projectId}/identity`).catch(() => ({ data: {} })),
           apiClient.get(`/entities/projects/${projectId}/essencia`).catch(() => ({ data: {} })),
@@ -111,16 +114,67 @@ export default function StoryBible({ projectId }) {
           apiClient.get(`/entities/projects/${projectId}/mapa-emocional`).catch(() => ({ data: [] })),
           apiClient.get(`/entities/projects/${projectId}/checklist`).catch(() => ({ data: {} })),
           apiClient.get(`/entities/projects/${projectId}/chapters`).catch(() => ({ data: [] })),
+          apiClient.get(`/entities/projects/${projectId}/dialogues`).catch(() => ({ data: [] })),
         ]);
 
         const unwrap = (r) => (r.data?.data ? r.data.data : r.data || {});
+
+        const structureData = unwrap(resStructure);
+        const selectedFrameworks = resStructure.data?.selectedFrameworks || structureData.selectedFrameworks || [];
+        const rawValues = resStructure.data?.values || structureData.values || {};
+        const backendCards = Array.isArray(resStructureCards.data) ? resStructureCards.data : [];
+
+        // Montagem unificada dos cards de todos os frameworks
+        const compiledCards = [];
+
+        // 1. Incluir cards vindos do endpoint de cards se existirem
+        backendCards.forEach((card) => {
+          if (card && (card.title || card.name)) {
+            compiledCards.push({
+              id: card.id || Math.random(),
+              title: card.title || card.name,
+              descricao: card.descricao || card.description || card.value || '',
+              framework: card.framework || card.type || '3 Atos'
+            });
+          }
+        });
+
+        // 2. Extrair diretamente de `values` do backend para cobrir todos os frameworks salvos
+        const frameworkKeysMap = [
+          { key: 'acts', name: '3 Atos' },
+          { key: 'sequences', name: '8 Sequências (Paul Gulino)' },
+          { key: 'hero', name: 'Jornada do Herói' },
+          { key: 'storyCircle', name: 'Story Circle (Dan Harmon)' },
+          { key: 'saveTheCat', name: 'Save the Cat (Blake Snyder)' },
+          { key: 'freytag', name: 'Freytag (Pirâmide Dramática)' }
+        ];
+
+        frameworkKeysMap.forEach(({ key, name }) => {
+          if (rawValues[key]) {
+            Object.entries(rawValues[key]).forEach(([beatTitle, textVal]) => {
+              if (textVal && String(textVal).trim() !== '') {
+                const alreadyExists = compiledCards.some(
+                  (c) => c.title === beatTitle && c.descricao === textVal
+                );
+                if (!alreadyExists) {
+                  compiledCards.push({
+                    id: `${key}-${beatTitle}`,
+                    title: beatTitle,
+                    descricao: textVal,
+                    framework: name
+                  });
+                }
+              }
+            });
+          }
+        });
 
         setData({
           identity: unwrap(resIdentity),
           essencia: unwrap(resEssencia),
           engenharia: unwrap(resEngenharia),
-          structureFrameworks: resStructure.data?.selectedFrameworks || resStructure.data?.data?.selectedFrameworks || [],
-          structureCards: Array.isArray(resStructureCards.data) ? resStructureCards.data : [],
+          structureFrameworks: selectedFrameworks,
+          structureCards: compiledCards,
           timelineEvents: unwrap(resTimeline),
           world: Array.isArray(resWorld.data) ? resWorld.data : [],
           characters: Array.isArray(resChars.data) ? resChars.data : [],
@@ -131,6 +185,7 @@ export default function StoryBible({ projectId }) {
           emotionalPoints: Array.isArray(resEmotionalMap.data) ? resEmotionalMap.data : [],
           checklist: unwrap(resChecklist),
           chapters: Array.isArray(resChapters.data) ? resChapters.data : [],
+          dialogues: Array.isArray(resDialogues.data) ? resDialogues.data : [],
         });
       } catch (err) {
         console.error('Erro ao montar a Story Bible completa:', err);
@@ -151,11 +206,16 @@ export default function StoryBible({ projectId }) {
     return found ? (found.name || found.nome) : `Personagem (${charId?.slice(0, 5)}...)`;
   }
 
-  const filteredStructureCards = data.structureCards.filter((card) =>
-    data.structureFrameworks.includes(card.framework || card.type)
-  );
+  // Filtra de forma flexível garantindo correspondência mesmo com pequenas variações nos nomes dos frameworks
+  const filteredStructureCards = data.structureCards.filter((card) => {
+    if (!data.structureFrameworks || data.structureFrameworks.length === 0) return true;
+    const cardFw = String(card.framework || card.type || '').toLowerCase();
+    return data.structureFrameworks.some((selectedFw) => {
+      const sel = String(selectedFw).toLowerCase();
+      return cardFw.includes(sel) || sel.includes(cardFw);
+    });
+  });
 
-  // Mapeamento dos 8 marcos narrativos em ordem idêntica à Dashboard e RitmoTimeline
   const milestonesList = NARRATIVE_ORDER.map((name) => {
     const events = data.timelineEvents[name] || [];
     const active = Array.isArray(events) && events.length > 0;
@@ -274,8 +334,6 @@ export default function StoryBible({ projectId }) {
 
         {openSections.estrutura && (
           <div className="p-6 space-y-8">
-            
-            {/* LINHA DO TEMPO GRÁFICA (MESMA ORDEM DA DASHBOARD) */}
             <div>
               <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">
                 LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)
@@ -283,11 +341,8 @@ export default function StoryBible({ projectId }) {
 
               <div className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
                 <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
-                  
-                  {/* Linha base cinza no fundo com espessura h-1 */}
                   <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
 
-                  {/* Linhas conectoras com gradiente contínuo Roxo (#9333ea) -> Laranja (#f97316) */}
                   <div className="absolute top-3 left-6 right-6 h-1 z-0 flex pointer-events-none">
                     {milestonesList.slice(0, -1).map((m, idx) => {
                       const nextM = milestonesList[idx + 1];
@@ -323,7 +378,6 @@ export default function StoryBible({ projectId }) {
                     })}
                   </div>
 
-                  {/* Renderização dos nós dos 8 marcos */}
                   {milestonesList.map((m, idx) => (
                     <div key={idx} className="relative z-10 flex flex-col items-center group">
                       <div
@@ -349,7 +403,6 @@ export default function StoryBible({ projectId }) {
               </div>
             </div>
 
-            {/* FRAMEWORKS SELECIONADOS */}
             <div className="pt-4 border-t border-gray-800/60">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
                 Frameworks Selecionados: {data.structureFrameworks.join(', ') || 'Nenhum selecionado'}
@@ -373,7 +426,6 @@ export default function StoryBible({ projectId }) {
               )}
             </div>
 
-            {/* DETALHAMENTO DOS EVENTOS DA TIMELINE NA MESMA ORDEM */}
             <div className="pt-4 border-t border-gray-800/60">
               <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">
                 Detalhamento dos Marcos e Eventos da Timeline
@@ -524,7 +576,89 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 5. MAPA EMOCIONAL */}
+      {/* 5. DIÁLOGOS CHAVE */}
+      <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
+        <button
+          type="button"
+          onClick={() => toggleSection('dialogos')}
+          className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer"
+        >
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>💬</span> 5. Diálogos Chave
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Falas e Interações Notáveis Registradas</p>
+          </div>
+          <span className="text-gray-400 font-bold text-lg">{openSections.dialogos ? '⌃' : '⌄'}</span>
+        </button>
+
+        {openSections.dialogos && (
+          <div className="p-6 space-y-4">
+            {data.dialogues.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">Nenhum diálogo registrado até o momento.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {data.dialogues.map((card, index) => {
+                  const checklistDone = Object.values(card.checklist || {}).filter(Boolean).length;
+                  const charA = card.charAName || 'Interlocutor A';
+                  const charB = card.charBName || 'Interlocutor B';
+
+                  return (
+                    <div key={card.id || index} className="bg-[#161622] border border-gray-800/80 rounded-xl overflow-hidden shadow-md">
+                      {/* Cabeçalho do Card */}
+                      <div className="p-3.5 bg-[#1a1a28] border-b border-gray-800/80 flex flex-wrap justify-between items-center gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">
+                            CENA: {card.sceneTitle || 'SEM CENA VINCULADA'}
+                          </span>
+                          <h3 className="text-sm font-bold text-white">
+                            {charA} & {charB}
+                          </h3>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {card.atmosphere && (
+                            <span className="text-[10px] px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded-md">
+                              {card.atmosphere}
+                            </span>
+                          )}
+                          <span className="text-[10px] px-2 py-0.5 bg-purple-950/60 text-purple-300 border border-purple-800/40 rounded-md font-bold">
+                            Checklist: {checklistDone}/5
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Conteúdo das Falas */}
+                      <div className="p-4 bg-[#0d0d14] font-serif text-xs text-gray-300 space-y-2 leading-relaxed">
+                        {Array.isArray(card.lines) && card.lines.length > 0 ? (
+                          card.lines.map((line, i) => (
+                            <p key={i}>
+                              — {line.text || '...'}
+                              {line.action && (
+                                <span className="font-sans text-[11px] italic text-gray-400"> — {line.action}.</span>
+                              )}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="italic text-gray-500">"{card.content || card.dialogue || card.texto || card.description}"</p>
+                        )}
+
+                        {card.subtext && (
+                          <p className="font-sans text-[11px] text-amber-400/90 pt-2 border-t border-gray-800/60 italic">
+                            <b>Subtexto Oculto:</b> {card.subtext}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* 6. MAPA EMOCIONAL */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button
           type="button"
@@ -533,7 +667,7 @@ export default function StoryBible({ projectId }) {
         >
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>📈</span> 5. Mapa Emocional Esperado
+              <span>📈</span> 6. Mapa Emocional Esperado
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">Níveis de Intensidade Emocional</p>
           </div>
@@ -561,7 +695,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 6. CHECKLIST */}
+      {/* 7. CHECKLIST */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button
           type="button"
@@ -570,7 +704,7 @@ export default function StoryBible({ projectId }) {
         >
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>✅</span> 6. Checklist de Qualidade Narrativa
+              <span>✅</span> 7. Checklist de Qualidade Narrativa
             </h2>
           </div>
           <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40">
@@ -601,7 +735,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 7. MANUSCRITO */}
+      {/* 8. MANUSCRITO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button
           type="button"
@@ -610,7 +744,7 @@ export default function StoryBible({ projectId }) {
         >
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>📝</span> 7. Escrita & Manuscrito Final
+              <span>📝</span> 8. Escrita & Manuscrito Final
             </h2>
           </div>
           <span className="text-gray-400 font-bold text-lg">{openSections.manuscrito ? '⌃' : '⌄'}</span>
