@@ -92,6 +92,7 @@ function CustomDeletableEdge({
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: 'all',
+            zIndex: 99999,
           }}
           className="nodrag nopan"
         >
@@ -684,7 +685,6 @@ function StoryboardContent({ projectId }) {
       const selected = prevNodes.filter((n) => selectedNodeIds.includes(n.id));
       if (selected.length === 0) return prevNodes;
 
-      // Helper para obter largura e altura exatas do nó
       const getNodeDimensions = (node) => {
         const w =
           node.measured?.width ||
@@ -715,7 +715,6 @@ function StoryboardContent({ projectId }) {
         });
       }
 
-      // Calcula os limites extremos da seleção
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
       selected.forEach((node) => {
@@ -729,9 +728,7 @@ function StoryboardContent({ projectId }) {
       const groupCenterX = minX + (maxX - minX) / 2;
       const groupCenterY = minY + (maxY - minY) / 2;
 
-      // DISTRIBUIÇÃO HORIZONTAL CORRIGIDA
       if (alignmentType === 'distribute-h' && selected.length >= 3) {
-        // Ordena nós da esquerda para a direita
         const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
         
         const firstNode = sorted[0];
@@ -740,12 +737,9 @@ function StoryboardContent({ projectId }) {
         const startX = firstNode.position.x;
         const endX = lastNode.position.x;
 
-        // Soma as larguras dos nós intermediários
         const totalNodesWidth = sorted.reduce((sum, n) => sum + getNodeDimensions(n).w, 0);
-        const firstWidth = getNodeDimensions(firstNode).w;
         const lastWidth = getNodeDimensions(lastNode).w;
 
-        // Espaço livre entre a borda direita do primeiro nó e a borda esquerda do último nó
         const totalSpan = (endX + lastWidth) - startX;
         const innerGap = (totalSpan - totalNodesWidth) / (sorted.length - 1);
 
@@ -760,9 +754,7 @@ function StoryboardContent({ projectId }) {
         return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, x: posMap.get(n.id) } } : n);
       }
 
-      // DISTRIBUIÇÃO VERTICAL CORRIGIDA
       if (alignmentType === 'distribute-v' && selected.length >= 3) {
-        // Ordena nós de cima para baixo
         const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
 
         const firstNode = sorted[0];
@@ -772,7 +764,6 @@ function StoryboardContent({ projectId }) {
         const endY = lastNode.position.y;
 
         const totalNodesHeight = sorted.reduce((sum, n) => sum + getNodeDimensions(n).h, 0);
-        const firstHeight = getNodeDimensions(firstNode).h;
         const lastHeight = getNodeDimensions(lastNode).h;
 
         const totalSpan = (endY + lastHeight) - startY;
@@ -789,7 +780,6 @@ function StoryboardContent({ projectId }) {
         return prevNodes.map((n) => posMap.has(n.id) ? { ...n, position: { ...n.position, y: posMap.get(n.id) } } : n);
       }
 
-      // ALINHAMENTOS PADRÃO (Esq, Dir, Topo, Base, Centro)
       return prevNodes.map((node) => {
         if (!selectedNodeIds.includes(node.id)) return node;
 
@@ -876,7 +866,6 @@ function StoryboardContent({ projectId }) {
 
   const updateSelectedStyle = useCallback(
     (key, value) => {
-      // 1. Atualização para Nós
       if (selectedNodeIds.length > 0) {
         setNodes((nds) =>
           nds.map((node) => {
@@ -894,7 +883,6 @@ function StoryboardContent({ projectId }) {
         );
       }
 
-      // 2. Atualização para Conectores/Edges
       if (selectedEdgeIds.length > 0) {
         setEdges((eds) =>
           eds.map((edge) => {
@@ -1002,6 +990,7 @@ function StoryboardContent({ projectId }) {
             ...params,
             type: 'customDeletable',
             animated: strokeStyle === 'dashed',
+            zIndex: 10000,
             style: {
               stroke: strokeColor,
               strokeOpacity: strokeOpacity / 100,
@@ -1126,10 +1115,9 @@ function StoryboardContent({ projectId }) {
           estrutura: resStruct.data || [],
           timeline: resTimeline.data || [],
           twists: resTwists.data || [],
-
         });
 
-        // Restaura os Nós e Conexões salvos
+        // Restaura os Nós e Conexões salvos garantindo zIndex alto para edges
         if (resBoard.data && Array.isArray(resBoard.data.nodes)) {
           const restoredNodes = resBoard.data.nodes.map((node) => ({
             ...node,
@@ -1143,7 +1131,11 @@ function StoryboardContent({ projectId }) {
         }
 
         if (resBoard.data && Array.isArray(resBoard.data.edges)) {
-          setEdges(resBoard.data.edges);
+          const restoredEdges = resBoard.data.edges.map((edge) => ({
+            ...edge,
+            zIndex: 10000,
+          }));
+          setEdges(restoredEdges);
         }
       } catch (err) {
         console.error('Erro ao buscar dados do Storyboard:', err);
@@ -1178,7 +1170,7 @@ function StoryboardContent({ projectId }) {
 
   // Auto-salvar no backend 1.5s após alterações
   useEffect(() => {
-        const timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       handleSaveStoryboard();
     }, 1500);
 
@@ -1243,6 +1235,14 @@ function StoryboardContent({ projectId }) {
         .react-flow__attribution { display: none !important; }
         .react-flow__node { padding: 0 !important; border: none !important; background: transparent !important; }
         
+        /* REGRA CRÍTICA PARA GARANTIR OS CONECTORES SEMPRE ACIMA DAS FORMAS */
+        .react-flow__edges, .react-flow__edgelayer {
+          z-index: 9999 !important;
+        }
+        .react-flow__edge {
+          z-index: 9999 !important;
+        }
+
         .react-flow__controls {
           background-color: #14141f !important;
           border: 1px solid #1f2937 !important;
@@ -1336,146 +1336,145 @@ function StoryboardContent({ projectId }) {
                 </div>
               </div>
 
-             {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA / LINHA */}
-<div className="space-y-4 pt-3 border-t border-gray-800/60">
-  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-    {selectedEdgeIds.length > 0 ? 'ESTILO DA CONEXÃO' : 'PREENCHIMENTO E BORDA'}
-  </h3>
+              {/* FORMATAÇÃO DE PREENCHIMENTO E BORDA / LINHA */}
+              <div className="space-y-4 pt-3 border-t border-gray-800/60">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  {selectedEdgeIds.length > 0 ? 'ESTILO DA CONEXÃO' : 'PREENCHIMENTO E BORDA'}
+                </h3>
 
-  {/* 1. QUADRADO E CONTROLES DE PREENCHIMENTO */}
-  {selectedEdgeIds.length === 0 && !isArrowSelected && (
-    <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-      <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
-      <div className="flex items-center gap-2.5">
-        <div 
-          className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
-          style={{ backgroundColor: noFill ? 'transparent' : fillColor }}
-        >
-          <input
-            type="color"
-            value={fillColor}
-            disabled={noFill}
-            onChange={(e) => {
-              setFillColor(e.target.value);
-              updateSelectedStyle('fillColor', e.target.value);
-            }}
-            className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
-          />
-        </div>
-        <div className="flex-1 space-y-1">
-          <div className="flex justify-between text-[10px] text-gray-400">
-            <span>Opacidade</span>
-            <span>{fillOpacity}%</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            disabled={noFill}
-            value={fillOpacity}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setFillOpacity(val);
-              updateSelectedStyle('fillOpacity', val);
-            }}
-            className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
-          />
-        </div>
-      </div>
-      <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer pt-1">
-        <input
-          type="checkbox"
-          checked={noFill}
-          onChange={(e) => {
-            setNoFill(e.target.checked);
-            updateSelectedStyle('noFill', e.target.checked);
-          }}
-          className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
-        />
-        Sem preenchimento
-      </label>
-    </div>
-  )}
+                {/* PREENCHIMENTO */}
+                {selectedEdgeIds.length === 0 && !isArrowSelected && (
+                  <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+                    <label className="text-xs font-semibold text-gray-300 block">Preenchimento</label>
+                    <div className="flex items-center gap-2.5">
+                      <div 
+                        className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
+                        style={{ backgroundColor: noFill ? 'transparent' : fillColor }}
+                      >
+                        <input
+                          type="color"
+                          value={fillColor}
+                          disabled={noFill}
+                          onChange={(e) => {
+                            setFillColor(e.target.value);
+                            updateSelectedStyle('fillColor', e.target.value);
+                          }}
+                          className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                          <span>Opacidade</span>
+                          <span>{fillOpacity}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          disabled={noFill}
+                          value={fillOpacity}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setFillOpacity(val);
+                            updateSelectedStyle('fillOpacity', val);
+                          }}
+                          className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={noFill}
+                        onChange={(e) => {
+                          setNoFill(e.target.checked);
+                          updateSelectedStyle('noFill', e.target.checked);
+                        }}
+                        className="w-3.5 h-3.5 rounded accent-purple-600 bg-[#181824] border-gray-700"
+                      />
+                      Sem preenchimento
+                    </label>
+                  </div>
+                )}
 
-  {/* 2. QUADRADO E CONTROLES DE COR DA BORDA / LINHA */}
-  <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
-    <label className="text-xs font-semibold text-gray-300 block">
-      {selectedEdgeIds.length > 0 ? 'Cor da Linha' : 'Cor da Borda'}
-    </label>
-    <div className="flex items-center gap-2.5">
-      {/* QUADRADINHO DA COR DA BORDA/LINHA CORRIGIDO */}
-      <div 
-        className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
-        style={{ backgroundColor: strokeColor }}
-      >
-        <input
-          type="color"
-          value={strokeColor}
-          onChange={(e) => {
-            setStrokeColor(e.target.value);
-            updateSelectedStyle('strokeColor', e.target.value);
-          }}
-          className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
-        />
-      </div>
-      <div className="flex-1 space-y-1">
-        <div className="flex justify-between text-[10px] text-gray-400">
-          <span>Opacidade</span>
-          <span>{strokeOpacity}%</span>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={strokeOpacity}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            setStrokeOpacity(val);
-            updateSelectedStyle('strokeOpacity', val);
-          }}
-          className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
-        />
-      </div>
-    </div>
+                {/* COR DA BORDA / LINHA */}
+                <div className="space-y-2 bg-[#161622] p-2.5 rounded-xl border border-gray-800/80">
+                  <label className="text-xs font-semibold text-gray-300 block">
+                    {selectedEdgeIds.length > 0 ? 'Cor da Linha' : 'Cor da Borda'}
+                  </label>
+                  <div className="flex items-center gap-2.5">
+                    <div 
+                      className="relative w-8 h-8 rounded-lg border border-gray-700 overflow-hidden shrink-0 transition-colors"
+                      style={{ backgroundColor: strokeColor }}
+                    >
+                      <input
+                        type="color"
+                        value={strokeColor}
+                        onChange={(e) => {
+                          setStrokeColor(e.target.value);
+                          updateSelectedStyle('strokeColor', e.target.value);
+                        }}
+                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer opacity-0"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between text-[10px] text-gray-400">
+                        <span>Opacidade</span>
+                        <span>{strokeOpacity}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={strokeOpacity}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setStrokeOpacity(val);
+                          updateSelectedStyle('strokeOpacity', val);
+                        }}
+                        className="w-full accent-purple-500 h-1 bg-gray-700 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
 
-    <div className="grid grid-cols-2 gap-2 pt-2">
-      <div>
-        <label className="text-[10px] font-medium text-gray-400 block mb-1">Espessura</label>
-        <select
-          value={strokeWidth}
-          onChange={(e) => {
-            setStrokeWidth(e.target.value);
-            updateSelectedStyle('strokeWidth', e.target.value);
-          }}
-          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
-        >
-          {selectedEdgeIds.length === 0 && <option value="0px">Nenhuma (0px)</option>}
-          <option value="1px">Fina (1px)</option>
-          <option value="2px">Média (2px)</option>
-          <option value="3px">Grossa (3px)</option>
-          <option value="4px">Muito grossa (4px)</option>
-          <option value="6px">Extra grossa (6px)</option>
-        </select>
-      </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div>
+                      <label className="text-[10px] font-medium text-gray-400 block mb-1">Espessura</label>
+                      <select
+                        value={strokeWidth}
+                        onChange={(e) => {
+                          setStrokeWidth(e.target.value);
+                          updateSelectedStyle('strokeWidth', e.target.value);
+                        }}
+                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+                      >
+                        {selectedEdgeIds.length === 0 && <option value="0px">Nenhuma (0px)</option>}
+                        <option value="1px">Fina (1px)</option>
+                        <option value="2px">Média (2px)</option>
+                        <option value="3px">Grossa (3px)</option>
+                        <option value="4px">Muito grossa (4px)</option>
+                        <option value="6px">Extra grossa (6px)</option>
+                      </select>
+                    </div>
 
-      <div>
-        <label className="text-[10px] font-medium text-gray-400 block mb-1">Estilo</label>
-        <select
-          value={strokeStyle}
-          onChange={(e) => {
-            setStrokeStyle(e.target.value);
-            updateSelectedStyle('strokeStyle', e.target.value);
-          }}
-          className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
-        >
-          <option value="solid">Sólida</option>
-          <option value="dashed">Tracejada / Animada</option>
-          {selectedEdgeIds.length === 0 && <option value="dotted">Pontilhada</option>}
-        </select>
-      </div>
-    </div>
-  </div>
-</div>
+                    <div>
+                      <label className="text-[10px] font-medium text-gray-400 block mb-1">Estilo</label>
+                      <select
+                        value={strokeStyle}
+                        onChange={(e) => {
+                          setStrokeStyle(e.target.value);
+                          updateSelectedStyle('strokeStyle', e.target.value);
+                        }}
+                        className="w-full bg-[#14141f] border border-gray-800 rounded-lg p-2 text-xs text-gray-200"
+                      >
+                        <option value="solid">Sólida</option>
+                        <option value="dashed">Tracejada / Animada</option>
+                        {selectedEdgeIds.length === 0 && <option value="dotted">Pontilhada</option>}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* FORMATAÇÃO DE TEXTO */}
               {isTextSupported && selectedEdgeIds.length === 0 && (
