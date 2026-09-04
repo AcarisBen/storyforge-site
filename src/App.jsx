@@ -17,7 +17,7 @@ import StoryBible from './pages/StoryBible';
 import Storyboard from './pages/Storyboard';
 import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
-import DialogEngine from './pages/DialogEngine'; // <-- Importado aqui
+import DialogEngine from './pages/DialogEngine';
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -29,7 +29,7 @@ const navigation = [
       ['Personagens', 'personagens'], 
       ['Mundo', 'mundo'], 
       ['Cenas', 'cenas'], 
-      ['Diálogos', 'dialogos'], // <-- Adicionado ao menu lateral
+      ['Diálogos', 'dialogos'], 
       ['Relações', 'relacoes']
     ] 
   },
@@ -113,7 +113,13 @@ export default function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard />;
+        return (
+          <Dashboard 
+            projectId={currentProject.id} 
+            onNavigate={setActivePage}
+            currentProject={currentProject}
+          />
+        );
       case 'identidade':
         return <Identidade projectId={currentProject.id} />;
       case 'essencia':
@@ -130,7 +136,7 @@ export default function App() {
         return <Mundo projectId={currentProject.id} />;
       case 'cenas':
         return <Cenas projectId={currentProject.id} />;
-      case 'dialogos': // <-- Renderiza a nova página de Engenharia de Diálogos
+      case 'dialogos':
         return <DialogEngine projectId={currentProject.id} />;
       case 'relacoes':
         return <Relacoes projectId={currentProject.id} />;

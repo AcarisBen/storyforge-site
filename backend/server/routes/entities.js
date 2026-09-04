@@ -19,7 +19,7 @@ router.get('/projects', async (req, res) => {
 });
 
 // ==========================================
-// RELAÇÕES (Corrigido para Prisma CharacterRelation)
+// RELAÇÕES
 // ==========================================
 
 const getRelationsHandler = async (req, res) => {
@@ -969,7 +969,7 @@ router.get('/entities/projects/:projectId/mapa-emocional', getMapaEmocionalHandl
 const saveMapaEmocionalHandler = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const points = req.body; // Array de pontos emocionais
+    const points = req.body;
 
     const existing = await prisma.entity.findFirst({
       where: { projectId: String(projectId), type: 'MAPA_EMOCIONAL' },
@@ -1003,7 +1003,7 @@ router.post('/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
 router.post('/entities/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
 
 // ==========================================
-// DIÁLOGOS (Adicionar junto às outras entidades)
+// DIÁLOGOS
 // ==========================================
 
 const getDialoguesHandler = async (req, res) => {
@@ -1098,6 +1098,5 @@ const deleteDialogueHandler = async (req, res) => {
 
 router.delete('/dialogues/:id', deleteDialogueHandler);
 router.delete('/entities/dialogues/:id', deleteDialogueHandler);
-
 
 export default router;
