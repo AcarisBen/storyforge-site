@@ -18,6 +18,49 @@ router.get('/projects', async (req, res) => {
   }
 });
 
+const createProjectHandler = async (req, res) => {
+  try {
+    const { title, format, status, progress } = req.body;
+
+    // 1. Busca ou define um Usuário Padrão para satisfazer o Prisma
+    let defaultUser = await prisma.user.findFirst();
+    if (!defaultUser) {
+      defaultUser = await prisma.user.create({
+        data: {
+          email: 'autor@storyforge.com',
+          name: 'Autor StoryForge',
+          password: 'default_password'
+        }
+      });
+    }
+
+    // 2. Cria o projeto com os campos válidos do schema.prisma
+    const newProject = await prisma.project.create({
+      data: {
+        title: title || 'Novo Projeto',
+        description: `Formato: ${format || 'Romance'} | Status: ${status || 'Desenvolvimento'}`,
+        userId: defaultUser.id,
+      },
+    });
+
+    // 3. Retorna o objeto formatado para o Frontend não quebrar
+    res.status(201).json({
+      ...newProject,
+      format: format || 'Romance / Livro',
+      status: status || 'Desenvolvimento',
+      progress: Number(progress) || 0
+    });
+  } catch (error) {
+    console.error('Erro ao criar projeto no Prisma:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Aceita rotas com ou sem o prefixo /entities
+router.post('/projects', createProjectHandler);
+router.post('/entities/projects', createProjectHandler);
+
+
 // ==========================================
 // RELAÇÕES
 // ==========================================
