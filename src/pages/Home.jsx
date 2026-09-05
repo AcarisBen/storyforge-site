@@ -39,7 +39,7 @@ export default function Home({ onSelectProject }) {
     if (!newProject.title.trim()) return;
 
     try {
-      const res = await apiClient.post('/projects', {
+      const res = await apiClient.post('/entities/projects', {
         title: newProject.title,
         format: newProject.format,
         status: 'Desenvolvimento',
@@ -77,17 +77,18 @@ export default function Home({ onSelectProject }) {
       let currentStageProgress = 10;
 
       try {
-        // Etapa 1: Leitura do JSON (10% -> 20%)
+        // =================================================================
+        // PARTE 1: ESTRUTURA TÉCNICA E BACKEND (0% -> 50%)
+        // =================================================================
         currentStageProgress = 20;
         setImportProgress(currentStageProgress);
-        
+
         const importedJson = JSON.parse(event.target.result);
         if (!importedJson.projectData) {
           throw new Error('O arquivo JSON não possui a estrutura "projectData" válida.');
         }
 
-        // Etapa 2: Criação do Projeto Base (20% -> 40%)
-        currentStageProgress = 40;
+        currentStageProgress = 50;
         setImportProgress(currentStageProgress);
 
         const meta = importedJson.exportMeta || {};
@@ -107,52 +108,93 @@ export default function Home({ onSelectProject }) {
         const newProjId = resProj.data?.id;
 
         if (!newProjId) {
-          throw new Error('Servidor não retornou um ID para o projeto criado.');
+          throw new Error('Servidor não retornou um ID válido para o projeto.');
         }
 
-        // Etapa 3: Sincronização dos Sub-módulos (40% -> 90%)
-        const modules = [
-  { label: 'Identidade', endpoint: `/entities/projects/${newProjId}/identity`, data: pData.identity },
-  { label: 'Essência', endpoint: `/entities/projects/${newProjId}/essencia`, data: pData.essencia },
-  { label: 'Engenharia', endpoint: `/entities/projects/${newProjId}/engenharia`, data: pData.engenharia },
-  { label: 'Checklist', endpoint: `/entities/projects/${newProjId}/checklist`, data: pData.checklist }
-];
+        // =================================================================
+        // PARTE 2: MAPEAMENTO COMPLETO DAS PÁGINAS DA STORY BIBLE (50% -> 100%)
+        // =================================================================
+        const allPages = [
+          { name: 'Identidade', endpoint: `/entities/projects/${newProjId}/identity`, data: pData.identity, type: 'object' },
+          { name: 'Essência', endpoint: `/entities/projects/${newProjId}/essencia`, data: pData.essencia, type: 'object' },
+          { name: 'Engenharia', endpoint: `/entities/projects/${newProjId}/engenharia`, data: pData.engenharia, type: 'object' },
+          
+          // Estrutura Dramática (Lê structureFrameworks e structureCards do JSON)
+          { 
+            name: 'Estrutura Dramática', 
+            endpoint: `/entities/projects/${newProjId}/estrutura-dramatica`, 
+            data: { selectedFrameworks: pData.structureFrameworks || [], cards: pData.structureCards || [] }, 
+            type: 'object' 
+          },
+          
+          // Ritmo & Timeline (Lê timelineEvents do JSON)
+          { 
+            name: 'Ritmo & Timeline', 
+            endpoint: `/entities/projects/${newProjId}/ritmo-timeline`, 
+            data: pData.timelineEvents || {}, 
+            type: 'object' 
+          },
 
-        const warnings = [];
-        const startModuleProgress = 40;
-        const endModuleProgress = 90;
+          { name: 'Personagens', endpoint: `/entities/projects/${newProjId}/characters`, data: pData.characters, type: 'array_items' },
+          { name: 'Mundo', endpoint: `/entities/projects/${newProjId}/world`, data: pData.world, type: 'array_items' },
+          { name: 'Cenas', endpoint: `/entities/projects/${newProjId}/scenes`, data: pData.scenes, type: 'array_items' },
+          { name: 'Diálogos', endpoint: `/entities/projects/${newProjId}/dialogues`, data: pData.dialogues, type: 'array_items' },
+          
+          // Relações (Lê relations do JSON e injeta o newProjId)
+          { name: 'Relações', endpoint: `/entities/relations`, data: pData.relations, type: 'array_items_with_proj', projId: newProjId },
+          
+          { name: 'Mistérios', endpoint: `/entities/projects/${newProjId}/mysteries`, data: pData.mysteries, type: 'array_items' },
+          { name: 'Plot Twists', endpoint: `/entities/projects/${newProjId}/twists`, data: pData.twists, type: 'array_items' },
+          { name: 'Escrita & Capítulo', endpoint: `/entities/projects/${newProjId}/chapters`, data: pData.chapters, type: 'array_items' },
+          
+          // Mapa Emocional (Lê emotionalPoints do JSON)
+          { 
+            name: 'Mapa Emocional', 
+            endpoint: `/entities/projects/${newProjId}/mapa-emocional`, 
+            data: pData.emotionalPoints || [], 
+            type: 'object' 
+          },
+          
+          { name: 'Checklist de Desenvolvimento', endpoint: `/entities/projects/${newProjId}/checklist`, data: pData.checklist, type: 'object' }
+        ];
 
-        for (let i = 0; i < modules.length; i++) {
-          const mod = modules[i];
-          // Incrementa o progresso gradualmente por módulo
-          currentStageProgress = Math.round(startModuleProgress + ((i + 1) / modules.length) * (endModuleProgress - startModuleProgress));
+        const totalPages = allPages.length;
 
-          if (mod.data && Object.keys(mod.data).length > 0) {
+        for (let i = 0; i < totalPages; i++) {
+          const page = allPages[i];
+          currentStageProgress = Math.round(50 + ((i + 1) / totalPages) * 50);
+
+          if (page.data && (Object.keys(page.data).length > 0 || (Array.isArray(page.data) && page.data.length > 0))) {
             try {
-              await apiClient.post(mod.endpoint, mod.data);
-            } catch (modErr) {
-              console.warn(`Aviso no módulo ${mod.label}:`, modErr);
-              warnings.push(`Não foi possível carregar o módulo: ${mod.label}`);
+              if (page.type === 'object') {
+                await apiClient.post(page.endpoint, page.data);
+              } else if (page.type === 'array_items') {
+                for (const item of page.data) {
+                  await apiClient.post(page.endpoint, item);
+                }
+              } else if (page.type === 'array_items_with_proj') {
+                for (const item of page.data) {
+                  await apiClient.post(page.endpoint, { ...item, projectId: page.projId });
+                }
+              }
+            } catch (pageErr) {
+              console.error(`Erro ao importar ${page.name}:`, pageErr);
+              const failedField = pageErr.response?.data?.error || 'Erro de resposta na API';
+              // Interrompe o processo e aponta a página com falha
+              throw new Error(`Falha na página "${page.name}": ${failedField}`);
             }
           }
+
           setImportProgress(currentStageProgress);
         }
 
-        // Etapa Final: Atualizar Lista e Finalizar (100%)
         setImportProgress(100);
         await fetchProjects();
-
-        if (warnings.length === 0) {
-          setImportStatus('success');
-          setImportDetails(['Todos os dados do projeto foram importados com sucesso!']);
-        } else {
-          setImportStatus('partial');
-          setImportDetails(warnings);
-        }
+        setImportStatus('success');
+        setImportDetails(['Todas as páginas e seus campos foram sincronizados com sucesso!']);
 
       } catch (err) {
         console.error('Erro crítico na importação:', err);
-        // MANTÉM O PROGRESSO TRAVADO NA ETAPA EM QUE OCORREU O ERRO!
         setImportStatus('error');
         const errorMsg = err.response?.status === 404 
           ? `Rota não encontrada no servidor (Erro 404). Ocorreu em ${currentStageProgress}% do processo.`
@@ -255,7 +297,7 @@ export default function Home({ onSelectProject }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
-              const isImported = project.isImported || !!project.title?.includes('(Importado)');
+              const isImported = project.isImported || project.title?.includes('(Importado)');
 
               return (
                 <div
@@ -292,10 +334,10 @@ export default function Home({ onSelectProject }) {
                     </div>
 
                     {isImported && (
-  <p className="text-[11px] text-amber-300/80 italic font-medium pt-1 border-t border-gray-800/60 truncate">
-    📥 Projeto Importado para a StoryBible
-  </p>
-)}, 
+                      <p className="text-[11px] text-amber-300/80 italic font-medium pt-1 border-t border-gray-800/60 truncate">
+                        📥 Projeto Importado para a StoryBible
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -310,7 +352,6 @@ export default function Home({ onSelectProject }) {
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl text-center space-y-6">
             <h3 className="text-lg font-bold text-white">Importando Projeto...</h3>
 
-            {/* Barra de Progresso Interativa com Mudança de Cor em caso de Erro */}
             <div className="space-y-2">
               <div className="w-full bg-[#1c1c26] h-3 rounded-full overflow-hidden border border-gray-800">
                 <div
@@ -318,7 +359,7 @@ export default function Home({ onSelectProject }) {
                   style={{
                     width: `${importProgress}%`,
                     background: importStatus === 'error' 
-                      ? '#ef4444' // Vermelho se houver erro
+                      ? '#ef4444' 
                       : 'linear-gradient(to right, #a855f7, #f97316)',
                   }}
                 />
@@ -336,27 +377,6 @@ export default function Home({ onSelectProject }) {
                   type="button"
                   onClick={() => setIsImporting(false)}
                   className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-all cursor-pointer"
-                >
-                  OK
-                </button>
-              </div>
-            )}
-
-            {importStatus === 'partial' && (
-              <div className="p-4 bg-amber-950/40 border border-amber-800/50 rounded-xl space-y-3 text-left">
-                <div className="flex items-center gap-2 text-amber-400">
-                  <AlertTriangle size={24} />
-                  <h4 className="text-sm font-bold">Importado com Avisos</h4>
-                </div>
-                <ul className="text-xs text-amber-200/80 space-y-1 list-disc pl-4">
-                  {importDetails.map((msg, i) => (
-                    <li key={i}>{msg}</li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => setIsImporting(false)}
-                  className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-all cursor-pointer mt-2"
                 >
                   OK
                 </button>
