@@ -2,30 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { Download, FileText, Code, FileCode, Printer, CheckCircle, RefreshCw, XCircle, AlertTriangle } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
-// Usuário do sistema (Padrão para atribuição de direitos/autoria)
 const CURRENT_USER_NAME = 'Usuário StoryForge';
 
-// Ordem dramática exata dos 8 Marcos Narrativos
+// Estilos dinâmicos para Tipos de Personagem
+const CHARACTER_TYPES_CONFIG = {
+  protagonista: { label: 'Protagonista', icon: '♛', bg: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
+  antagonista: { label: 'Antagonista', icon: '☠', bg: 'bg-red-500/20 text-red-400 border-red-500/40' },
+  secundario: { label: 'Secundário', icon: '♙', bg: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
+};
+
+// Paleta Oficial de Relações
+const RELATION_TYPES = {
+  Amizade: { label: 'Amizade', color: '#10b981', bg: 'bg-emerald-950/80 text-emerald-200 border-emerald-700/60' },
+  Família: { label: 'Família', color: '#eab308', bg: 'bg-amber-950/80 text-amber-200 border-amber-700/60' },
+  Ódio: { label: 'Ódio / Raiva', color: '#ef4444', bg: 'bg-red-950/80 text-red-200 border-red-700/60' },
+  Amor: { label: 'Amor', color: '#ec4899', bg: 'bg-pink-950/80 text-pink-200 border-pink-700/60' },
+  Aliança: { label: 'Aliança', color: '#06b6d4', bg: 'bg-cyan-950/80 text-cyan-200 border-cyan-700/60' },
+  Rivalidade: { label: 'Rivalidade', color: '#f97316', bg: 'bg-orange-950/80 text-orange-200 border-orange-700/60' },
+  Vingança: { label: 'Vingança', color: '#a855f7', bg: 'bg-purple-950/80 text-purple-200 border-purple-700/60' },
+  Opressão: { label: 'Opressão', color: '#6b7280', bg: 'bg-gray-800 text-gray-200 border-gray-600' },
+  Mentor: { label: 'Mentor', color: '#d97706', bg: 'bg-yellow-950/80 text-yellow-200 border-yellow-700/60' },
+};
+
+// Lista Oficial de Emoções para o Mapa Emocional
+const EMOTIONS_CONFIG = [
+  { key: 'curiosidade', label: 'Curiosidade', color: '#a855f7' },
+  { key: 'tensao', label: 'Tensão', color: '#ef4444' },
+  { key: 'esperanca', label: 'Esperança', color: '#10b981' },
+  { key: 'medo', label: 'Medo', color: '#6366f1' },
+  { key: 'tristeza', label: 'Tristeza', color: '#3b82f6' },
+  { key: 'choque', label: 'Choque', color: '#f97316' },
+  { key: 'alegria', label: 'Alegria', color: '#eab308' },
+  { key: 'alivio', label: 'Alívio', color: '#14b8a6' },
+];
+
+// Marcos Narrativos
 const NARRATIVE_ORDER = [
-  'Prólogo',
-  'Incidente Incitante',
-  '1º Ponto de Virada',
-  'Midpoint',
-  'Crise',
-  'Clímax',
-  'Resolução',
-  'Epílogo'
+  'Prólogo', 'Incidente Incitante', '1º Ponto de Virada', 'Midpoint',
+  'Crise', 'Clímax', 'Resolução', 'Epílogo'
 ];
 
 const MILESTONE_THEMES = {
-  'Prólogo': { color: 'bg-indigo-600 shadow-indigo-600/80 ring-indigo-950 text-indigo-200', border: 'border-indigo-500/40', text: 'text-indigo-400' },
-  'Incidente Incitante': { color: 'bg-purple-600 shadow-purple-600/80 ring-purple-950 text-purple-200', border: 'border-purple-500/40', text: 'text-purple-400' },
-  '1º Ponto de Virada': { color: 'bg-blue-600 shadow-blue-600/80 ring-blue-950 text-blue-200', border: 'border-blue-500/40', text: 'text-blue-400' },
-  'Midpoint': { color: 'bg-cyan-600 shadow-cyan-600/80 ring-cyan-950 text-cyan-200', border: 'border-cyan-500/40', text: 'text-cyan-400' },
-  'Crise': { color: 'bg-amber-600 shadow-amber-600/80 ring-amber-950 text-amber-200', border: 'border-amber-500/40', text: 'text-amber-400' },
-  'Clímax': { color: 'bg-red-600 shadow-red-600/80 ring-red-950 text-red-200', border: 'border-red-500/40', text: 'text-red-400' },
-  'Resolução': { color: 'bg-emerald-600 shadow-emerald-600/80 ring-emerald-950 text-emerald-200', border: 'border-emerald-500/40', text: 'text-emerald-400' },
-  'Epílogo': { color: 'bg-pink-600 shadow-pink-600/80 ring-pink-950 text-pink-200', border: 'border-pink-500/40', text: 'text-pink-400' }
+  'Prólogo': { color: 'bg-indigo-600 shadow-indigo-600/80 ring-indigo-950 text-indigo-200', text: 'text-indigo-400' },
+  'Incidente Incitante': { color: 'bg-purple-600 shadow-purple-600/80 ring-purple-950 text-purple-200', text: 'text-purple-400' },
+  '1º Ponto de Virada': { color: 'bg-blue-600 shadow-blue-600/80 ring-blue-950 text-blue-200', text: 'text-blue-400' },
+  'Midpoint': { color: 'bg-cyan-600 shadow-cyan-600/80 ring-cyan-950 text-cyan-200', text: 'text-cyan-400' },
+  'Crise': { color: 'bg-amber-600 shadow-amber-600/80 ring-amber-950 text-amber-200', text: 'text-amber-400' },
+  'Clímax': { color: 'bg-red-600 shadow-red-600/80 ring-red-950 text-red-200', text: 'text-red-400' },
+  'Resolução': { color: 'bg-emerald-600 shadow-emerald-600/80 ring-emerald-950 text-emerald-200', text: 'text-emerald-400' },
+  'Epílogo': { color: 'bg-pink-600 shadow-pink-600/80 ring-pink-950 text-pink-200', text: 'text-pink-400' }
 };
 
 const CHECKLIST_CATEGORIES_ORDER = [
@@ -178,7 +203,7 @@ const CHECKLIST_CATEGORIES_ORDER = [
       'A jornada emocional do leitor é variada ao longo dos atos?',
       'O tom do final corresponde ao pacto estabelecido com leitor?',
       'O estilo de prosa e o ritmo de frases casam com o nível de ação da cena?',
-      'A voz narrativa (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
+      'A voz narrative (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
       'Os diálogos soam naturais quando lidos em voz alta?',
       'Verbos de ação precisos foram preferidos a adjetivos e advérbios em excesso?',
       'Os parágrafos variam de tamanho conforme a velocidade/urgência do momento da cena?',
@@ -188,40 +213,23 @@ const CHECKLIST_CATEGORIES_ORDER = [
   },
 ];
 
-function getCharacterBadgeStyle(type = '') {
-  const norm = String(type).toLowerCase();
-  if (norm.includes('protagonista')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
-  if (norm.includes('antagonista')) return 'bg-red-900/60 text-red-300 border-red-500/50';
-  if (norm.includes('secundario') || norm.includes('secundário')) return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
-  return 'bg-gray-800 text-gray-300 border-gray-700';
-}
-
-function getWorldBadgeStyle(type = '') {
-  const norm = String(type).toLowerCase();
-  if (norm.includes('planeta') || norm.includes('país') || norm.includes('cidade')) return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
-  if (norm.includes('política') || norm.includes('economia') || norm.includes('tecnologia')) return 'bg-amber-900/60 text-amber-300 border-amber-500/50';
-  if (norm.includes('fauna') || norm.includes('flora') || norm.includes('bioma')) return 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50';
-  if (norm.includes('magia') || norm.includes('poderes') || norm.includes('combate')) return 'bg-red-900/60 text-red-300 border-red-500/50';
-  return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
-}
-
 export default function StoryBible({ projectId }) {
   const [loading, setLoading] = useState(true);
 
   // Estados de Controle de Exportação
-  const [exportFormat, setExportFormat] = useState(null); // 'pdf' | 'md' | 'html' | 'json'
+  const [exportFormat, setExportFormat] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
-  const [exportStatus, setExportStatus] = useState(null); // 'success' | 'partial' | 'error'
+  const [exportStatus, setExportStatus] = useState(null);
   const [exportDetails, setExportDetails] = useState([]);
 
   const [openSections, setOpenSections] = useState({
     fundacao: true,
     estrutura: true,
     universo: true,
-    jornada: true,
-    dialogos: true,
+    relacoes: true,
+    cenas: true,
     mapaEmocional: true,
     checklist: true,
     manuscrito: true,
@@ -370,12 +378,53 @@ export default function StoryBible({ projectId }) {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function getCharacterName(charId) {
-    const found = data.characters.find((c) => String(c.id) === String(charId));
-    return found ? (found.name || found.nome) : `Personagem (${charId?.slice(0, 5)}...)`;
+  // Helper para buscar campo direto na raiz ou em .details
+  function getFieldValue(item, key) {
+    if (!item) return 'Não informado.';
+    if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
+      return item[key];
+    }
+    if (item.details && item.details[key] !== undefined && item.details[key] !== null && String(item.details[key]).trim() !== '') {
+      return item.details[key];
+    }
+    return 'Não informado.';
   }
 
-  // --- MÉTODOS DE EXPORTAÇÃO ---
+  function getCharacterName(charId) {
+    if (!charId) return 'Desconhecido';
+    const found = data.characters.find((c) => String(c.id) === String(charId));
+    if (found) {
+      return found.name || found.nome || found.title || (found.details && found.details.nome) || `Personagem #${charId}`;
+    }
+    return `Personagem #${charId}`;
+  }
+
+  function getSceneTitle(sceneOrId) {
+    if (!sceneOrId) return 'Geral (Sem cena vinculada)';
+    
+    // Se recebeu um objeto diálogo que já traz o título amigável
+    if (typeof sceneOrId === 'object') {
+      if (sceneOrId.sceneTitle && !sceneOrId.sceneTitle.includes('#')) {
+        return sceneOrId.sceneTitle;
+      }
+      sceneOrId = sceneOrId.sceneId;
+    }
+
+    const found = data.scenes.find((s) => String(s.id) === String(sceneOrId));
+    if (found) {
+      return found.title || found.titulo || found.name || 'Cena sem título';
+    }
+
+    // Caso o valor seja um UUID completo com #, exibe amigável sem o Hash estético
+    const sceneIdStr = String(sceneOrId);
+    if (sceneIdStr.includes('-')) {
+      return 'Cena Vinculada';
+    }
+
+    return `Cena #${sceneIdStr}`;
+  }
+
+  // Métodos de Exportação
   const handleOpenExportModal = (fmt) => {
     setExportFormat(fmt);
     setConfirmModalOpen(true);
@@ -388,74 +437,40 @@ export default function StoryBible({ projectId }) {
     setExportStatus(null);
     setExportDetails([]);
 
-    const title = data.identity['Título'] || 'StoryBible';
+    const title = data.identity['Título'] || data.identity['title'] || 'StoryBible';
     const dateStr = new Date().toLocaleDateString('pt-BR');
-    const legalNotice = `Este projeto é de autoria de ${CURRENT_USER_NAME}, exportado em ${dateStr}. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa.`;
-
-    let stageProgress = 10;
 
     try {
-      stageProgress = 40;
-      setExportProgress(stageProgress);
+      setExportProgress(50);
 
       if (exportFormat === 'pdf') {
-        stageProgress = 80;
-        setExportProgress(stageProgress);
+        setExportProgress(80);
         window.print();
-        
-        stageProgress = 100;
-        setExportProgress(stageProgress);
+        setExportProgress(100);
         setExportStatus('success');
       } else if (exportFormat === 'json') {
-        stageProgress = 70;
-        setExportProgress(stageProgress);
-
         const jsonContent = {
           exportMeta: {
             exportedBy: CURRENT_USER_NAME,
             exportedAt: new Date().toISOString(),
             appVersion: '1.0',
-            legalNotice: legalNotice,
           },
           projectData: data,
         };
-
         downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.json`, JSON.stringify(jsonContent, null, 2), 'application/json');
-        
-        stageProgress = 100;
-        setExportProgress(stageProgress);
+        setExportProgress(100);
         setExportStatus('success');
       } else if (exportFormat === 'md') {
-        stageProgress = 70;
-        setExportProgress(stageProgress);
-
         let md = `# ${title}\n\n`;
-        md += `> **Autor:** ${CURRENT_USER_NAME}  \n`;
-        md += `> **Data de Exportação:** ${dateStr}  \n\n`;
-        md += `---\n\n## 1. Fundação\n\n### Identidade\n`;
-        Object.entries(data.identity).forEach(([k, v]) => { md += `- **${k}:** ${v}\n`; });
-        
+        md += `> **Autor:** ${CURRENT_USER_NAME} | **Data:** ${dateStr}\n\n`;
         downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.md`, md, 'text/markdown');
-        
-        stageProgress = 100;
-        setExportProgress(stageProgress);
-        setExportStatus('success');
-      } else if (exportFormat === 'html') {
-        stageProgress = 70;
-        setExportProgress(stageProgress);
-
-        let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1></body></html>`;
-        downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.html`, html, 'text/html');
-        
-        stageProgress = 100;
-        setExportProgress(stageProgress);
+        setExportProgress(100);
         setExportStatus('success');
       }
     } catch (err) {
       console.error('Erro na exportação:', err);
-      // MANTÉM O PROGRESSO TRAVADO ONDE OCORREU O ERRO!
       setExportStatus('error');
-      setExportDetails([`Falha em ${stageProgress}%: ${err.message || 'Erro ao gerar arquivo de exportação.'}`]);
+      setExportDetails([err.message || 'Erro ao exportar.']);
     }
   };
 
@@ -489,15 +504,7 @@ export default function StoryBible({ projectId }) {
     if (name === 'Incidente Incitante') displayLabel = 'I. Incitante';
     if (name === '1º Ponto de Virada') displayLabel = '1ª Virada';
 
-    return {
-      name,
-      label: displayLabel,
-      active,
-      events,
-      activeColor: theme.color,
-      textClass: theme.text,
-      borderClass: theme.border
-    };
+    return { name, label: displayLabel, active, events, activeColor: theme.color, textClass: theme.text };
   });
 
   const checklistDoneCount = Object.values(data.checklist).filter(Boolean).length;
@@ -508,7 +515,6 @@ export default function StoryBible({ projectId }) {
 
   return (
     <main className="story-bible-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
-      {/* CSS Exclusivo de Impressão PDF (Fundo Branco + Pequenos Pontos de Cor) */}
       <style>{`
         @media print {
           body { background: #ffffff !important; color: #111111 !important; font-family: sans-serif; }
@@ -517,13 +523,10 @@ export default function StoryBible({ projectId }) {
           section { border: 1px solid #ddd !important; background: #fff !important; color: #111 !important; margin-bottom: 20px !important; box-shadow: none !important; }
           h1, h2, h3, h4 { color: #111 !important; }
           p, span, div { color: #222 !important; }
-          .print-badge { border: 1px solid #6b21a8 !important; color: #6b21a8 !important; font-weight: bold; }
-          .legal-notice-print { display: block !important; margin-top: 30px; font-size: 10px; color: #666; text-align: center; border-top: 1px solid #ccc; padding-top: 10px; }
         }
-        .legal-notice-print { display: none; }
       `}</style>
 
-      {/* CABEÇALHO & BOTÕES DE EXPORTAÇÃO */}
+      {/* CABEÇALHO */}
       <header className="space-y-4 bg-[#11111a] border border-purple-900/40 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500" />
         
@@ -533,41 +536,21 @@ export default function StoryBible({ projectId }) {
               📖 DOCUMENTO MESTRE NARRATIVO
             </span>
             <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
-              {data.identity['Título'] || 'StoryBible'}
+              {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
             </h1>
             {data.identity['Subtítulo'] && (
               <h2 className="text-lg text-purple-300 font-medium">{data.identity['Subtítulo']}</h2>
             )}
           </div>
 
-          {/* Painel de Ações de Exportação */}
           <div className="flex flex-wrap gap-2 no-print">
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('pdf')}
-              className="px-3.5 py-2 bg-[#181824] hover:bg-purple-950/60 border border-purple-800/50 text-purple-300 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-            >
+            <button type="button" onClick={() => handleOpenExportModal('pdf')} className="px-3.5 py-2 bg-[#181824] hover:bg-purple-950/60 border border-purple-800/50 text-purple-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
               <Printer size={14} /> PDF
             </button>
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('md')}
-              className="px-3.5 py-2 bg-[#181824] hover:bg-blue-950/60 border border-blue-800/50 text-blue-300 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-            >
+            <button type="button" onClick={() => handleOpenExportModal('md')} className="px-3.5 py-2 bg-[#181824] hover:bg-blue-950/60 border border-blue-800/50 text-blue-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
               <FileText size={14} /> Markdown
             </button>
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('html')}
-              className="px-3.5 py-2 bg-[#181824] hover:bg-cyan-950/60 border border-cyan-800/50 text-cyan-300 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Code size={14} /> HTML
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('json')}
-              className="px-3.5 py-2 bg-[#181824] hover:bg-amber-950/60 border border-amber-800/50 text-amber-300 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-            >
+            <button type="button" onClick={() => handleOpenExportModal('json')} className="px-3.5 py-2 bg-[#181824] hover:bg-amber-950/60 border border-amber-800/50 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
               <FileCode size={14} /> JSON
             </button>
           </div>
@@ -576,15 +559,9 @@ export default function StoryBible({ projectId }) {
 
       {/* 1. FUNDAÇÃO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button
-          type="button"
-          onClick={() => toggleSection('fundacao')}
-          className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer"
-        >
+        <button type="button" onClick={() => toggleSection('fundacao')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>🏛</span> 1. Fundação
-            </h2>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🏛</span> 1. Fundação</h2>
             <p className="text-xs text-gray-400 mt-0.5">Identidade, Essência e Engenharia Narrativa</p>
           </div>
           <span className="text-gray-400 font-bold text-lg">{openSections.fundacao ? '⌃' : '⌄'}</span>
@@ -633,18 +610,10 @@ export default function StoryBible({ projectId }) {
 
       {/* 2. ARQUITETURA DRAMÁTICA & RITMO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button
-          type="button"
-          onClick={() => toggleSection('estrutura')}
-          className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer"
-        >
+        <button type="button" onClick={() => toggleSection('estrutura')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>⏳</span> 2. Arquitetura Dramática & Ritmo
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Frameworks Selecionados e Linha do Tempo Ordenada
-            </p>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>⏳</span> 2. Arquitetura Dramática & Ritmo</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Frameworks Selecionados e Linha do Tempo Ordenada</p>
           </div>
           <span className="text-gray-400 font-bold text-lg">{openSections.estrutura ? '⌃' : '⌄'}</span>
         </button>
@@ -652,66 +621,16 @@ export default function StoryBible({ projectId }) {
         {openSections.estrutura && (
           <div className="p-6 space-y-8">
             <div>
-              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">
-                LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)
-              </h3>
-
+              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)</h3>
               <div className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
                 <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
                   <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
-
-                  <div className="absolute top-3 left-6 right-6 h-1 z-0 flex pointer-events-none">
-                    {milestonesList.slice(0, -1).map((m, idx) => {
-                      const nextM = milestonesList[idx + 1];
-                      const isSegmentActive = m.active && nextM.active;
-
-                      const totalSegments = milestonesList.length - 1;
-                      const startRatio = idx / totalSegments;
-                      const endRatio = (idx + 1) / totalSegments;
-
-                      const startR = Math.round(147 + (249 - 147) * startRatio);
-                      const startG = Math.round(51 + (115 - 51) * startRatio);
-                      const startB = Math.round(234 + (22 - 234) * startRatio);
-
-                      const endR = Math.round(147 + (249 - 147) * endRatio);
-                      const endG = Math.round(51 + (115 - 51) * endRatio);
-                      const endB = Math.round(234 + (22 - 234) * endRatio);
-
-                      return (
-                        <div key={idx} className="flex-1 h-full relative">
-                          {isSegmentActive && (
-                            <div
-                              className="w-full h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
-                              style={{
-                                background: `linear-gradient(to right, 
-                                  rgb(${startR}, ${startG}, ${startB}), 
-                                  rgb(${endR}, ${endG}, ${endB})
-                                )`
-                              }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
                   {milestonesList.map((m, idx) => (
                     <div key={idx} className="relative z-10 flex flex-col items-center group">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          m.active
-                            ? `${m.activeColor} shadow-lg ring-4 scale-110`
-                            : 'bg-[#181824] border-2 border-gray-700 text-gray-600'
-                        }`}
-                      >
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${m.active ? `${m.activeColor} shadow-lg ring-4 scale-110` : 'bg-[#181824] border-2 border-gray-700 text-gray-600'}`}>
                         <span className="text-[10px] font-extrabold">{m.active ? '✦' : '◇'}</span>
                       </div>
-
-                      <span
-                        className={`text-[10px] font-bold mt-3 text-center transition-colors max-w-[70px] leading-tight ${
-                          m.active ? 'text-purple-300 font-extrabold' : 'text-gray-500'
-                        }`}
-                      >
+                      <span className={`text-[10px] font-bold mt-3 text-center max-w-[70px] leading-tight ${m.active ? 'text-purple-300 font-extrabold' : 'text-gray-500'}`}>
                         {m.label}
                       </span>
                     </div>
@@ -724,23 +643,19 @@ export default function StoryBible({ projectId }) {
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
                 Frameworks Selecionados: {data.structureFrameworks.join(', ') || 'Nenhum selecionado'}
               </h3>
-              {filteredStructureCards.length === 0 ? (
-                <p className="text-xs text-gray-500 italic">Nenhum elemento associado aos frameworks selecionados.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredStructureCards.map((card) => (
-                    <div key={card.id} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-1">
-                      <div className="flex justify-between items-center">
-                        <strong className="text-white text-sm font-bold">{card.title}</strong>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40 print-badge">
-                          {card.framework || card.type}
-                        </span>
-                      </div>
-                      {card.descricao && <p className="text-xs text-gray-300 leading-relaxed">{card.descricao}</p>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredStructureCards.map((card) => (
+                  <div key={card.id} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <strong className="text-white text-sm font-bold">{card.title}</strong>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40">
+                        {card.framework || card.type}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {card.descricao && <p className="text-xs text-gray-300 leading-relaxed">{card.descricao}</p>}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -748,18 +663,10 @@ export default function StoryBible({ projectId }) {
 
       {/* 3. UNIVERSO & PERSONAGENS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button
-          type="button"
-          onClick={() => toggleSection('universo')}
-          className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer"
-        >
+        <button type="button" onClick={() => toggleSection('universo')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>🌍</span> 3. O Universo & Personagens
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Worldbuilding, Dossiês e Teia de Relações
-            </p>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🌍</span> 3. O Universo & Personagens</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Worldbuilding e Dossiês dos Personagens</p>
           </div>
           <span className="text-gray-400 font-bold text-lg">{openSections.universo ? '⌃' : '⌄'}</span>
         </button>
@@ -770,14 +677,12 @@ export default function StoryBible({ projectId }) {
               <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3">Elementos do Mundo</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {data.world.map((w) => (
-                  <div key={w.id} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <strong className="text-white font-bold text-sm">{w.name}</strong>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getWorldBadgeStyle(w.type)} print-badge`}>
-                        {w.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400">{w.description || 'Sem descrição.'}</p>
+                  <div key={w.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
+                    <strong className="text-white font-bold text-sm block">{w.name || w.nome || w.title}</strong>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40 inline-block">
+                      {w.type || w.tipo || 'Mundo'}
+                    </span>
+                    <p className="text-xs text-gray-400 leading-relaxed">{w.description || w.descricao || 'Sem descrição.'}</p>
                   </div>
                 ))}
               </div>
@@ -786,38 +691,311 @@ export default function StoryBible({ projectId }) {
             <div className="pt-4 border-t border-gray-800/60">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Personagens</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.characters.map((char) => (
-                  <div key={char.id} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full border flex items-center justify-center font-bold text-sm ${getCharacterBadgeStyle(char.type)} print-badge`}>
-                        {(char.name || char.nome || 'P').charAt(0).toUpperCase()}
+                {data.characters.map((char) => {
+                  const typeKey = String(char.type || char.papel || char.role || 'protagonista').toLowerCase();
+                  const typeStyle = CHARACTER_TYPES_CONFIG[typeKey] || CHARACTER_TYPES_CONFIG.protagonista;
+                  const charName = char.name || char.nome || char.title || (char.details && char.details.nome) || 'Novo Personagem';
+                  const charDesc = char.description || char.descricao || char.role || (char.details && char.details.descricao);
+
+                  return (
+                    <div key={char.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full border bg-purple-900/60 border-purple-500/50 flex items-center justify-center font-bold text-sm text-purple-200">
+                          {charName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="text-white font-bold text-base">{charName}</h4>
+                          <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-bold ${typeStyle.bg}`}>
+                            {typeStyle.label}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-white font-bold text-base">{char.name || char.nome}</h4>
-                        <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-medium ${getCharacterBadgeStyle(char.type)} print-badge`}>
-                          {char.type}
-                        </span>
-                      </div>
+                      {charDesc && (
+                        <p className="text-xs text-gray-300 leading-relaxed border-t border-gray-800/60 pt-2">
+                          {charDesc}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
       </section>
 
-      {/* 7. CHECKLIST ORGANIZADO EM CATEGORIAS */}
+      {/* 4. RELAÇÕES & DINÂMICA DE PERSONAGENS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button
-          type="button"
-          onClick={() => toggleSection('checklist')}
-          className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer"
-        >
+        <button type="button" onClick={() => toggleSection('relacoes')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>✅</span> 7. Checklist de Qualidade Narrativa
-            </h2>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🔀</span> 4. Relações & Dinâmica de Personagens</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Conexões, Alianças, Rivalidades e Nível de Intensidade</p>
+          </div>
+          <span className="text-gray-400 font-bold text-lg">{openSections.relacoes ? '⌃' : '⌄'}</span>
+        </button>
+
+        {openSections.relacoes && (
+          <div className="p-6">
+            {data.relations.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">Nenhuma relação cadastrada.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.relations.map((rel) => {
+                  const relConfig = RELATION_TYPES[rel.type] || { bg: 'bg-purple-950/80 text-purple-200 border-purple-700/60' };
+                  const nameA = getCharacterName(rel.charAId || rel.characterAId);
+                  const nameB = getCharacterName(rel.charBId || rel.characterBId);
+                  const sceneName = getSceneTitle(rel.sceneId);
+
+                  return (
+                    <div key={rel.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold text-white border-b border-gray-800 pb-2">
+                        <span className="text-purple-300">{nameA}</span>
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${relConfig.bg}`}>
+                          {rel.type || 'Relação'} ({rel.intensity || 5}/10)
+                        </span>
+                        <span className="text-purple-300">{nameB}</span>
+                      </div>
+
+                      <div className="space-y-1 text-xs">
+                        {sceneName && (
+                          <div className="text-[11px] text-gray-400 flex items-center gap-1">
+                            <span className="text-amber-400 font-bold">🎬 Cena:</span> {sceneName}
+                          </div>
+                        )}
+                        {(rel.description || rel.descricao) && (
+                          <p className="text-gray-300 italic pt-1 leading-relaxed">
+                            "{rel.description || rel.descricao}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* 5. ARQUITETURA DAS CENAS, MISTÉRIOS & SUBTRAMAS */}
+      <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
+        <button type="button" onClick={() => toggleSection('cenas')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🎬</span> 5. Arquitetura das Cenas, Mistérios & Subtramas</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Decupagem Completa de Cenas, Diálogos, Segredos e Plot Twists</p>
+          </div>
+          <span className="text-gray-400 font-bold text-lg">{openSections.cenas ? '⌃' : '⌄'}</span>
+        </button>
+
+        {openSections.cenas && (
+          <div className="p-6 space-y-8">
+            {/* CENAS NARRATIVAS */}
+            <div>
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Cenas Narrativas</h3>
+              {data.scenes.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">Nenhuma cena cadastrada.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {data.scenes.map((s) => {
+                    const sceneTitle = s.title || s.titulo || s.name || `Cena #${s.id}`;
+                    return (
+                      <div key={s.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
+                        <div className="flex justify-between items-start border-b border-gray-800 pb-2">
+                          <strong className="text-white text-base font-bold">{sceneTitle}</strong>
+                          {(s.emotion || s.emocao) && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40">
+                              {s.emotion || s.emocao}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-400 bg-[#12121a] p-2.5 rounded-lg border border-gray-800/50">
+                          <div><strong className="text-gray-300">📍 Local:</strong> {s.location || s.local || 'Não informado'}</div>
+                          <div><strong className="text-gray-300">⏰ Horário:</strong> {s.time || s.horario || 'Não informado'}</div>
+                        </div>
+
+                        {(s.objective || s.objetivo) && (
+                          <div className="text-xs text-gray-300">
+                            <strong className="text-amber-400">🎯 Objetivo:</strong> {s.objective || s.objetivo}
+                          </div>
+                        )}
+
+                        {(s.conflict || s.conflito) && (
+                          <div className="text-xs text-gray-300">
+                            <strong className="text-red-400">⚔️ Conflito:</strong> {s.conflict || s.conflito}
+                          </div>
+                        )}
+
+                        {(s.summary || s.resumo || s.description || s.descricao) && (
+                          <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-800/60 pt-2">
+                            {s.summary || s.resumo || s.description || s.descricao}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* DIÁLOGOS DESTACADOS */}
+            <div className="pt-4 border-t border-gray-800/60">
+              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Diálogos Destacados & Subtexto</h3>
+              {data.dialogues.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">Nenhum diálogo registrado.</p>
+              ) : (
+                <div className="space-y-4">
+                  {data.dialogues.map((d) => {
+                    const sceneTitle = getSceneTitle(d);
+                    const charA = d.charAName || getCharacterName(d.charAId);
+                    const charB = d.charBName || getCharacterName(d.charBId);
+
+                    return (
+                      <div key={d.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
+                        <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                          <strong className="text-white text-sm font-bold">{charA} & {charB}</strong>
+                          <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/80 border border-indigo-700/60 px-2.5 py-1 rounded-md">
+                            🎬 {sceneTitle}
+                          </span>
+                        </div>
+
+                        {d.lines && Array.isArray(d.lines) && (
+                          <div className="space-y-2 bg-[#12121a] p-3 rounded-lg border border-gray-800/50 font-serif text-xs leading-relaxed text-gray-300">
+                            {d.lines.map((line, lIdx) => (
+                              <p key={lIdx}>
+                                — {line.text}
+                                {line.action && <span className="font-sans text-[11px] italic text-gray-400"> — {line.action}.</span>}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                          {(d.subtext || d.subtexto) && (
+                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50">
+                              <strong className="text-amber-400 block mb-0.5">👁️ Subtexto Oculto:</strong>
+                              <span className="text-gray-300">{d.subtext || d.subtexto}</span>
+                            </div>
+                          )}
+                          {(d.soundLayer || d.camadaSonora || d.atmosphere) && (
+                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50">
+                              <strong className="text-cyan-400 block mb-0.5">🔊 Camada Sonora / Atmosfera:</strong>
+                              <span className="text-gray-300">{d.soundLayer || d.camadaSonora || d.atmosphere}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* MISTÉRIOS & PLOT TWISTS */}
+            <div className="pt-4 border-t border-gray-800/60 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Mistérios & Pistas</h3>
+                {data.mysteries.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">Nenhum mistério registrado.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.mysteries.map((m) => (
+                      <div key={m.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
+                        <strong className="text-white text-sm font-bold block">{getFieldValue(m, 'title')}</strong>
+                        <div className="grid grid-cols-1 gap-2 text-xs text-gray-300 pt-1">
+                          <div><b className="text-purple-400">Quem Sabe:</b> {getFieldValue(m, 'whoKnows')}</div>
+                          <div><b className="text-purple-400">Pistas:</b> {getFieldValue(m, 'clues')}</div>
+                          <div><b className="text-purple-400">Falsas Pistas:</b> {getFieldValue(m, 'falseClues')}</div>
+                          <div><b className="text-purple-400">Revelação:</b> {getFieldValue(m, 'revelation')}</div>
+                          <div><b className="text-purple-400">Impacto:</b> {getFieldValue(m, 'impact')}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-3">Plot Twists & Viradas</h3>
+                {data.twists.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">Nenhum plot twist registrado.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.twists.map((t) => (
+                      <div key={t.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
+                        <strong className="text-white text-sm font-bold block">{getFieldValue(t, 'title')}</strong>
+                        <div className="grid grid-cols-1 gap-2 text-xs text-gray-300 pt-1">
+                          <div><b className="text-red-400">Planejamento:</b> {getFieldValue(t, 'planning')}</div>
+                          <div><b className="text-red-400">Foreshadowing:</b> {getFieldValue(t, 'foreshadowing')}</div>
+                          <div><b className="text-red-400">Momento da Revelação:</b> {getFieldValue(t, 'revelationMoment')}</div>
+                          <div><b className="text-red-400">Consequência:</b> {getFieldValue(t, 'consequence')}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 6. MAPA EMOCIONAL & CURVA DE TENSÃO */}
+      <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
+        <button type="button" onClick={() => toggleSection('mapaEmocional')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>📈</span> 6. Mapa Emocional & Curva de Tensão</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Variação da Carga Emocional com Respectivas Cores e Picos Dramáticos</p>
+          </div>
+          <span className="text-gray-400 font-bold text-lg">{openSections.mapaEmocional ? '⌃' : '⌄'}</span>
+        </button>
+
+        {openSections.mapaEmocional && (
+          <div className="p-6">
+            {data.emotionalPoints.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">Nenhum ponto registrado no mapa emocional.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.emotionalPoints.map((pt, idx) => {
+                  const ptTitle = pt.name || pt.title || pt.titulo || pt.nome || `Ponto #${idx + 1}`;
+
+                  return (
+                    <div key={pt.id || idx} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
+                      <strong className="text-white text-sm font-bold block border-b border-gray-800 pb-2">{ptTitle}</strong>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {EMOTIONS_CONFIG.map((e) => {
+                          const val = pt[e.key];
+                          if (val === undefined || val === null || val === 0) return null;
+                          return (
+                            <span
+                              key={e.key}
+                              style={{
+                                backgroundColor: `${e.color}20`,
+                                color: e.color,
+                                borderColor: `${e.color}50`,
+                              }}
+                              className="px-2 py-0.5 rounded-md text-[11px] font-bold border"
+                            >
+                              {e.label}: {val}/10
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* 7. CHECKLIST ORGANIZADO */}
+      <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
+        <button type="button" onClick={() => toggleSection('checklist')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✅</span> 7. Checklist de Qualidade Narrativa</h2>
             <p className="text-xs text-gray-400 mt-0.5">Organizado pelas 10 Categorias de Qualidade</p>
           </div>
           <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40">
@@ -837,23 +1015,18 @@ export default function StoryBible({ projectId }) {
                     <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
                       <span>•</span> {catGroup.title}
                     </h3>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catGroup.badgeStyle} print-badge`}>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catGroup.badgeStyle}`}>
                       {catDoneItems.length} / {catGroup.items.length} Concluídos
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {catDoneItems.map((itemText) => (
-                      <div
-                        key={itemText}
-                        className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs leading-relaxed transition-all ${catGroup.boxStyle}`}
-                      >
+                      <div key={itemText} className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs leading-relaxed transition-all ${catGroup.boxStyle}`}>
                         <span className={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 ${catGroup.checkColor}`}>
                           ✓
                         </span>
-                        <span className="line-through opacity-90 font-medium">
-                          {itemText}
-                        </span>
+                        <span className="line-through opacity-90 font-medium">{itemText}</span>
                       </div>
                     ))}
                   </div>
@@ -864,98 +1037,55 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* ISENÇÃO LEGAL / NOTA DE IMPRESSÃO */}
-      <div className="legal-notice-print">
-        Este projeto é de autoria de <b>{CURRENT_USER_NAME}</b>, exportado em {new Date().toLocaleDateString('pt-BR')}.
-        O StoryForge atua exclusivamente como ferramenta de organização narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
-      </div>
+      {/* 8. ESCRITA & MANUSCRITO */}
+      <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
+        <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✍️</span> 8. Escrita & Manuscrito</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Capítulos Desenvolvidos e Texto Final da Obra</p>
+          </div>
+          <span className="text-gray-400 font-bold text-lg">{openSections.manuscrito ? '⌃' : '⌄'}</span>
+        </button>
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXPORTAÇÃO */}
+        {openSections.manuscrito && (
+          <div className="p-6 space-y-6">
+            {data.chapters.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">Nenhum capítulo escrito até o momento.</p>
+            ) : (
+              data.chapters.map((ch, index) => (
+                <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-3">
+                  <div className="border-b border-gray-800 pb-2">
+                    <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">
+                      Capítulo {ch.number || ch.numero || index + 1}
+                    </span>
+                    <h3 className="text-lg font-bold text-white">{ch.title || ch.titulo || 'Sem Título'}</h3>
+                  </div>
+                  <div className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-serif">
+                    {ch.content || ch.texto || ch.text || 'Capítulo em branco.'}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* MODAL CONFIRMAÇÃO DE EXPORTAÇÃO */}
       {confirmModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-white">Confirmar Exportação</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Deseja realizar a exportação completa da StoryBible do projeto <b>"{data.identity['Título'] || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
+              Deseja exportar a StoryBible completa de <b>"{data.identity['Título'] || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
             </p>
             <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleStartExport}
-                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
-              >
+              <button type="button" onClick={handleStartExport} className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer">
                 OK (Iniciar Exportação)
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirmModalOpen(false)}
-                className="px-4 py-2.5 bg-[#1c1c26] hover:bg-[#282836] text-gray-400 hover:text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
-              >
+              <button type="button" onClick={() => setConfirmModalOpen(false)} className="px-4 py-2.5 bg-[#1c1c26] text-gray-400 hover:text-white font-bold text-xs rounded-xl cursor-pointer">
                 Cancelar
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE BARRA DE CARREGAMENTO & FEEDBACK DA EXPORTAÇÃO */}
-      {isExporting && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl text-center space-y-6">
-            <h3 className="text-lg font-bold text-white">Exportando StoryBible...</h3>
-
-            <div className="space-y-2">
-              <div className="w-full bg-[#1c1c26] h-3 rounded-full overflow-hidden border border-gray-800">
-                <div
-                  className="h-full transition-all duration-300"
-                  style={{
-                    width: `${exportProgress}%`,
-                    background: 'linear-gradient(to right, #a855f7, #f97316)',
-                  }}
-                />
-              </div>
-              <span className="text-xs text-gray-400 font-medium">{exportProgress}% Concluído</span>
-            </div>
-
-            {exportStatus === 'success' && (
-              <div className="p-4 bg-emerald-950/40 border border-emerald-800/50 rounded-xl space-y-3">
-                <CheckCircle className="mx-auto text-emerald-400" size={32} />
-                <h4 className="text-sm font-bold text-emerald-300">Exportação Concluída com Sucesso!</h4>
-                <button
-                  type="button"
-                  onClick={() => setIsExporting(false)}
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-all cursor-pointer"
-                >
-                  OK
-                </button>
-              </div>
-            )}
-
-            {exportStatus === 'error' && (
-              <div className="p-4 bg-red-950/40 border border-red-800/50 rounded-xl space-y-3 text-left">
-                <div className="flex items-center gap-2 text-red-400">
-                  <XCircle size={24} />
-                  <h4 className="text-sm font-bold">Erro na Exportação</h4>
-                </div>
-                <p className="text-xs text-red-200/80">{exportDetails[0]}</p>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleStartExport}
-                    className="flex-1 py-2 bg-red-700 hover:bg-red-600 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw size={14} /> Tentar Novamente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsExporting(false)}
-                    className="px-4 py-2 bg-[#1c1c26] hover:bg-[#282836] text-gray-300 font-bold text-xs rounded-lg transition-all cursor-pointer"
-                  >
-                    OK
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
