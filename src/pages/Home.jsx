@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Settings, BookOpen, Upload, RefreshCw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Plus, Settings, BookOpen, Upload, RefreshCw, AlertTriangle, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
 export default function Home({ onSelectProject }) {
@@ -58,6 +58,22 @@ export default function Home({ onSelectProject }) {
     }
   };
 
+  const handleDeleteProject = async (e, projectId, projectTitle) => {
+    e.stopPropagation();
+
+    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${projectTitle}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/entities/projects/${projectId}`);
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    } catch (err) {
+      console.error('Erro ao excluir projeto:', err);
+      alert('Não foi possível excluir o projeto. Tente novamente.');
+    }
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -78,7 +94,7 @@ export default function Home({ onSelectProject }) {
 
       try {
         // =================================================================
-        // PARTE 1: ESTRUTURA TÉCNICA E BACKEND (0% -> 50%)
+        // PARTE 1: CRIAÇÃO DO PROJETO (0% -> 30%)
         // =================================================================
         currentStageProgress = 20;
         setImportProgress(currentStageProgress);
@@ -87,9 +103,6 @@ export default function Home({ onSelectProject }) {
         if (!importedJson.projectData) {
           throw new Error('O arquivo JSON não possui a estrutura "projectData" válida.');
         }
-
-        currentStageProgress = 50;
-        setImportProgress(currentStageProgress);
 
         const meta = importedJson.exportMeta || {};
         const pData = importedJson.projectData;
@@ -112,22 +125,88 @@ export default function Home({ onSelectProject }) {
         }
 
         // =================================================================
-        // PARTE 2: MAPEAMENTO COMPLETO DAS PÁGINAS DA STORY BIBLE (50% -> 100%)
+        // PARTE 2: MAPEAMENTO DE MAPAS DE IDs (PERSONAGENS E CENAS)
+        // =================================================================
+        const characterIdMap = {};
+        const sceneIdMap = {};
+
+        // 1. Importar Personagens e guardar mapa de IDs (antigo -> novo)
+        if (Array.isArray(pData.characters)) {
+          for (const char of pData.characters) {
+            const oldId = char.id;
+            const charPayload = { ...char, projectId: newProjId };
+            delete charPayload.id; // Remove ID antigo para criar novo no DB
+
+            try {
+              const res = await apiClient.post(`/entities/projects/${newProjId}/characters`, charPayload);
+              if (oldId && res.data?.id) {
+                characterIdMap[oldId] = res.data.id;
+              }
+            } catch (err) {
+              console.warn('Aviso: Falha ao importar um personagem:', err);
+            }
+          }
+        }
+
+        // 2. Importar Cenas e guardar mapa de IDs (antigo -> novo)
+        if (Array.isArray(pData.scenes)) {
+          for (const scene of pData.scenes) {
+            const oldId = scene.id;
+            const scenePayload = { ...scene, projectId: newProjId };
+            delete scenePayload.id;
+
+            try {
+              const res = await apiClient.post(`/entities/projects/${newProjId}/scenes`, scenePayload);
+              if (oldId && res.data?.id) {
+                sceneIdMap[oldId] = res.data.id;
+              }
+            } catch (err) {
+              console.warn('Aviso: Falha ao importar uma cena:', err);
+            }
+          }
+        }
+
+        // =================================================================
+        // PARTE 3: PREPARAR ESTRUTURA DRAMÁTICA
+        // =================================================================
+        const rawCards = pData.structureCards || [];
+        const structureValues = {
+          acts: {},
+          sequences: {},
+          hero: {},
+          storyCircle: {},
+          saveTheCat: {},
+          freytag: {}
+        };
+
+        rawCards.forEach((card) => {
+          if (!card.framework || !card.title) return;
+          const fw = card.framework.toLowerCase();
+          const desc = card.descricao || card.description || '';
+
+          if (fw.includes('3 atos')) structureValues.acts[card.title] = desc;
+          else if (fw.includes('8 sequências') || fw.includes('sequencias')) structureValues.sequences[card.title] = desc;
+          else if (fw.includes('jornada')) structureValues.hero[card.title] = desc;
+          else if (fw.includes('story circle')) structureValues.storyCircle[card.title] = desc;
+          else if (fw.includes('save the cat')) structureValues.saveTheCat[card.title] = desc;
+          else if (fw.includes('freytag')) structureValues.freytag[card.title] = desc;
+        });
+
+        // =================================================================
+        // PARTE 4: DEMAIS MÓDULOS E RELAÇÕES
         // =================================================================
         const allPages = [
           { name: 'Identidade', endpoint: `/entities/projects/${newProjId}/identity`, data: pData.identity, type: 'object' },
           { name: 'Essência', endpoint: `/entities/projects/${newProjId}/essencia`, data: pData.essencia, type: 'object' },
           { name: 'Engenharia', endpoint: `/entities/projects/${newProjId}/engenharia`, data: pData.engenharia, type: 'object' },
           
-          // Estrutura Dramática (Lê structureFrameworks e structureCards do JSON)
           { 
             name: 'Estrutura Dramática', 
             endpoint: `/entities/projects/${newProjId}/estrutura-dramatica`, 
-            data: { selectedFrameworks: pData.structureFrameworks || [], cards: pData.structureCards || [] }, 
+            data: { selectedFrameworks: pData.structureFrameworks || [], values: structureValues }, 
             type: 'object' 
           },
           
-          // Ritmo & Timeline (Lê timelineEvents do JSON)
           { 
             name: 'Ritmo & Timeline', 
             endpoint: `/entities/projects/${newProjId}/ritmo-timeline`, 
@@ -135,19 +214,21 @@ export default function Home({ onSelectProject }) {
             type: 'object' 
           },
 
-          { name: 'Personagens', endpoint: `/entities/projects/${newProjId}/characters`, data: pData.characters, type: 'array_items' },
           { name: 'Mundo', endpoint: `/entities/projects/${newProjId}/world`, data: pData.world, type: 'array_items' },
-          { name: 'Cenas', endpoint: `/entities/projects/${newProjId}/scenes`, data: pData.scenes, type: 'array_items' },
           { name: 'Diálogos', endpoint: `/entities/projects/${newProjId}/dialogues`, data: pData.dialogues, type: 'array_items' },
           
-          // Relações (Lê relations do JSON e injeta o newProjId)
-          { name: 'Relações', endpoint: `/entities/relations`, data: pData.relations, type: 'array_items_with_proj', projId: newProjId },
+          // ✅ RELAÇÕES COM MAPA DE IDs REMAPEADO
+          { 
+            name: 'Relações', 
+            endpoint: `/entities/relations`, 
+            data: pData.relations, 
+            type: 'relations_remapped' 
+          },
           
           { name: 'Mistérios', endpoint: `/entities/projects/${newProjId}/mysteries`, data: pData.mysteries, type: 'array_items' },
           { name: 'Plot Twists', endpoint: `/entities/projects/${newProjId}/twists`, data: pData.twists, type: 'array_items' },
           { name: 'Escrita & Capítulo', endpoint: `/entities/projects/${newProjId}/chapters`, data: pData.chapters, type: 'array_items' },
           
-          // Mapa Emocional (Lê emotionalPoints do JSON)
           { 
             name: 'Mapa Emocional', 
             endpoint: `/entities/projects/${newProjId}/mapa-emocional`, 
@@ -170,17 +251,32 @@ export default function Home({ onSelectProject }) {
                 await apiClient.post(page.endpoint, page.data);
               } else if (page.type === 'array_items') {
                 for (const item of page.data) {
-                  await apiClient.post(page.endpoint, item);
+                  const itemPayload = { ...item };
+                  delete itemPayload.id; // Garante geração de novo ID
+                  await apiClient.post(page.endpoint, itemPayload);
                 }
-              } else if (page.type === 'array_items_with_proj') {
-                for (const item of page.data) {
-                  await apiClient.post(page.endpoint, { ...item, projectId: page.projId });
+              } else if (page.type === 'relations_remapped') {
+                for (const rel of page.data) {
+                  const mappedCharA = characterIdMap[rel.charAId] || rel.charAId;
+                  const mappedCharB = characterIdMap[rel.charBId] || rel.charBId;
+                  const mappedScene = sceneIdMap[rel.sceneId] || rel.sceneId || null;
+
+                  if (mappedCharA && mappedCharB) {
+                    await apiClient.post(`/entities/relations`, {
+                      projectId: newProjId,
+                      charAId: mappedCharA,
+                      charBId: mappedCharB,
+                      type: rel.type || 'Amizade',
+                      intensity: rel.intensity || 6,
+                      sceneId: mappedScene,
+                      description: rel.description || ''
+                    });
+                  }
                 }
               }
             } catch (pageErr) {
               console.error(`Erro ao importar ${page.name}:`, pageErr);
-              const failedField = pageErr.response?.data?.error || 'Erro de resposta na API';
-              // Interrompe o processo e aponta a página com falha
+              const failedField = pageErr.response?.data?.error || pageErr.message || 'Erro de resposta na API';
               throw new Error(`Falha na página "${page.name}": ${failedField}`);
             }
           }
@@ -312,11 +408,22 @@ export default function Home({ onSelectProject }) {
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#1c1c26] text-gray-400 rounded-full text-xs font-medium">
                         <BookOpen size={12} /> {project.format || 'Romance / Livro'}
                       </span>
-                      {isImported && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded-md">
-                          📥 Importado
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isImported && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded-md">
+                            📥 Importado
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          title="Excluir projeto"
+                          onClick={(e) => handleDeleteProject(e, project.id, project.title)}
+                          className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                     <h3 className="text-xl font-bold group-hover:text-purple-400 transition-colors mb-1">{project.title}</h3>
                   </div>

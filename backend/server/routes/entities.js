@@ -56,6 +56,25 @@ const createProjectHandler = async (req, res) => {
   }
 };
 
+// ==========================================
+// DELETAR PROJETO
+// ==========================================
+const deleteProjectHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.project.delete({
+      where: { id },
+    });
+    res.json({ success: true, message: 'Projeto excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar projeto:', error);
+    res.status(500).json({ error: 'Erro ao excluir o projeto do banco de dados.' });
+  }
+};
+
+router.delete('/projects/:id', deleteProjectHandler);
+router.delete('/entities/projects/:id', deleteProjectHandler);
+
 // Aceita rotas com ou sem o prefixo /entities
 router.post('/projects', createProjectHandler);
 router.post('/entities/projects', createProjectHandler);
