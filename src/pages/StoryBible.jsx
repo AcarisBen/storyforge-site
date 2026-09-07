@@ -510,7 +510,7 @@ export default function StoryBible({ projectId }) {
 
   return (
     <main className="story-bible-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
-      {/* RESET TOTAL DE IMPRESSÃO: REMOVE CORTE DE PÁGINA, ELEMENTOS FIXOS E SOBREPOSIÇÃO */}
+      {/* RESET TOTAL DE IMPRESSÃO: REGRAS RÍGIDAS DE OCULTAÇÃO */}
       <style>{`
         @media print {
           @page {
@@ -518,30 +518,30 @@ export default function StoryBible({ projectId }) {
             margin: 1.5cm;
           }
 
-          /* OCULTA BOTÕES, BARRA DE FERRAMENTAS E ELEMENTOS DA INTERFACE */
-          .no-print,
-          .print-hide,
-          .toolbar-actions,
-          button,
-          .fixed,
-          [role="dialog"] {
+          /* Força a ocultação de todos os elementos marcados para tela */
+          .print\\:hidden, .no-print, .print-hide, button, .sidebar, aside, nav, .fixed, [role="dialog"] {
             display: none !important;
-            opacity: 0 !important;
             visibility: hidden !important;
             height: 0 !important;
             width: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
           }
-            
-          /* Oculta Sidebars, Navegação, Modais e Elementos Fixos */
-          .sidebar, aside, nav, header button, .no-print, .print-hide, .fixed, [role="dialog"] {
+
+          body > *:not(#root) {
             display: none !important;
-            height: 0 !important;
-            width: 0 !important;
           }
-          /* RESETA ESTRUTURA PARA FLUXO CONTÍNUO */
-          html, body, #root, main, div, section, article {
+
+          #root, main, [class*="app"], [class*="layout"] {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: static !important;
+          }
+
+          /* Reset de Layout Global para fluxo contínuo */
+          html, body, #root, main, section, article {
             background: #ffffff !important;
             color: #000000 !important;
             font-family: Arial, Helvetica, sans-serif !important;
@@ -549,9 +549,6 @@ export default function StoryBible({ projectId }) {
             line-height: 1.5 !important;
             width: 100% !important;
             max-width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
@@ -560,7 +557,14 @@ export default function StoryBible({ projectId }) {
             box-shadow: none !important;
           }
 
-          /* CABEÇALHO LIMPO */
+          /* Regra específica para DIVs que não sejam ocultas */
+          div:not(.print\\:hidden):not(.no-print) {
+            background: transparent !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+          }
+
+          /* Cabeçalho do Relatório Impresso */
           header {
             border: none !important;
             border-bottom: 2px solid #000000 !important;
@@ -582,7 +586,7 @@ export default function StoryBible({ projectId }) {
             margin-top: 4px !important;
           }
 
-          /* SEÇÕES EM FORMATO DE RELATÓRIO */
+          /* Seções como blocos de relatório */
           section {
             border: none !important;
             border-bottom: 1px solid #cccccc !important;
@@ -602,6 +606,15 @@ export default function StoryBible({ projectId }) {
             text-transform: uppercase;
           }
 
+          section h3 {
+            font-size: 11pt !important;
+            font-weight: bold !important;
+            color: #222222 !important;
+            margin-top: 10px !important;
+            margin-bottom: 6px !important;
+          }
+
+          /* Transforma Grid/Flex de tela em Lista Vertical Simples na Impressão */
           .grid, .flex {
             display: block !important;
             width: 100% !important;
@@ -616,46 +629,72 @@ export default function StoryBible({ projectId }) {
             page-break-inside: avoid !important;
           }
 
-          p, span, div, strong, b {
+          p, span, strong, b {
             color: #000000 !important;
             background: transparent !important;
           }
 
-          /* LINHA DO TEMPO TEXTUAL NA IMPRESSÃO */
-          .timeline-interactive { display: none !important; }
-          .timeline-printable { display: block !important; }
+          /* Oculta a linha do tempo gráfica na impressão */
+          .timeline-interactive {
+            display: none !important;
+          }
+
+          /* Exibe a linha do tempo textual na impressão */
+          .timeline-printable {
+            display: block !important;
+          }
         }
 
-        .timeline-printable { display: none; }
+        /* Na tela de computador, oculta a versão de texto puro da linha do tempo */
+        .timeline-printable {
+          display: none;
+        }
       `}</style>
 
-      {/* CABEÇALHO */}
-      <header className="space-y-4 bg-[#11111a] border border-purple-900/40 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500 print-hide" />
-        
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-800 pb-6 print:border-none">
-          <div>
-            <span className="text-xs uppercase tracking-widest text-purple-400 font-bold print:hidden">
-              📖 DOCUMENTO MESTRE NARRATIVO
-            </span>
-            <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
-              {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
-            </h1>
-            {data.identity['Subtítulo'] && (
-              <h2 className="text-lg text-purple-300 font-medium">{data.identity['Subtítulo']}</h2>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2 no-print">
-            <button type="button" onClick={() => handleOpenExportModal('pdf')} className="px-3.5 py-2 bg-[#181824] hover:bg-purple-950/60 border border-purple-800/50 text-purple-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
-              <Printer size={14} /> PDF / Imprimir
-            </button>
-            
-            <button type="button" onClick={() => handleOpenExportModal('json')} className="px-3.5 py-2 bg-[#181824] hover:bg-amber-950/60 border border-amber-800/50 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
-              <FileCode size={14} /> JSON
-            </button>
-          </div>
+      {/* BARRA DE FERRAMENTAS EXCLUSIVA PARA A TELA */}
+      <div className="flex justify-between items-center bg-[#11111a] border border-purple-900/40 p-6 rounded-2xl shadow-2xl mb-8 print:hidden relative overflow-hidden no-print">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500" />
+        <div>
+          <span className="text-xs uppercase tracking-widest text-purple-400 font-bold">
+            📖 DOCUMENTO MESTRE NARRATIVO
+          </span>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
+            {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
+          </h1>
+          {data.identity['Subtítulo'] && (
+            <h2 className="text-lg text-purple-300 font-medium">{data.identity['Subtítulo']}</h2>
+          )}
         </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => handleOpenExportModal('pdf')}
+            className="px-3.5 py-2 bg-[#181824] hover:bg-purple-950/60 border border-purple-800/50 text-purple-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+          >
+            <Printer size={14} /> PDF / Imprimir
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenExportModal('json')}
+            className="px-3.5 py-2 bg-[#181824] hover:bg-amber-950/60 border border-amber-800/50 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+          >
+            <FileCode size={14} /> JSON
+          </button>
+        </div>
+      </div>
+
+      {/* CABEÇALHO EXCLUSIVO PARA O PDF / IMPRESSÃO */}
+      <header className="hidden print:block mb-6 border-b-2 border-black pb-4">
+        <h1 className="text-2xl font-bold text-black uppercase tracking-tight">
+          {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
+        </h1>
+        {data.identity['Subtítulo'] && (
+          <h2 className="text-sm font-medium text-gray-700 mt-1">{data.identity['Subtítulo']}</h2>
+        )}
+        <p className="text-[9pt] text-gray-700 italic pt-3 mt-2 border-t border-gray-300">
+          Este projeto é de autoria de <strong>{CURRENT_USER_NAME}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
+        </p>
       </header>
 
       {/* 1. FUNDAÇÃO */}
@@ -1109,7 +1148,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 7. CHECKLIST ORGANIZADO */}
+      {/* 7. CHECKLIST COM CORES E ESTADOS VISUAIS MANTIDOS NA TELA */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button type="button" onClick={() => toggleSection('checklist')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
@@ -1133,13 +1172,23 @@ export default function StoryBible({ projectId }) {
                     <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
                       <span>•</span> {catGroup.title}
                     </h3>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catGroup.badgeStyle} print:hidden`}>
+                      {catDoneItems.length} / {catGroup.items.length} Concluídos
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-1">
                     {catDoneItems.map((itemText) => (
-                      <div key={itemText} className="flex items-center gap-2 text-xs leading-relaxed">
-                        <span className="font-bold text-black">✓</span>
-                        <span className="font-medium">{itemText}</span>
+                      <div
+                        key={itemText}
+                        className={`p-3.5 rounded-xl border flex items-center gap-3 transition-all ${catGroup.boxStyle} print:border-none print:p-0 print:bg-transparent`}
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${catGroup.checkColor} print:hidden`}>
+                          ✓
+                        </div>
+                        <span className="text-xs font-medium leading-relaxed line-through opacity-80 print:no-underline print:opacity-100 print:text-black">
+                          {itemText}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1183,13 +1232,6 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* ISENÇÃO LEGAL / NOTA DE IMPRESSÃO */}
-      <div className="legal-notice-print">
-        _______________________________________________________________________________________
-        Este projeto é de autoria de <b>{CURRENT_USER_NAME}</b>, exportado em {new Date().toLocaleDateString('pt-BR')}.
-        O StoryForge atua exclusivamente como ferramenta de organização narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
-      </div>
-      
       {/* MODAL CONFIRMAÇÃO DE EXPORTAÇÃO */}
       {confirmModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
