@@ -250,6 +250,25 @@ export default function StoryBible({ projectId }) {
     dialogues: [],
   });
 
+  // Garante que o cabeçalho nativo impresso contenha "StoryForge" ao centro e o Nome do Usuário na direita
+  useEffect(() => {
+  const originalTitle = document.title;
+  
+  // Pega o ano atual dinamicamente (2026)
+  const currentYear = new Date().getFullYear();
+  
+  // Nome centralizado com o ano + 'Projeto executado por' e Nome do Usuário à direita
+  const siteInfo = `StoryForge (${currentYear})`;
+  const userInfo = `Projeto executado por: ${CURRENT_USER_NAME}`;
+
+  // Usamos caracteres de espaço não-quebráveis (\u00A0) para forçar o alinhamento
+  document.title = `${siteInfo} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 ${userInfo}`;
+
+  return () => {
+    document.title = originalTitle;
+  };
+}, [data]);
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -510,15 +529,15 @@ export default function StoryBible({ projectId }) {
 
   return (
     <main className="story-bible-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
-      {/* RESET TOTAL DE IMPRESSÃO: REGRAS RÍGIDAS DE OCULTAÇÃO */}
+      {/* RESET TOTAL DE IMPRESSÃO */}
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 1.5cm;
+            margin: 1.2cm;
           }
 
-          /* Força a ocultação de todos os elementos marcados para tela */
+          /* Oculta apenas os elementos interativos de tela */
           .print\\:hidden, .no-print, .print-hide, button, .sidebar, aside, nav, .fixed, [role="dialog"] {
             display: none !important;
             visibility: hidden !important;
@@ -545,8 +564,8 @@ export default function StoryBible({ projectId }) {
             background: #ffffff !important;
             color: #000000 !important;
             font-family: Arial, Helvetica, sans-serif !important;
-            font-size: 10.5pt !important;
-            line-height: 1.5 !important;
+            font-size: 10pt !important;
+            line-height: 1.4 !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
@@ -557,7 +576,6 @@ export default function StoryBible({ projectId }) {
             box-shadow: none !important;
           }
 
-          /* Regra específica para DIVs que não sejam ocultas */
           div:not(.print\\:hidden):not(.no-print) {
             background: transparent !important;
             color: #000000 !important;
@@ -568,50 +586,50 @@ export default function StoryBible({ projectId }) {
           header {
             border: none !important;
             border-bottom: 2px solid #000000 !important;
-            padding-bottom: 12px !important;
-            margin-bottom: 20px !important;
+            padding-bottom: 10px !important;
+            margin-bottom: 16px !important;
             background: transparent !important;
           }
 
           header h1 {
-            font-size: 22pt !important;
+            font-size: 48pt !important;
             font-weight: bold !important;
             color: #000000 !important;
             margin: 0 !important;
           }
 
           header h2 {
-            font-size: 13pt !important;
+            font-size: 16pt !important;
             color: #444444 !important;
-            margin-top: 4px !important;
+            margin-top: 2px !important;
           }
 
           /* Seções como blocos de relatório */
           section {
             border: none !important;
             border-bottom: 1px solid #cccccc !important;
-            padding: 10px 0 !important;
-            margin-bottom: 20px !important;
+            padding: 8px 0 !important;
+            margin-bottom: 16px !important;
             page-break-inside: auto !important;
             background: transparent !important;
           }
 
           section h2 {
-            font-size: 13pt !important;
+            font-size: 12pt !important;
             font-weight: bold !important;
             color: #000000 !important;
             border-bottom: 1px solid #000000 !important;
             padding-bottom: 4px !important;
-            margin-bottom: 12px !important;
+            margin-bottom: 10px !important;
             text-transform: uppercase;
           }
 
           section h3 {
-            font-size: 11pt !important;
+            font-size: 10.5pt !important;
             font-weight: bold !important;
             color: #222222 !important;
-            margin-top: 10px !important;
-            margin-bottom: 6px !important;
+            margin-top: 8px !important;
+            margin-bottom: 4px !important;
           }
 
           /* Transforma Grid/Flex de tela em Lista Vertical Simples na Impressão */
@@ -625,7 +643,7 @@ export default function StoryBible({ projectId }) {
             border: none !important;
             border-left: 2px solid #444444 !important;
             padding-left: 10px !important;
-            margin-bottom: 12px !important;
+            margin-bottom: 10px !important;
             page-break-inside: avoid !important;
           }
 
@@ -645,7 +663,6 @@ export default function StoryBible({ projectId }) {
           }
         }
 
-        /* Na tela de computador, oculta a versão de texto puro da linha do tempo */
         .timeline-printable {
           display: none;
         }
@@ -685,16 +702,32 @@ export default function StoryBible({ projectId }) {
       </div>
 
       {/* CABEÇALHO EXCLUSIVO PARA O PDF / IMPRESSÃO */}
-      <header className="hidden print:block mb-6 border-b-2 border-black pb-4">
-        <h1 className="text-2xl font-bold text-black uppercase tracking-tight">
-          {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
-        </h1>
-        {data.identity['Subtítulo'] && (
-          <h2 className="text-sm font-medium text-gray-700 mt-1">{data.identity['Subtítulo']}</h2>
-        )}
-        <p className="text-[9pt] text-gray-700 italic pt-3 mt-2 border-t border-gray-300">
-          Este projeto é de autoria de <strong>{CURRENT_USER_NAME}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
-        </p>
+      <header className="hidden print:block mb-8 pb-4 mt-0">
+        
+        {/* 1. TERMO LEGAL (POSICIONADO BEM NO TOPO E SEPARADO POR UMA LINHA DISCRETA) */}
+        <div className="border-b border-gray-300 pb-3 mb-5">
+          <p className="text-[8pt] text-gray-600 italic leading-snug">
+            Este projeto é de autoria de <strong>{CURRENT_USER_NAME}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
+          </p>
+        </div>
+
+        {/* 2. BLOCO DO TÍTULO E SUBTÍTULO (AMPLIADOS E COM SEPARAÇÃO VISUAL CLARA) */}
+        <div className="space-y-3 pt-1">
+          {/* Título Principal Ampliado */}
+          <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight leading-none">
+            {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
+          </h1>
+
+          {/* Subtítulo Separado com Borda Lateral e Recuo */}
+          {data.identity['Subtítulo'] && (
+            <h2 className="text-base font-semibold text-gray-600 italic border-l-2 border-gray-400 pl-3 mt-2">
+              {data.identity['Subtítulo']}
+            </h2>
+          )}
+        </div>
+
+        {/* 3. LINHA DIVISÓRIA PRINCIPAL PARA O CONTEÚDO NARRATIVO */}
+        <div className="w-full h-[2px] bg-black mt-5" />
       </header>
 
       {/* 1. FUNDAÇÃO */}
@@ -1212,7 +1245,7 @@ export default function StoryBible({ projectId }) {
         {openSections.manuscrito && (
           <div className="p-6 space-y-6 print:p-0 print:space-y-4">
             {data.chapters.length === 0 ? (
-              <p className="text-xs text-gray-500 italic">Nenhum capítulo escrito até o momento.</p>
+              <p className="text-xs text-gray-500 italic">Nenum capítulo escrito até o momento.</p>
             ) : (
               data.chapters.map((ch, index) => (
                 <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-3 print:p-0">
