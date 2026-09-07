@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Settings, BookOpen, Upload, RefreshCw, AlertTriangle, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { 
+  Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
+  AlertTriangle, CheckCircle, XCircle, Trash2, Heart, 
+  Coffee, Copy, Check, X, Sparkles 
+} from 'lucide-react';
 import apiClient from '../api/apiClient';
 
-export default function Home({ onSelectProject }) {
+export default function Home({ onSelectProject, onNavigate }) {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', format: 'Romance / Livro' });
   const [loading, setLoading] = useState(true);
+
+  // Estados do Modal de Apoio
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [copiedPix, setCopiedPix] = useState(false);
+  const PIX_KEY = 'suporte@storyforge.com.br'; // Substitua pela sua chave Pix real
 
   // Estados de Importação
   const fileInputRef = useRef(null);
@@ -25,13 +34,20 @@ export default function Home({ onSelectProject }) {
     try {
       setLoading(true);
       const res = await apiClient.get('/entities/projects');
-      setProjects(res.data || []);
+      const data = res.data || [];
+      setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Erro ao buscar projetos:', err);
       setProjects([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCopyPix = () => {
+    navigator.clipboard.writeText(PIX_KEY);
+    setCopiedPix(true);
+    setTimeout(() => setCopiedPix(false), 2000);
   };
 
   const handleCreateProject = async (e) => {
@@ -93,9 +109,6 @@ export default function Home({ onSelectProject }) {
       let currentStageProgress = 10;
 
       try {
-        // =================================================================
-        // PARTE 1: CRIAÇÃO DO PROJETO (0% -> 30%)
-        // =================================================================
         currentStageProgress = 20;
         setImportProgress(currentStageProgress);
 
@@ -124,18 +137,14 @@ export default function Home({ onSelectProject }) {
           throw new Error('Servidor não retornou um ID válido para o projeto.');
         }
 
-        // =================================================================
-        // PARTE 2: MAPEAMENTO DE MAPAS DE IDs (PERSONAGENS E CENAS)
-        // =================================================================
         const characterIdMap = {};
         const sceneIdMap = {};
 
-        // 1. Importar Personagens e guardar mapa de IDs (antigo -> novo)
         if (Array.isArray(pData.characters)) {
           for (const char of pData.characters) {
             const oldId = char.id;
             const charPayload = { ...char, projectId: newProjId };
-            delete charPayload.id; // Remove ID antigo para criar novo no DB
+            delete charPayload.id;
 
             try {
               const res = await apiClient.post(`/entities/projects/${newProjId}/characters`, charPayload);
@@ -148,7 +157,6 @@ export default function Home({ onSelectProject }) {
           }
         }
 
-        // 2. Importar Cenas e guardar mapa de IDs (antigo -> novo)
         if (Array.isArray(pData.scenes)) {
           for (const scene of pData.scenes) {
             const oldId = scene.id;
@@ -166,9 +174,6 @@ export default function Home({ onSelectProject }) {
           }
         }
 
-        // =================================================================
-        // PARTE 3: PREPARAR ESTRUTURA DRAMÁTICA
-        // =================================================================
         const rawCards = pData.structureCards || [];
         const structureValues = {
           acts: {},
@@ -192,50 +197,39 @@ export default function Home({ onSelectProject }) {
           else if (fw.includes('freytag')) structureValues.freytag[card.title] = desc;
         });
 
-        // =================================================================
-        // PARTE 4: DEMAIS MÓDULOS E RELAÇÕES
-        // =================================================================
         const allPages = [
           { name: 'Identidade', endpoint: `/entities/projects/${newProjId}/identity`, data: pData.identity, type: 'object' },
           { name: 'Essência', endpoint: `/entities/projects/${newProjId}/essencia`, data: pData.essencia, type: 'object' },
           { name: 'Engenharia', endpoint: `/entities/projects/${newProjId}/engenharia`, data: pData.engenharia, type: 'object' },
-          
           { 
             name: 'Estrutura Dramática', 
             endpoint: `/entities/projects/${newProjId}/estrutura-dramatica`, 
             data: { selectedFrameworks: pData.structureFrameworks || [], values: structureValues }, 
             type: 'object' 
           },
-          
           { 
             name: 'Ritmo & Timeline', 
             endpoint: `/entities/projects/${newProjId}/ritmo-timeline`, 
             data: pData.timelineEvents || {}, 
             type: 'object' 
           },
-
           { name: 'Mundo', endpoint: `/entities/projects/${newProjId}/world`, data: pData.world, type: 'array_items' },
           { name: 'Diálogos', endpoint: `/entities/projects/${newProjId}/dialogues`, data: pData.dialogues, type: 'array_items' },
-          
-          // ✅ RELAÇÕES COM MAPA DE IDs REMAPEADO
           { 
             name: 'Relações', 
             endpoint: `/entities/relations`, 
             data: pData.relations, 
             type: 'relations_remapped' 
           },
-          
           { name: 'Mistérios', endpoint: `/entities/projects/${newProjId}/mysteries`, data: pData.mysteries, type: 'array_items' },
           { name: 'Plot Twists', endpoint: `/entities/projects/${newProjId}/twists`, data: pData.twists, type: 'array_items' },
           { name: 'Escrita & Capítulo', endpoint: `/entities/projects/${newProjId}/chapters`, data: pData.chapters, type: 'array_items' },
-          
           { 
             name: 'Mapa Emocional', 
             endpoint: `/entities/projects/${newProjId}/mapa-emocional`, 
             data: pData.emotionalPoints || [], 
             type: 'object' 
           },
-          
           { name: 'Checklist de Desenvolvimento', endpoint: `/entities/projects/${newProjId}/checklist`, data: pData.checklist, type: 'object' }
         ];
 
@@ -252,7 +246,7 @@ export default function Home({ onSelectProject }) {
               } else if (page.type === 'array_items') {
                 for (const item of page.data) {
                   const itemPayload = { ...item };
-                  delete itemPayload.id; // Garante geração de novo ID
+                  delete itemPayload.id;
                   await apiClient.post(page.endpoint, itemPayload);
                 }
               } else if (page.type === 'relations_remapped') {
@@ -314,18 +308,40 @@ export default function Home({ onSelectProject }) {
     }
   };
 
-  const filteredProjects = projects.filter((p) =>
-    p.title?.toLowerCase().includes(searchTerm.toLowerCase())
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  const filteredProjects = safeProjects.filter((p) =>
+    (p.title || p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-[#0d0d12] text-white p-8 font-sans">
-      <div className="flex justify-end mb-8">
-        <button type="button" className="flex items-center gap-2 px-4 py-2 bg-[#181820] hover:bg-[#22222e] rounded-lg border border-gray-800 text-sm text-gray-300 transition-colors cursor-pointer">
-          <Settings size={16} /> Configurações
+      
+      {/* BARRA SUPERIOR (BOTÃO APOIE À ESQUERDA | CONFIGURAÇÕES À DIREITA) */}
+      <div className="flex justify-between items-center mb-8 max-w-7xl mx-auto">
+        <button 
+          type="button" 
+          onClick={() => setShowSupportModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-xl font-bold text-xs text-white shadow-lg shadow-purple-950/40 transition-all cursor-pointer"
+        >
+          <Heart size={15} className="fill-white" /> Apoie o Projeto
+        </button>
+
+        <button 
+          type="button" 
+          onClick={() => {
+            if (onNavigate) {
+              onNavigate('configuracoes');
+            } else if (onSelectProject) {
+              onSelectProject({ id: 'configuracoes', type: 'settings' });
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-[#181820] hover:bg-[#22222e] rounded-xl border border-gray-800 text-xs font-bold text-gray-300 transition-colors cursor-pointer"
+        >
+          <Settings size={15} /> Configurações
         </button>
       </div>
 
+      {/* APRESENTAÇÃO / HERO */}
       <div className="text-center max-w-2xl mx-auto mb-16">
         <div className="flex items-center justify-center gap-3 mb-4">
           <div className="w-12 h-12 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-950/50">
@@ -338,6 +354,7 @@ export default function Home({ onSelectProject }) {
         </p>
       </div>
 
+      {/* BARRA DE BUSCA E AÇÕES DE PROJETO */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
         <h2 className="text-2xl font-bold">Meus Projetos</h2>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -372,6 +389,7 @@ export default function Home({ onSelectProject }) {
         </div>
       </div>
 
+      {/* GRADE DE PROJETOS */}
       <div className="max-w-7xl mx-auto">
         {loading ? (
           <div className="text-center py-20 text-gray-500">Carregando seus projetos do banco de dados...</div>
@@ -393,7 +411,8 @@ export default function Home({ onSelectProject }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
-              const isImported = project.isImported || project.title?.includes('(Importado)');
+              const projTitle = project.title || project.name || 'Sem Título';
+              const isImported = project.isImported || projTitle.includes('(Importado)');
 
               return (
                 <div
@@ -418,14 +437,14 @@ export default function Home({ onSelectProject }) {
                         <button
                           type="button"
                           title="Excluir projeto"
-                          onClick={(e) => handleDeleteProject(e, project.id, project.title)}
+                          onClick={(e) => handleDeleteProject(e, project.id, projTitle)}
                           className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold group-hover:text-purple-400 transition-colors mb-1">{project.title}</h3>
+                    <h3 className="text-xl font-bold group-hover:text-purple-400 transition-colors mb-1">{projTitle}</h3>
                   </div>
 
                   <div>
@@ -452,6 +471,111 @@ export default function Home({ onSelectProject }) {
           </div>
         )}
       </div>
+
+      {/* MODAL DE APOIO REFORMULADO */}
+      {showSupportModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#11111a] border border-purple-900/50 rounded-2xl p-6 md:p-8 w-full max-w-2xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+            
+            {/* BOTÃO FECHAR */}
+            <button
+              type="button"
+              onClick={() => setShowSupportModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            {/* CABEÇALHO DO MODAL */}
+            <div className="flex items-center gap-4 border-b border-gray-800 pb-4">
+              <div className="p-3 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-purple-950/50">
+                <Coffee size={26} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white tracking-tight">Apoie o StoryForge ✍️</h3>
+                <p className="text-xs text-purple-300 font-medium mt-0.5">
+                  Um estúdio feito de escritor para escritores
+                </p>
+              </div>
+            </div>
+
+            {/* MENSAGEM PRINCIPAL */}
+            <div className="space-y-4 text-xs text-gray-300 leading-relaxed">
+              <p className="text-sm font-semibold text-purple-200">
+                Olá, escritores! Antes de tudo, muito obrigado por estar aqui.
+              </p>
+              
+              <p>
+                Esse site foi criado com muito carinho, de forma totalmente independente, para ajudar futuros autores a desenvolverem suas próprias histórias. Ele é fruto de muita dedicação e pesquisa para te apoiar ao máximo nessa jornada!
+              </p>
+
+              {/* ALERTA AMIGÁVEL DE BETA */}
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 flex items-start gap-3">
+                <AlertTriangle size={18} className="shrink-0 text-amber-400 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  Como é um projeto mantido por uma pessoa só, você pode encontrar algo fora do lugar. Peço um pouquinho de paciência e, se puder me avisar quando vir um erro, pelo email: ajuda demais a melhorar o site para todo mundo!
+                </p>
+              </div>
+
+              <p className="font-semibold text-gray-200">
+                A ideia é manter o StoryForge <span className="text-emerald-400 font-bold">gratuito para sempre</span>. Como você pode ajudar a manter esse sonho vivo?
+              </p>
+
+              {/* CARDS COM AS FORMAS DE AJUDA */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div className="p-3.5 bg-[#171724] border border-purple-800/40 rounded-xl space-y-1.5">
+                  <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <Heart size={14} className="fill-purple-400 text-purple-400" /> Contribuição Financeira
+                  </span>
+                  <p className="text-[11px] text-gray-400 leading-normal">
+                    Qualquer quantia ajuda diretamente a cobrir os custos de servidor, banco de dados e manutenção.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-[#171724] border border-indigo-800/40 rounded-xl space-y-1.5">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-400" /> Divulgação & Comunidade
+                  </span>
+                  <p className="text-[11px] text-gray-400 leading-normal">
+                    Compartilhe com amigos, grupos de escrita ou faculdade. Cada recomendação faz uma diferença enorme!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ÁREA DA CHAVE PIX */}
+            <div className="p-4 bg-[#171724] border border-gray-800 rounded-2xl space-y-3">
+              <span className="text-xs font-bold text-purple-300 block">
+                Chave Pix para contribuição rápida:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={PIX_KEY}
+                  className="w-full bg-[#11111a] border border-gray-800 rounded-xl p-3 text-xs text-gray-200 font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyPix}
+                  className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg cursor-pointer shrink-0"
+                >
+                  {copiedPix ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedPix ? 'Copiado!' : 'Copiar Pix'}
+                </button>
+              </div>
+            </div>
+
+            {/* MENSAGEM FINAL DE ENCERRAMENTO */}
+            <div className="text-center pt-1 border-t border-gray-800/80">
+              <p className="text-xs font-bold text-purple-300 italic">
+                Muito obrigado por fazer parte disso. Bora escrever juntos! ✍️
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE STATUS DA IMPORTAÇÃO */}
       {isImporting && (
