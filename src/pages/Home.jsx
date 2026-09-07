@@ -2,27 +2,39 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
   AlertTriangle, CheckCircle, XCircle, Trash2, Heart, 
-  Coffee, Copy, Check, X, Sparkles 
+  Coffee, Copy, Check, X, Sparkles, User, Shield, Key, Info, Cookie, LogOut
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
-export default function Home({ onSelectProject, onNavigate }) {
+export default function Home({ onSelectProject }) {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', format: 'Romance / Livro' });
   const [loading, setLoading] = useState(true);
 
-  // Estados do Modal de Apoio
+  // Estados dos Modais
   const [showSupportModal, setShowSupportModal] = useState(false);
-  const [copiedPix, setCopiedPix] = useState(false);
-  const PIX_KEY = 'suporte@storyforge.com.br'; // Substitua pela sua chave Pix real
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState('perfil');
 
-  // Estados de Importação
+  // Estados das Configurações
+  const [displayName, setDisplayName] = useState('Usuário StoryForge');
+  const [email, setEmail] = useState('autor@storyforge.com');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteEmailSent, setDeleteEmailSent] = useState(false);
+
+  // Apoio
+  const [copiedPix, setCopiedPix] = useState(false);
+  const PIX_KEY = 'suporte@storyforge.com.br';
+
+  // Importação
   const fileInputRef = useRef(null);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
-  const [importStatus, setImportStatus] = useState(null); // 'success' | 'partial' | 'error'
+  const [importStatus, setImportStatus] = useState(null);
   const [importDetails, setImportDetails] = useState([]);
   const [pendingFile, setPendingFile] = useState(null);
 
@@ -328,13 +340,7 @@ export default function Home({ onSelectProject, onNavigate }) {
 
         <button 
           type="button" 
-          onClick={() => {
-            if (onNavigate) {
-              onNavigate('configuracoes');
-            } else if (onSelectProject) {
-              onSelectProject({ id: 'configuracoes', type: 'settings' });
-            }
-          }}
+          onClick={() => setShowSettingsModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-[#181820] hover:bg-[#22222e] rounded-xl border border-gray-800 text-xs font-bold text-gray-300 transition-colors cursor-pointer"
         >
           <Settings size={15} /> Configurações
@@ -472,12 +478,204 @@ export default function Home({ onSelectProject, onNavigate }) {
         )}
       </div>
 
-      {/* MODAL DE APOIO REFORMULADO */}
+      {/* POP-UP / MODAL DE CONFIGURAÇÕES */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-2xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
+            
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="border-b border-gray-800 pb-4">
+              <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <Settings size={22} className="text-purple-400" /> Configurações
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Gerencie seu perfil, segurança e preferências</p>
+            </div>
+
+            {/* ABAS */}
+            <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
+              {[
+                { id: 'perfil', label: 'Perfil do Autor', icon: User },
+                { id: 'seguranca', label: 'E-mail & Segurança', icon: Key },
+                { id: 'privacidade', label: 'Privacidade & Conta', icon: Shield },
+                { id: 'sobre', label: 'Versão & Sistema', icon: Info },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const active = activeSettingsTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveSettingsTab(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
+                      active ? 'bg-purple-600 text-white shadow-lg' : 'bg-[#171724] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={14} /> {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* CONTEÚDO DAS ABAS */}
+            <div className="space-y-4">
+              {activeSettingsTab === 'perfil' && (
+                <form onSubmit={(e) => { e.preventDefault(); alert('Salvo com sucesso!'); }} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400">Nome de Exibição / Pseudônimo</label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <p className="text-[11px] text-gray-500">Exibido nos relatórios e StoryBible exportada.</p>
+                  </div>
+                  <button type="submit" className="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer">
+                    Salvar
+                  </button>
+                </form>
+              )}
+
+              {activeSettingsTab === 'seguranca' && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400">E-mail Cadastrado</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <div className="pt-2 border-t border-gray-800 space-y-3">
+                    <span className="text-xs font-bold text-purple-300 block">Alterar Senha</span>
+                    <input
+                      type="password"
+                      placeholder="Senha Atual"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Nova Senha"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => alert('Senha alterada!')} 
+                      className="px-4 py-2 bg-[#171724] border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
+                    >
+                      Atualizar Senha
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === 'privacidade' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-[#171724] rounded-xl border border-gray-800 space-y-1">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Cookie size={14} className="text-amber-400" /> Cookies & Armazenamento
+                    </span>
+                    <p className="text-[11px] text-gray-300">
+                      Utilizamos cookies locais estritamente para segurança da sua sessão.
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-800 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(true)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl cursor-pointer"
+                    >
+                      Excluir Minha Conta
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === 'sobre' && (
+                <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-2 text-xs">
+                  <div className="flex justify-between border-b border-gray-800 pb-1.5">
+                    <span className="text-gray-400">Versão</span>
+                    <span className="font-mono text-purple-400 font-bold">v1.0.0 (Beta)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Suporte</span>
+                    <span className="text-purple-300">suporte@storyforge.com.br</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            {!deleteEmailSent ? (
+              <>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <AlertTriangle className="text-red-500" size={18} /> Confirmar Exclusão
+                </h3>
+                <p className="text-xs text-gray-300">
+                  Enviaremos um e-mail de confirmação para <b>{email}</b>.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteEmailSent(true)}
+                    className="flex-1 py-2 bg-red-600 text-white font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Enviar E-mail
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className="px-4 py-2 bg-[#171724] text-gray-400 font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center space-y-3 py-2">
+                <CheckCircle className="text-emerald-400 mx-auto" size={36} />
+                <h3 className="text-base font-bold text-white">E-mail Enviado!</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteEmailSent(false);
+                  }}
+                  className="w-full py-2 bg-[#171724] text-white font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP / MODAL DE APOIO */}
       {showSupportModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#11111a] border border-purple-900/50 rounded-2xl p-6 md:p-8 w-full max-w-2xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
             
-            {/* BOTÃO FECHAR */}
             <button
               type="button"
               onClick={() => setShowSupportModal(false)}
@@ -486,7 +684,6 @@ export default function Home({ onSelectProject, onNavigate }) {
               <X size={20} />
             </button>
 
-            {/* CABEÇALHO DO MODAL */}
             <div className="flex items-center gap-4 border-b border-gray-800 pb-4">
               <div className="p-3 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-purple-950/50">
                 <Coffee size={26} />
@@ -499,7 +696,6 @@ export default function Home({ onSelectProject, onNavigate }) {
               </div>
             </div>
 
-            {/* MENSAGEM PRINCIPAL */}
             <div className="space-y-4 text-xs text-gray-300 leading-relaxed">
               <p className="text-sm font-semibold text-purple-200">
                 Olá, escritores! Antes de tudo, muito obrigado por estar aqui.
@@ -509,11 +705,10 @@ export default function Home({ onSelectProject, onNavigate }) {
                 Esse site foi criado com muito carinho, de forma totalmente independente, para ajudar futuros autores a desenvolverem suas próprias histórias. Ele é fruto de muita dedicação e pesquisa para te apoiar ao máximo nessa jornada!
               </p>
 
-              {/* ALERTA AMIGÁVEL DE BETA */}
               <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 flex items-start gap-3">
                 <AlertTriangle size={18} className="shrink-0 text-amber-400 mt-0.5" />
                 <p className="text-[11px] leading-relaxed">
-                  Como é um projeto mantido por uma pessoa só, você pode encontrar algo fora do lugar. Peço um pouquinho de paciência e, se puder me avisar quando vir um erro, pelo email: ajuda demais a melhorar o site para todo mundo!
+                  Como é um projeto mantido por uma pessoa só, você pode encontrar algo fora do lugar. Peço um pouquinho de paciência e, se puder me avisar quando vir um erro, ajuda demais a melhorar o site para todo mundo!
                 </p>
               </div>
 
@@ -521,7 +716,6 @@ export default function Home({ onSelectProject, onNavigate }) {
                 A ideia é manter o StoryForge <span className="text-emerald-400 font-bold">gratuito para sempre</span>. Como você pode ajudar a manter esse sonho vivo?
               </p>
 
-              {/* CARDS COM AS FORMAS DE AJUDA */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                 <div className="p-3.5 bg-[#171724] border border-purple-800/40 rounded-xl space-y-1.5">
                   <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
@@ -543,7 +737,6 @@ export default function Home({ onSelectProject, onNavigate }) {
               </div>
             </div>
 
-            {/* ÁREA DA CHAVE PIX */}
             <div className="p-4 bg-[#171724] border border-gray-800 rounded-2xl space-y-3">
               <span className="text-xs font-bold text-purple-300 block">
                 Chave Pix para contribuição rápida:
@@ -566,7 +759,6 @@ export default function Home({ onSelectProject, onNavigate }) {
               </div>
             </div>
 
-            {/* MENSAGEM FINAL DE ENCERRAMENTO */}
             <div className="text-center pt-1 border-t border-gray-800/80">
               <p className="text-xs font-bold text-purple-300 italic">
                 Muito obrigado por fazer parte disso. Bora escrever juntos! ✍️

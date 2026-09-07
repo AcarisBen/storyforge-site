@@ -19,10 +19,6 @@ import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
 import DialogEngine from './pages/DialogEngine';
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Configuracoes from './pages/Configuracoes';
-
-
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
   { title: 'Fundação', items: [['Identidade', 'identidade'], ['Essência da História', 'essencia'], ['Engenharia Narrativa', 'engenharia']] },
@@ -174,15 +170,4 @@ export default function App() {
       <div className="page-content">{renderPage()}</div>
     </div>
   );
-
-    return (
-        <BrowserRouter>
-        <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/configuracoes" element={<Configuracoes />} />
-            {/* Outras rotas do seu sistema... */}
-        </Routes>
-        </BrowserRouter>
-    );
-
 }
