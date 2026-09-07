@@ -1,36 +1,64 @@
 import React, { useState } from 'react';
 import { 
   Feather, BookOpen, Layers, Mail, Lock, 
-  LogIn, ShieldCheck 
+  LogIn, ShieldCheck, AlertCircle, Eye, EyeOff 
 } from 'lucide-react';
 
 export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // Estado para alternar visibilidade da senha
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // O botão só fica ativo se AMBOS os campos tiverem texto
+  const isFormValid = email.trim().length > 0 && password.trim().length > 0;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Preencha todos os campos para entrar.');
-      return;
-    }
+    if (!isFormValid) return;
 
-    setLoading(true);
     setError('');
+    setLoading(true);
 
-    // Simulação de Login de Sucesso para carregar a interface
+    const cleanEmail = email.trim().toLowerCase();
+
     setTimeout(() => {
       setLoading(false);
+
+      // Busca usuários cadastrados
+      const registeredUsers = JSON.parse(localStorage.getItem('storyforge_users') || '[]');
+
+      // Usuário padrão do sistema
+      const defaultUser = {
+        email: 'autor@storyforge.com',
+        password: 'Password123!',
+        fullName: 'Autor StoryForge',
+        writerName: 'Escritor Principal'
+      };
+
+      const allUsers = [defaultUser, ...registeredUsers];
+
+      // Procura um usuário com a combinação exata de e-mail e senha
+      const validUser = allUsers.find(
+        (u) => u.email.toLowerCase() === cleanEmail && u.password === password
+      );
+
+      // Se qualquer uma das informações estiver incorreta, exibe a mensagem genérica
+      if (!validUser) {
+        setError('Não foi possível verificar sua conta. Verifique suas informações e tente novamente.');
+        return;
+      }
+
+      // Login bem-sucedido
       if (onLoginSuccess) {
-        onLoginSuccess({ email, name: 'Autor StoryForge' });
+        onLoginSuccess(validUser);
       }
     }, 600);
   };
 
   const handleGoogleLogin = () => {
-    alert('Autenticação do Google em desenvolvimento.');
+    alert('A autenticação com Google será conectada na integração com o servidor.');
   };
 
   return (
@@ -150,10 +178,11 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
               </span>
             </div>
 
-            {/* EXIBIÇÃO DE ERROS */}
+            {/* ALERTA DE MENSAGEM DE ERRO */}
             {error && (
-              <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-xs text-red-300">
-                {error}
+              <div className="p-3 bg-red-950/50 border border-red-800/60 rounded-xl text-xs text-red-300 flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -167,7 +196,6 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
                   <Mail className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
                   <input
                     type="email"
-                    required
                     placeholder="voce@exemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -191,23 +219,35 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
                   <input
-                    type="password"
-                    required
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
                   />
+                  {/* BOTÃO OLHO (VISUALIZAR / OCULTAR SENHA) */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-3 text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
+                    title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
               {/* BOTÃO ENTRAR */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-950/50 transition-all cursor-pointer disabled:opacity-50 mt-2"
+                disabled={!isFormValid || loading}
+                className={`w-full py-3 text-xs font-bold rounded-xl shadow-lg transition-all cursor-pointer mt-2 ${
+                  isFormValid && !loading
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50'
+                    : 'bg-[#1a1a26] text-gray-500 cursor-not-allowed border border-gray-800/60'
+                }`}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? 'Verificando...' : 'Entrar'}
               </button>
             </form>
 
