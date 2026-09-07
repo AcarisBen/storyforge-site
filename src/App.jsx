@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Home from './pages/Home';
 import Engenharia from './pages/Engenharia';
 import Escrita from './pages/Escrita';
@@ -94,8 +96,17 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
+  // ESTADOS DE AUTENTICAÇÃO E NAVEGAÇÃO
+  const [currentUser, setCurrentUser] = useState(null); 
+  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register' | 'forgot-password'
+  
+  // ESTADOS DOS PROJETOS
   const [currentProject, setCurrentProject] = useState(null);
   const [activePage, setActivePage] = useState('dashboard');
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+  };
 
   const handleSelectProject = (project) => {
     setCurrentProject(project);
@@ -106,10 +117,51 @@ export default function App() {
     setCurrentProject(null);
   };
 
+  // 1. PRIMEIRA ETAPA: SE NÃO HOUVER USUÁRIO LOGADO, GERENCIA O FLUXO DE AUTH
+  if (!currentUser) {
+    if (authScreen === 'register') {
+      return (
+        <Register 
+          onRegisterSuccess={handleLoginSuccess}
+          onNavigateToLogin={() => setAuthScreen('login')}
+        />
+      );
+    }
+
+    if (authScreen === 'forgot-password') {
+      return (
+        <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
+          <div className="bg-[#12121a] border border-gray-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4">
+            <h2 className="text-2xl font-bold">Recuperar Senha</h2>
+            <p className="text-xs text-gray-400">Instruções enviadas para o seu e-mail.</p>
+            <button
+              type="button"
+              onClick={() => setAuthScreen('login')}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Voltar para o Login
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // TELAS PADRÃO AO ACESSAR O SITE: LOGIN
+    return (
+      <Login 
+        onLoginSuccess={handleLoginSuccess}
+        onNavigateToRegister={() => setAuthScreen('register')}
+        onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+      />
+    );
+  }
+
+  // 2. SE LOGOU, VAI PARA A HOME (MEUS PROJETOS)
   if (!currentProject) {
     return <Home onSelectProject={handleSelectProject} />;
   }
 
+  // 3. SE SELECIONOU UM PROJETO, ENTRA NO ESTÚDIO
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':

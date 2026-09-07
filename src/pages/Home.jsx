@@ -481,7 +481,7 @@ export default function Home({ onSelectProject }) {
       {/* POP-UP / MODAL DE CONFIGURAÇÕES */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-2xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
             
             <button
               type="button"
