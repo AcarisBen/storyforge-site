@@ -201,9 +201,9 @@ const CHECKLIST_CATEGORIES_ORDER = [
     items: [
       'O ritmo varia adequadamente entre picos de tensão e momentos de alívio?',
       'A jornada emocional do leitor é variada ao longo dos atos?',
-      'O tom do final corresponde ao pacto estabelecido com leitor?',
+      'O tom do final corresponde ao pacto established com leitor?',
       'O estilo de prosa e o ritmo de frases casam com o nível de ação da cena?',
-      'A voz narrative (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
+      'A voz narrativa (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
       'Os diálogos soam naturais quando lidos em voz alta?',
       'Verbos de ação precisos foram preferidos a adjetivos e advérbios em excesso?',
       'Os parágrafos variam de tamanho conforme a velocidade/urgência do momento da cena?',
@@ -219,10 +219,6 @@ export default function StoryBible({ projectId }) {
   // Estados de Controle de Exportação
   const [exportFormat, setExportFormat] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
-  const [exportStatus, setExportStatus] = useState(null);
-  const [exportDetails, setExportDetails] = useState([]);
 
   const [openSections, setOpenSections] = useState({
     fundacao: true,
@@ -378,7 +374,6 @@ export default function StoryBible({ projectId }) {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // Helper para buscar campo direto na raiz ou em .details
   function getFieldValue(item, key) {
     if (!item) return 'Não informado.';
     if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
@@ -402,7 +397,6 @@ export default function StoryBible({ projectId }) {
   function getSceneTitle(sceneOrId) {
     if (!sceneOrId) return 'Geral (Sem cena vinculada)';
     
-    // Se recebeu um objeto diálogo que já traz o título amigável
     if (typeof sceneOrId === 'object') {
       if (sceneOrId.sceneTitle && !sceneOrId.sceneTitle.includes('#')) {
         return sceneOrId.sceneTitle;
@@ -415,7 +409,6 @@ export default function StoryBible({ projectId }) {
       return found.title || found.titulo || found.name || 'Cena sem título';
     }
 
-    // Caso o valor seja um UUID completo com #, exibe amigável sem o Hash estético
     const sceneIdStr = String(sceneOrId);
     if (sceneIdStr.includes('-')) {
       return 'Cena Vinculada';
@@ -432,22 +425,29 @@ export default function StoryBible({ projectId }) {
 
   const handleStartExport = async () => {
     setConfirmModalOpen(false);
-    setIsExporting(true);
-    setExportProgress(10);
-    setExportStatus(null);
-    setExportDetails([]);
 
     const title = data.identity['Título'] || data.identity['title'] || 'StoryBible';
     const dateStr = new Date().toLocaleDateString('pt-BR');
 
     try {
-      setExportProgress(50);
-
       if (exportFormat === 'pdf') {
-        setExportProgress(80);
-        window.print();
-        setExportProgress(100);
-        setExportStatus('success');
+        // Expande todas as seções antes de chamar a janela de impressão
+        setOpenSections({
+          fundacao: true,
+          estrutura: true,
+          universo: true,
+          relacoes: true,
+          cenas: true,
+          mapaEmocional: true,
+          checklist: true,
+          manuscrito: true,
+        });
+
+        // Delay para garantir que o DOM do React renderize todo o documento antes de capturar
+        setTimeout(() => {
+          window.print();
+        }, 800);
+
       } else if (exportFormat === 'json') {
         const jsonContent = {
           exportMeta: {
@@ -458,19 +458,14 @@ export default function StoryBible({ projectId }) {
           projectData: data,
         };
         downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.json`, JSON.stringify(jsonContent, null, 2), 'application/json');
-        setExportProgress(100);
-        setExportStatus('success');
+
       } else if (exportFormat === 'md') {
         let md = `# ${title}\n\n`;
         md += `> **Autor:** ${CURRENT_USER_NAME} | **Data:** ${dateStr}\n\n`;
         downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.md`, md, 'text/markdown');
-        setExportProgress(100);
-        setExportStatus('success');
       }
     } catch (err) {
       console.error('Erro na exportação:', err);
-      setExportStatus('error');
-      setExportDetails([err.message || 'Erro ao exportar.']);
     }
   };
 
@@ -515,24 +510,132 @@ export default function StoryBible({ projectId }) {
 
   return (
     <main className="story-bible-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
+      {/* RESET TOTAL DE IMPRESSÃO: REMOVE CORTE DE PÁGINA, ELEMENTOS FIXOS E SOBREPOSIÇÃO */}
       <style>{`
         @media print {
-          body { background: #ffffff !important; color: #111111 !important; font-family: sans-serif; }
-          .story-bible-page { max-w: 100% !important; margin: 0 !important; padding: 0 !important; }
-          .no-print, button, header .export-buttons { display: none !important; }
-          section { border: 1px solid #ddd !important; background: #fff !important; color: #111 !important; margin-bottom: 20px !important; box-shadow: none !important; }
-          h1, h2, h3, h4 { color: #111 !important; }
-          p, span, div { color: #222 !important; }
+          @page {
+            size: A4 portrait;
+            margin: 1.5cm;
+          }
+
+          /* OCULTA BOTÕES, BARRA DE FERRAMENTAS E ELEMENTOS DA INTERFACE */
+          .no-print,
+          .print-hide,
+          .toolbar-actions,
+          button,
+          .fixed,
+          [role="dialog"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+            
+          /* Oculta Sidebars, Navegação, Modais e Elementos Fixos */
+          .sidebar, aside, nav, header button, .no-print, .print-hide, .fixed, [role="dialog"] {
+            display: none !important;
+            height: 0 !important;
+            width: 0 !important;
+          }
+          /* RESETA ESTRUTURA PARA FLUXO CONTÍNUO */
+          html, body, #root, main, div, section, article {
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-size: 10.5pt !important;
+            line-height: 1.5 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            position: static !important;
+            transform: none !important;
+            box-shadow: none !important;
+          }
+
+          /* CABEÇALHO LIMPO */
+          header {
+            border: none !important;
+            border-bottom: 2px solid #000000 !important;
+            padding-bottom: 12px !important;
+            margin-bottom: 20px !important;
+            background: transparent !important;
+          }
+
+          header h1 {
+            font-size: 22pt !important;
+            font-weight: bold !important;
+            color: #000000 !important;
+            margin: 0 !important;
+          }
+
+          header h2 {
+            font-size: 13pt !important;
+            color: #444444 !important;
+            margin-top: 4px !important;
+          }
+
+          /* SEÇÕES EM FORMATO DE RELATÓRIO */
+          section {
+            border: none !important;
+            border-bottom: 1px solid #cccccc !important;
+            padding: 10px 0 !important;
+            margin-bottom: 20px !important;
+            page-break-inside: auto !important;
+            background: transparent !important;
+          }
+
+          section h2 {
+            font-size: 13pt !important;
+            font-weight: bold !important;
+            color: #000000 !important;
+            border-bottom: 1px solid #000000 !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 12px !important;
+            text-transform: uppercase;
+          }
+
+          .grid, .flex {
+            display: block !important;
+            width: 100% !important;
+          }
+
+          .grid > div, .space-y-3 > div, .space-y-4 > div, .space-y-2 > div {
+            background: transparent !important;
+            border: none !important;
+            border-left: 2px solid #444444 !important;
+            padding-left: 10px !important;
+            margin-bottom: 12px !important;
+            page-break-inside: avoid !important;
+          }
+
+          p, span, div, strong, b {
+            color: #000000 !important;
+            background: transparent !important;
+          }
+
+          /* LINHA DO TEMPO TEXTUAL NA IMPRESSÃO */
+          .timeline-interactive { display: none !important; }
+          .timeline-printable { display: block !important; }
         }
+
+        .timeline-printable { display: none; }
       `}</style>
 
       {/* CABEÇALHO */}
       <header className="space-y-4 bg-[#11111a] border border-purple-900/40 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500 print-hide" />
         
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-800 pb-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-800 pb-6 print:border-none">
           <div>
-            <span className="text-xs uppercase tracking-widest text-purple-400 font-bold">
+            <span className="text-xs uppercase tracking-widest text-purple-400 font-bold print:hidden">
               📖 DOCUMENTO MESTRE NARRATIVO
             </span>
             <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
@@ -545,11 +648,9 @@ export default function StoryBible({ projectId }) {
 
           <div className="flex flex-wrap gap-2 no-print">
             <button type="button" onClick={() => handleOpenExportModal('pdf')} className="px-3.5 py-2 bg-[#181824] hover:bg-purple-950/60 border border-purple-800/50 text-purple-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
-              <Printer size={14} /> PDF
+              <Printer size={14} /> PDF / Imprimir
             </button>
-            <button type="button" onClick={() => handleOpenExportModal('md')} className="px-3.5 py-2 bg-[#181824] hover:bg-blue-950/60 border border-blue-800/50 text-blue-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
-              <FileText size={14} /> Markdown
-            </button>
+            
             <button type="button" onClick={() => handleOpenExportModal('json')} className="px-3.5 py-2 bg-[#181824] hover:bg-amber-950/60 border border-amber-800/50 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
               <FileCode size={14} /> JSON
             </button>
@@ -559,19 +660,19 @@ export default function StoryBible({ projectId }) {
 
       {/* 1. FUNDAÇÃO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('fundacao')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('fundacao')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🏛</span> 1. Fundação</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Identidade, Essência e Engenharia Narrativa</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Identidade, Essência e Engenharia Narrativa</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.fundacao ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.fundacao ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.fundacao && (
-          <div className="p-6 space-y-8">
+          <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             <div>
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Identidade da Obra</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {Object.entries(data.identity).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
@@ -581,9 +682,9 @@ export default function StoryBible({ projectId }) {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-800/60">
+            <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Essência da História</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {Object.entries(data.essencia).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
@@ -593,9 +694,9 @@ export default function StoryBible({ projectId }) {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-800/60">
+            <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Engenharia Narrativa</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {Object.entries(data.engenharia).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
@@ -610,19 +711,21 @@ export default function StoryBible({ projectId }) {
 
       {/* 2. ARQUITETURA DRAMÁTICA & RITMO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('estrutura')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('estrutura')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>⏳</span> 2. Arquitetura Dramática & Ritmo</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Frameworks Selecionados e Linha do Tempo Ordenada</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Frameworks Selecionados e Linha do Tempo Ordenada</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.estrutura ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.estrutura ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.estrutura && (
-          <div className="p-6 space-y-8">
+          <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             <div>
               <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)</h3>
-              <div className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
+              
+              {/* VERSÃO TELA DA LINHA DO TEMPO (INTERATIVA) */}
+              <div className="timeline-interactive p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
                 <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
                   <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
                   {milestonesList.map((m, idx) => (
@@ -637,13 +740,36 @@ export default function StoryBible({ projectId }) {
                   ))}
                 </div>
               </div>
+
+              {/* VERSÃO DE IMPRESSÃO DA LINHA DO TEMPO (TEXTUAL, ORDENADA E DETALHADA) */}
+              <div className="timeline-printable space-y-3">
+                {milestonesList.map((m, idx) => {
+                  const eventCount = Array.isArray(m.events) ? m.events.length : 0;
+                  return (
+                    <div key={idx} className="border-l-2 border-gray-600 pl-3 py-1">
+                      <strong className="text-sm font-bold block">{idx + 1}. {m.name}</strong>
+                      {eventCount > 0 ? (
+                        <div className="space-y-1 mt-1 text-xs">
+                          {m.events.map((ev, evIdx) => (
+                            <p key={evIdx} className="text-gray-800">
+                              • {ev.title || ev.titulo || ev.name || ev.description || JSON.stringify(ev)}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">Nenhum evento registrado para este marco.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-800/60">
+            <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
                 Frameworks Selecionados: {data.structureFrameworks.join(', ') || 'Nenhum selecionado'}
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {filteredStructureCards.map((card) => (
                   <div key={card.id} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-1">
                     <div className="flex justify-between items-center">
@@ -663,19 +789,19 @@ export default function StoryBible({ projectId }) {
 
       {/* 3. UNIVERSO & PERSONAGENS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('universo')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('universo')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🌍</span> 3. O Universo & Personagens</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Worldbuilding e Dossiês dos Personagens</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Worldbuilding e Dossiês dos Personagens</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.universo ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.universo ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.universo && (
-          <div className="p-6 space-y-8">
+          <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             <div>
               <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3">Elementos do Mundo</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid-cols-1">
                 {data.world.map((w) => (
                   <div key={w.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
                     <strong className="text-white font-bold text-sm block">{w.name || w.nome || w.title}</strong>
@@ -688,9 +814,9 @@ export default function StoryBible({ projectId }) {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-800/60">
+            <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Personagens</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {data.characters.map((char) => {
                   const typeKey = String(char.type || char.papel || char.role || 'protagonista').toLowerCase();
                   const typeStyle = CHARACTER_TYPES_CONFIG[typeKey] || CHARACTER_TYPES_CONFIG.protagonista;
@@ -700,9 +826,6 @@ export default function StoryBible({ projectId }) {
                   return (
                     <div key={char.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full border bg-purple-900/60 border-purple-500/50 flex items-center justify-center font-bold text-sm text-purple-200">
-                          {charName.charAt(0).toUpperCase()}
-                        </div>
                         <div>
                           <h4 className="text-white font-bold text-base">{charName}</h4>
                           <span className={`inline-block border px-2 py-0.5 rounded text-[10px] font-bold ${typeStyle.bg}`}>
@@ -711,7 +834,7 @@ export default function StoryBible({ projectId }) {
                         </div>
                       </div>
                       {charDesc && (
-                        <p className="text-xs text-gray-300 leading-relaxed border-t border-gray-800/60 pt-2">
+                        <p className="text-xs text-gray-300 leading-relaxed border-t border-gray-800/60 pt-2 print:border-none">
                           {charDesc}
                         </p>
                       )}
@@ -726,20 +849,20 @@ export default function StoryBible({ projectId }) {
 
       {/* 4. RELAÇÕES & DINÂMICA DE PERSONAGENS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('relacoes')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('relacoes')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🔀</span> 4. Relações & Dinâmica de Personagens</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Conexões, Alianças, Rivalidades e Nível de Intensidade</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Conexões, Alianças, Rivalidades e Nível de Intensidade</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.relacoes ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.relacoes ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.relacoes && (
-          <div className="p-6">
+          <div className="p-6 print:p-0">
             {data.relations.length === 0 ? (
               <p className="text-xs text-gray-500 italic">Nenhuma relação cadastrada.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-1">
                 {data.relations.map((rel) => {
                   const relConfig = RELATION_TYPES[rel.type] || { bg: 'bg-purple-950/80 text-purple-200 border-purple-700/60' };
                   const nameA = getCharacterName(rel.charAId || rel.characterAId);
@@ -748,7 +871,7 @@ export default function StoryBible({ projectId }) {
 
                   return (
                     <div key={rel.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
-                      <div className="flex items-center justify-between gap-2 text-xs font-bold text-white border-b border-gray-800 pb-2">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold text-white border-b border-gray-800 pb-2 print:border-none">
                         <span className="text-purple-300">{nameA}</span>
                         <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${relConfig.bg}`}>
                           {rel.type || 'Relação'} ({rel.intensity || 5}/10)
@@ -779,28 +902,28 @@ export default function StoryBible({ projectId }) {
 
       {/* 5. ARQUITETURA DAS CENAS, MISTÉRIOS & SUBTRAMAS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('cenas')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('cenas')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>🎬</span> 5. Arquitetura das Cenas, Mistérios & Subtramas</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Decupagem Completa de Cenas, Diálogos, Segredos e Plot Twists</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Decupagem Completa de Cenas, Diálogos, Segredos e Plot Twists</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.cenas ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.cenas ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.cenas && (
-          <div className="p-6 space-y-8">
+          <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             {/* CENAS NARRATIVAS */}
             <div>
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Cenas Narrativas</h3>
               {data.scenes.length === 0 ? (
                 <p className="text-xs text-gray-500 italic">Nenhuma cena cadastrada.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                   {data.scenes.map((s) => {
                     const sceneTitle = s.title || s.titulo || s.name || `Cena #${s.id}`;
                     return (
                       <div key={s.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
-                        <div className="flex justify-between items-start border-b border-gray-800 pb-2">
+                        <div className="flex justify-between items-start border-b border-gray-800 pb-2 print:border-none">
                           <strong className="text-white text-base font-bold">{sceneTitle}</strong>
                           {(s.emotion || s.emocao) && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40">
@@ -809,7 +932,7 @@ export default function StoryBible({ projectId }) {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-400 bg-[#12121a] p-2.5 rounded-lg border border-gray-800/50">
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-400 bg-[#12121a] p-2.5 rounded-lg border border-gray-800/50 print:bg-transparent print:p-0">
                           <div><strong className="text-gray-300">📍 Local:</strong> {s.location || s.local || 'Não informado'}</div>
                           <div><strong className="text-gray-300">⏰ Horário:</strong> {s.time || s.horario || 'Não informado'}</div>
                         </div>
@@ -827,7 +950,7 @@ export default function StoryBible({ projectId }) {
                         )}
 
                         {(s.summary || s.resumo || s.description || s.descricao) && (
-                          <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-800/60 pt-2">
+                          <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-800/60 pt-2 print:border-none">
                             {s.summary || s.resumo || s.description || s.descricao}
                           </p>
                         )}
@@ -839,7 +962,7 @@ export default function StoryBible({ projectId }) {
             </div>
 
             {/* DIÁLOGOS DESTACADOS */}
-            <div className="pt-4 border-t border-gray-800/60">
+            <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Diálogos Destacados & Subtexto</h3>
               {data.dialogues.length === 0 ? (
                 <p className="text-xs text-gray-500 italic">Nenhum diálogo registrado.</p>
@@ -852,7 +975,7 @@ export default function StoryBible({ projectId }) {
 
                     return (
                       <div key={d.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
-                        <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <div className="flex justify-between items-center border-b border-gray-800 pb-2 print:border-none">
                           <strong className="text-white text-sm font-bold">{charA} & {charB}</strong>
                           <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/80 border border-indigo-700/60 px-2.5 py-1 rounded-md">
                             🎬 {sceneTitle}
@@ -860,7 +983,7 @@ export default function StoryBible({ projectId }) {
                         </div>
 
                         {d.lines && Array.isArray(d.lines) && (
-                          <div className="space-y-2 bg-[#12121a] p-3 rounded-lg border border-gray-800/50 font-serif text-xs leading-relaxed text-gray-300">
+                          <div className="space-y-2 bg-[#12121a] p-3 rounded-lg border border-gray-800/50 font-serif text-xs leading-relaxed text-gray-300 print:bg-transparent print:p-0">
                             {d.lines.map((line, lIdx) => (
                               <p key={lIdx}>
                                 — {line.text}
@@ -870,15 +993,15 @@ export default function StoryBible({ projectId }) {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1 print:grid-cols-1">
                           {(d.subtext || d.subtexto) && (
-                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50">
+                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50 print:p-0">
                               <strong className="text-amber-400 block mb-0.5">👁️ Subtexto Oculto:</strong>
                               <span className="text-gray-300">{d.subtext || d.subtexto}</span>
                             </div>
                           )}
                           {(d.soundLayer || d.camadaSonora || d.atmosphere) && (
-                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50">
+                            <div className="p-2.5 bg-[#12121a] rounded-lg border border-gray-800/50 print:p-0">
                               <strong className="text-cyan-400 block mb-0.5">🔊 Camada Sonora / Atmosfera:</strong>
                               <span className="text-gray-300">{d.soundLayer || d.camadaSonora || d.atmosphere}</span>
                             </div>
@@ -892,7 +1015,7 @@ export default function StoryBible({ projectId }) {
             </div>
 
             {/* MISTÉRIOS & PLOT TWISTS */}
-            <div className="pt-4 border-t border-gray-800/60 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="pt-4 border-t border-gray-800/60 grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-1 print:pt-2">
               <div>
                 <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Mistérios & Pistas</h3>
                 {data.mysteries.length === 0 ? (
@@ -942,26 +1065,26 @@ export default function StoryBible({ projectId }) {
 
       {/* 6. MAPA EMOCIONAL & CURVA DE TENSÃO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('mapaEmocional')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('mapaEmocional')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>📈</span> 6. Mapa Emocional & Curva de Tensão</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Variação da Carga Emocional com Respectivas Cores e Picos Dramáticos</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Variação da Carga Emocional com Respectivas Cores e Picos Dramáticos</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.mapaEmocional ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.mapaEmocional ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.mapaEmocional && (
-          <div className="p-6">
+          <div className="p-6 print:p-0">
             {data.emotionalPoints.length === 0 ? (
               <p className="text-xs text-gray-500 italic">Nenhum ponto registrado no mapa emocional.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-1">
                 {data.emotionalPoints.map((pt, idx) => {
                   const ptTitle = pt.name || pt.title || pt.titulo || pt.nome || `Ponto #${idx + 1}`;
 
                   return (
                     <div key={pt.id || idx} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
-                      <strong className="text-white text-sm font-bold block border-b border-gray-800 pb-2">{ptTitle}</strong>
+                      <strong className="text-white text-sm font-bold block border-b border-gray-800 pb-2 print:border-none">{ptTitle}</strong>
 
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {EMOTIONS_CONFIG.map((e) => {
@@ -970,12 +1093,7 @@ export default function StoryBible({ projectId }) {
                           return (
                             <span
                               key={e.key}
-                              style={{
-                                backgroundColor: `${e.color}20`,
-                                color: e.color,
-                                borderColor: `${e.color}50`,
-                              }}
-                              className="px-2 py-0.5 rounded-md text-[11px] font-bold border"
+                              className="px-2 py-0.5 text-[11px] font-bold"
                             >
                               {e.label}: {val}/10
                             </span>
@@ -993,40 +1111,35 @@ export default function StoryBible({ projectId }) {
 
       {/* 7. CHECKLIST ORGANIZADO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('checklist')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('checklist')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✅</span> 7. Checklist de Qualidade Narrativa</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Organizado pelas 10 Categorias de Qualidade</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Organizado pelas 10 Categorias de Qualidade</p>
           </div>
-          <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40">
+          <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/40 print:hidden">
             {checklistDoneCount} Verificações Concluídas
           </span>
         </button>
 
         {openSections.checklist && (
-          <div className="p-6 space-y-8">
+          <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             {CHECKLIST_CATEGORIES_ORDER.map((catGroup) => {
               const catDoneItems = catGroup.items.filter((itemText) => !!data.checklist[itemText]);
               if (catDoneItems.length === 0) return null;
 
               return (
                 <div key={catGroup.title} className="space-y-3">
-                  <div className="flex justify-between items-center border-b border-gray-800 pb-2 px-1">
+                  <div className="flex justify-between items-center border-b border-gray-800 pb-2 px-1 print:border-none">
                     <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
                       <span>•</span> {catGroup.title}
                     </h3>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catGroup.badgeStyle}`}>
-                      {catDoneItems.length} / {catGroup.items.length} Concluídos
-                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-1">
                     {catDoneItems.map((itemText) => (
-                      <div key={itemText} className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs leading-relaxed transition-all ${catGroup.boxStyle}`}>
-                        <span className={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 ${catGroup.checkColor}`}>
-                          ✓
-                        </span>
-                        <span className="line-through opacity-90 font-medium">{itemText}</span>
+                      <div key={itemText} className="flex items-center gap-2 text-xs leading-relaxed">
+                        <span className="font-bold text-black">✓</span>
+                        <span className="font-medium">{itemText}</span>
                       </div>
                     ))}
                   </div>
@@ -1039,22 +1152,22 @@ export default function StoryBible({ projectId }) {
 
       {/* 8. ESCRITA & MANUSCRITO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
-        <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer">
+        <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✍️</span> 8. Escrita & Manuscrito</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Capítulos Desenvolvidos e Texto Final da Obra</p>
+            <p className="text-xs text-gray-400 mt-0.5 print:hidden">Capítulos Desenvolvidos e Texto Final da Obra</p>
           </div>
-          <span className="text-gray-400 font-bold text-lg">{openSections.manuscrito ? '⌃' : '⌄'}</span>
+          <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.manuscrito ? '⌃' : '⌄'}</span>
         </button>
 
         {openSections.manuscrito && (
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 print:p-0 print:space-y-4">
             {data.chapters.length === 0 ? (
               <p className="text-xs text-gray-500 italic">Nenhum capítulo escrito até o momento.</p>
             ) : (
               data.chapters.map((ch, index) => (
-                <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-3">
-                  <div className="border-b border-gray-800 pb-2">
+                <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-3 print:p-0">
+                  <div className="border-b border-gray-800 pb-2 print:border-none">
                     <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">
                       Capítulo {ch.number || ch.numero || index + 1}
                     </span>
@@ -1070,9 +1183,16 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
+      {/* ISENÇÃO LEGAL / NOTA DE IMPRESSÃO */}
+      <div className="legal-notice-print">
+        _______________________________________________________________________________________
+        Este projeto é de autoria de <b>{CURRENT_USER_NAME}</b>, exportado em {new Date().toLocaleDateString('pt-BR')}.
+        O StoryForge atua exclusivamente como ferramenta de organização narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
+      </div>
+      
       {/* MODAL CONFIRMAÇÃO DE EXPORTAÇÃO */}
       {confirmModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-white">Confirmar Exportação</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
