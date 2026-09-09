@@ -57,6 +57,7 @@ const createProjectHandler = async (req, res) => {
     }
 
     const authorName = writerName || 'Autor StoryForge';
+    const importDate = new Date().toLocaleDateString('pt-BR');
 
     // Garantia de registro do usuário no PostgreSQL
     try {
@@ -74,21 +75,27 @@ const createProjectHandler = async (req, res) => {
       console.log('Aviso (User em memória):', uErr.message);
     }
 
+    // Título limpo e descrição formatada para o rodapé do card
+    const cleanTitle = (title || 'Projeto Importado').replace(/\s*\(Importado\)\s*/gi, '').trim();
+    const formattedFooter = `Projeto importado em ${importDate} por ${authorName}`;
+
     const newProject = await prisma.project.create({
       data: {
-        title: title || 'Projeto Importado',
-        description: `Autor: ${authorName} | Formato: ${format || 'Romance'} | Importado em: ${new Date().toLocaleDateString('pt-BR')}`,
+        title: cleanTitle,
+        description: formattedFooter,
         userId: userId,
       },
     });
 
     return res.status(201).json({
       ...newProject,
+      title: cleanTitle,
       format: format || 'Romance / Livro',
       status: status || 'Desenvolvimento',
       progress: Number(progress) || 0,
       createdAt: newProject.createdAt,
       author: authorName,
+      footerText: formattedFooter,
     });
   } catch (error) {
     console.error('Erro ao criar/importar projeto no Prisma:', error);

@@ -1,4 +1,4 @@
-//Home.jsx
+// Home.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -7,6 +7,15 @@ import {
   Coffee, Copy, Check, X, Sparkles, User, Shield, Key, Info, Cookie, LogOut
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
+
+const ESSENCIA_FIELDS = [
+  'O que torna a história única?',
+  'O que torna a história universal?',
+  'Pergunta filosófica',
+  'Premissa',
+  'Questão dramática',
+  'Promessa ao público'
+];
 
 export default function Home({ onSelectProject }) {
   const [projects, setProjects] = useState([]);
@@ -44,12 +53,125 @@ export default function Home({ onSelectProject }) {
     fetchProjects();
   }, []);
 
+  // --- CÁLCULO DINÂMICO DE PROGRESSO IGUAL AO DASHBOARD ---
+  const calculateRealProjectProgress = async (projectId) => {
+    try {
+      const [
+        resIdentity,
+        resEssence,
+        resEng,
+        resDrama,
+        resTimeline,
+        resChecklist
+      ] = await Promise.all([
+        apiClient.get(`/entities/projects/${projectId}/identity`).catch(() => ({ data: {} })),
+        apiClient.get(`/entities/projects/${projectId}/essencia`).catch(() => ({ data: {} })),
+        apiClient.get(`/entities/projects/${projectId}/engenharia`).catch(() => ({ data: {} })),
+        apiClient.get(`/entities/projects/${projectId}/estrutura-dramatica`).catch(() => ({ data: {} })),
+        apiClient.get(`/entities/projects/${projectId}/ritmo-timeline`).catch(() => ({ data: {} })),
+        apiClient.get(`/entities/projects/${projectId}/checklist`).catch(() => ({ data: {} }))
+      ]);
+
+      const unwrapObject = (resObj) => {
+        if (!resObj) return {};
+        if (resObj.data && typeof resObj.data === 'object') {
+          return resObj.data.data || resObj.data;
+        }
+        return resObj;
+      };
+
+      const calcPercent = (rawRes) => {
+        const dataObj = unwrapObject(rawRes);
+        if (typeof dataObj !== 'object' || dataObj === null) return 0;
+        const keys = Object.keys(dataObj).filter(k => k !== 'id' && k !== 'projectId' && k !== 'createdAt' && k !== 'updatedAt');
+        if (keys.length === 0) return 0;
+        const filled = keys.filter((k) => {
+          const v = dataObj[k];
+          if (typeof v === 'string') return v.trim().length > 0;
+          if (typeof v === 'boolean') return v;
+          if (Array.isArray(v)) return v.length > 0;
+          if (typeof v === 'number') return true;
+          if (v && typeof v === 'object') return Object.keys(v).length > 0;
+          return Boolean(v);
+        });
+        return Math.round((filled.length / keys.length) * 100);
+      };
+
+      const calcEssenciaPercent = (rawRes) => {
+        const dataObj = unwrapObject(rawRes);
+        if (typeof dataObj !== 'object' || dataObj === null) return 0;
+        let filled = 0;
+        ESSENCIA_FIELDS.forEach((fieldKey) => {
+          const val = dataObj[fieldKey];
+          if (typeof val === 'string' && val.trim().length > 0) filled += 1;
+        });
+        return Math.round((filled / ESSENCIA_FIELDS.length) * 100);
+      };
+
+      const calcEstruturaPercent = (rawRes) => {
+        const dataObj = unwrapObject(rawRes);
+        if (typeof dataObj !== 'object' || dataObj === null) return 0;
+        const selectedFrameworks = Array.isArray(dataObj.selectedFrameworks) ? dataObj.selectedFrameworks : [];
+        if (selectedFrameworks.length === 0) return 0;
+        const values = dataObj.values || {};
+        const countFilled = (obj) => Object.values(obj).filter((val) => typeof val === 'string' && val.trim() !== '').length;
+
+        let selectedFieldCount = 0;
+        let completedFieldCount = 0;
+
+        if (selectedFrameworks.includes('3 Atos')) { selectedFieldCount += 3; completedFieldCount += countFilled(values.acts || {}); }
+        if (selectedFrameworks.includes('8 Sequências (Paul Gulino)')) { selectedFieldCount += 8; completedFieldCount += countFilled(values.sequences || {}); }
+        if (selectedFrameworks.includes('Jornada do Herói')) { selectedFieldCount += 12; completedFieldCount += countFilled(values.hero || {}); }
+        if (selectedFrameworks.includes('Story Circle (Dan Harmon)')) { selectedFieldCount += 8; completedFieldCount += countFilled(values.storyCircle || {}); }
+        if (selectedFrameworks.includes('Save the Cat (Blake Snyder)')) { selectedFieldCount += 15; completedFieldCount += countFilled(values.saveTheCat || {}); }
+        if (selectedFrameworks.includes('Freytag (Pirâmide Dramática)')) { selectedFieldCount += 5; completedFieldCount += countFilled(values.freytag || {}); }
+
+        if (selectedFieldCount === 0) return 0;
+        return Math.round((completedFieldCount / selectedFieldCount) * 100);
+      };
+
+      const tObj = unwrapObject(resTimeline);
+      const timelineKeys = ['Prólogo', 'Incidente Incitante', '1º Ponto de Virada', 'Midpoint', 'Crise', 'Clímax', 'Resolução', 'Epílogo'];
+      const activeTimelineCount = timelineKeys.filter(key => Array.isArray(tObj[key]) && tObj[key].length > 0).length;
+      const ritmoPercent = Math.round((activeTimelineCount / 8) * 100);
+
+      const chkData = resChecklist.data?.data || resChecklist.data || {};
+      const completedChecklist = typeof chkData === 'object' && chkData !== null
+        ? Object.values(chkData).filter(Boolean).length
+        : 0;
+      const checklistPercent = Math.round((completedChecklist / 77) * 100);
+
+      const pIdentidade = calcPercent(resIdentity);
+      const pEssencia = calcEssenciaPercent(resEssence);
+      const pEngenharia = calcPercent(resEng);
+      const pEstrutura = calcEstruturaPercent(resDrama);
+
+      const overallProgress = Math.round(
+        (pIdentidade + pEssencia + pEngenharia + pEstrutura + ritmoPercent + checklistPercent) / 6
+      );
+
+      return overallProgress || 0;
+    } catch (err) {
+      console.error('Erro ao calcular progresso do projeto:', err);
+      return 0;
+    }
+  };
+
   const fetchProjects = async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/entities/projects');
       const data = res.data || [];
-      setProjects(Array.isArray(data) ? data : []);
+      const baseProjects = Array.isArray(data) ? data : [];
+
+      const updatedProjects = await Promise.all(
+        baseProjects.map(async (p) => {
+          const liveProgress = await calculateRealProjectProgress(p.id);
+          return { ...p, progress: liveProgress };
+        })
+      );
+
+      setProjects(updatedProjects);
     } catch (err) {
       console.error('Erro ao buscar projetos:', err);
       setProjects([]);
@@ -88,11 +210,10 @@ export default function Home({ onSelectProject }) {
     }
   };
 
-// Função para encerrar a sessão
-const handleLogout = () => {
-  localStorage.removeItem('storyforge_token'); // Limpa o token salvo
-  window.location.reload(); // Recarrega a aplicação voltando para a tela de Login
-};
+  const handleLogout = () => {
+    localStorage.removeItem('storyforge_token');
+    window.location.reload();
+  };
 
   const handleDeleteProject = async (e, projectId, projectTitle) => {
     e.stopPropagation();
@@ -140,14 +261,20 @@ const handleLogout = () => {
         const meta = importedJson.exportMeta || {};
         const pData = importedJson.projectData;
 
+        const rawTitle = pData.identity?.['Título'] || pData.title || 'Projeto Importado';
+        const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
+        const exportAuthor = meta.exportedBy || 'Autor StoryForge';
+        const exportDate = meta.exportedAt ? new Date(meta.exportedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+
         const projectPayload = {
-          title: `${pData.identity?.['Título'] || pData.title || 'Projeto Importado'} (Importado)`,
+          title: cleanTitle,
           format: pData.format || 'Romance / Livro',
-          status: 'Importado',
-          progress: pData.progress || 0,
+          status: pData.status || 'Desenvolvimento',
+          progress: 0,
           isImported: true,
-          exportedBy: meta.exportedBy || 'Autor Desconhecido',
-          exportedAt: meta.exportedAt ? new Date(meta.exportedAt).toLocaleDateString('pt-BR') : 'Data desconhecida',
+          writerName: exportAuthor,
+          exportedBy: exportAuthor,
+          exportedAt: exportDate,
         };
 
         const resProj = await apiClient.post('/entities/projects', projectPayload);
@@ -336,8 +463,8 @@ const handleLogout = () => {
   return (
     <div className="min-h-screen bg-[#0d0d12] text-white p-8 font-sans">
       
-      {/* BARRA SUPERIOR (BOTÃO APOIE À ESQUERDA | CONFIGURAÇÕES À DIREITA) */}
-      <div className="flex justify-between items-center mb-8 max-w-7xl mx-auto">
+      {/* BARRA SUPERIOR (BOTÃO APOIE À ESQUERDA | CONFIGURAÇÕES & SAIR À DIREITA) */}
+      <div className="flex justify-between items-start mb-8 max-w-7xl mx-auto">
         <button 
           type="button" 
           onClick={() => setShowSupportModal(true)}
@@ -346,27 +473,46 @@ const handleLogout = () => {
           <Heart size={15} className="fill-white" /> Apoie o Projeto
         </button>
 
-        <button 
-          type="button" 
-          onClick={() => setShowSettingsModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#181820] hover:bg-[#22222e] rounded-xl border border-gray-800 text-xs font-bold text-gray-300 transition-colors cursor-pointer"
-        >
-          <Settings size={15} /> Configurações
-        </button>
+        {/* COLUNA COM CONFIGURAÇÕES E BOTÃO SAIR LOGO ABAIXO */}
+        <div className="flex flex-col gap-2 items-end">
+          <button 
+            type="button" 
+            onClick={() => setShowSettingsModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#181820] hover:bg-[#22222e] rounded-xl border border-gray-800 text-xs font-bold text-gray-300 transition-colors cursor-pointer w-full justify-center"
+          >
+            <Settings size={15} /> Configurações
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs font-bold rounded-xl transition-all cursor-pointer w-full justify-center"
+          >
+            <LogOut size={13} /> Sair da Conta
+          </button>
+        </div>
       </div>
 
-      {/* APRESENTAÇÃO / HERO */}
-      <div className="text-center max-w-2xl mx-auto mb-16">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-950/50">
-            <span className="text-2xl">🔮</span>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight">StoryForge</h1>
-        </div>
-        <p className="text-gray-400 text-base leading-relaxed">
-          Seu estúdio profissional de desenvolvimento narrativo. Da primeira ideia à Story Bible completa.
-        </p>
-      </div>
+      {/* APRESENTAÇÃO / HERO COM A LOGO OFICIAL À ESQUERDA DO TÍTULO */}
+<div className="text-center max-w-2xl mx-auto mb-16">
+  <div className="flex items-center justify-center gap-4 mb-2">
+    {/* Imagem do Logo apontando para public/StoryForgeLOGO2.png */}
+    <img 
+      src="/StoryForgeLOGO2.png" 
+      alt="StoryForge Logo" 
+      className="w-16 h-16 object-contain shrink-0"
+    />
+    
+    {/* Título com o degradê do roxo ao laranja */}
+    <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-[#9333ea] via-[#c084fc] to-[#f97316] bg-clip-text text-transparent pb-2 pt-1 leading-tight select-none font-sans">
+      StoryForge
+    </h1>
+  </div>
+  
+  <p className="text-gray-400 text-base leading-relaxed">
+    Seu estúdio profissional de desenvolvimento narrativo. Da primeira ideia à Story Bible completa.
+  </p>
+</div>
 
       {/* BARRA DE BUSCA E AÇÕES DE PROJETO */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
@@ -392,15 +538,6 @@ const handleLogout = () => {
           >
             <Upload size={18} /> Importar Projeto (.json)
           </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
-          >
-            <LogOut size={15} /> Sair da Conta
-          </button>
-
 
           <button
             type="button"
@@ -434,8 +571,13 @@ const handleLogout = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
-              const projTitle = project.title || project.name || 'Sem Título';
-              const isImported = project.isImported || projTitle.includes('(Importado)');
+              const rawTitle = project.title || project.name || 'Sem Título';
+              const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
+
+              const isImported = project.isImported || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
+              
+              const authorName = project.author || project.writerName || 'Autor StoryForge';
+              const importDate = project.exportedAt || new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR');
 
               return (
                 <div
@@ -460,14 +602,14 @@ const handleLogout = () => {
                         <button
                           type="button"
                           title="Excluir projeto"
-                          onClick={(e) => handleDeleteProject(e, project.id, projTitle)}
+                          onClick={(e) => handleDeleteProject(e, project.id, cleanTitle)}
                           className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold group-hover:text-purple-400 transition-colors mb-1">{projTitle}</h3>
+                    <h3 className="text-xl font-bold group-hover:text-purple-400 transition-colors mb-1">{cleanTitle}</h3>
                   </div>
 
                   <div>
@@ -475,18 +617,22 @@ const handleLogout = () => {
                       <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 rounded-full font-medium">
                         {project.status || 'Desenvolvimento'}
                       </span>
-                      <span className="text-gray-500 font-medium">{project.progress || 0}%</span>
+                      <span className="text-white font-bold">{project.progress || 0}%</span>
                     </div>
 
-                    <div className="w-full bg-[#1c1c26] h-1.5 rounded-full overflow-hidden mb-3">
-                      <div className="bg-amber-500 h-full rounded-full transition-all duration-300" style={{ width: `${project.progress || 0}%` }} />
+                    {/* BARRA COM GRADIENTE IGUAL À DO DASHBOARD */}
+                    <div className="w-full bg-[#181824] h-2 rounded-full overflow-hidden border border-gray-800 mb-3">
+                      <div 
+                        className="bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${project.progress || 0}%` }} 
+                      />
                     </div>
 
-                    {isImported && (
-                      <p className="text-[11px] text-amber-300/80 italic font-medium pt-1 border-t border-gray-800/60 truncate">
-                        📥 Projeto Importado para a StoryBible
-                      </p>
-                    )}
+                    <p className="text-[11px] text-gray-400 italic font-normal pt-2 border-t border-gray-800/60 truncate">
+                      {isImported 
+                        ? `Projeto importado em ${importDate} por ${authorName}` 
+                        : (project.description || `Criado em ${new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR')}`)}
+                    </p>
                   </div>
                 </div>
               );
@@ -499,7 +645,6 @@ const handleLogout = () => {
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
-            
             <button
               type="button"
               onClick={() => setShowSettingsModal(false)}
@@ -507,15 +652,12 @@ const handleLogout = () => {
             >
               <X size={20} />
             </button>
-
             <div className="border-b border-gray-800 pb-4">
               <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                 <Settings size={22} className="text-purple-400" /> Configurações
               </h3>
               <p className="text-xs text-gray-400 mt-1">Gerencie seu perfil, segurança e preferências</p>
             </div>
-
-            {/* ABAS */}
             <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
               {[
                 { id: 'perfil', label: 'Perfil do Autor', icon: User },
@@ -539,8 +681,6 @@ const handleLogout = () => {
                 );
               })}
             </div>
-
-            {/* CONTEÚDO DAS ABAS */}
             <div className="space-y-4">
               {activeSettingsTab === 'perfil' && (
                 <form onSubmit={(e) => { e.preventDefault(); alert('Salvo com sucesso!'); }} className="space-y-4">
@@ -559,82 +699,7 @@ const handleLogout = () => {
                   </button>
                 </form>
               )}
-
-              {activeSettingsTab === 'seguranca' && (
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400">E-mail Cadastrado</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                  <div className="pt-2 border-t border-gray-800 space-y-3">
-                    <span className="text-xs font-bold text-purple-300 block">Alterar Senha</span>
-                    <input
-                      type="password"
-                      placeholder="Senha Atual"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Nova Senha"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => alert('Senha alterada!')} 
-                      className="px-4 py-2 bg-[#171724] border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
-                    >
-                      Atualizar Senha
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeSettingsTab === 'privacidade' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-[#171724] rounded-xl border border-gray-800 space-y-1">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Cookie size={14} className="text-amber-400" /> Cookies & Armazenamento
-                    </span>
-                    <p className="text-[11px] text-gray-300">
-                      Utilizamos cookies locais estritamente para segurança da sua sessão.
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-gray-800 space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteModal(true)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl cursor-pointer"
-                    >
-                      Excluir Minha Conta
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeSettingsTab === 'sobre' && (
-                <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-gray-800 pb-1.5">
-                    <span className="text-gray-400">Versão</span>
-                    <span className="font-mono text-purple-400 font-bold">v1.0.0 (Beta)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Suporte</span>
-                    <span className="text-purple-300">suporte@storyforge.com.br</span>
-                  </div>
-                </div>
-              )}
             </div>
-
           </div>
         </div>
       )}
