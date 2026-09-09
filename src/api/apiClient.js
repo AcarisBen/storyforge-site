@@ -1,43 +1,29 @@
-const BASE_URL = 'http://localhost:3000/api';
+// apiClient.js 
 
-const apiClient = {
-  async get(endpoint) {
-    const response = await fetch(`${BASE_URL}${endpoint}`);
-    if (!response.ok) throw new Error(`Erro: ${response.status}`);
-    const data = await response.json();
-    return { data };
-  },
+import axios from 'axios';
 
-  async post(endpoint, body) {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) throw new Error(`Erro: ${response.status}`);
-    const data = await response.json();
-    return { data };
-  },
+const apiClient = axios.create({
+  baseURL: 'http://localhost:3000/api',
+});
 
-  async put(endpoint, body) {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) throw new Error(`Erro: ${response.status}`);
-    const data = await response.json();
-    return { data };
-  },
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('storyforge_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-  async delete(endpoint) {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error(`Erro: ${response.status}`);
-    const data = await response.json();
-    return { data };
-  },
-};
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const customError = new Error(
+      error.response?.data?.message || error.response?.data?.error || 'Erro na requisição'
+    );
+    customError.status = error.response?.status;
+    customError.data = error.response?.data;
+    return Promise.reject(customError);
+  }
+);
 
 export default apiClient;

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+// App.jsx 
+
+import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ConfirmEmail from './pages/ConfirmEmail';
 import Home from './pages/Home';
+import apiClient from './api/apiClient';
 import Engenharia from './pages/Engenharia';
 import Escrita from './pages/Escrita';
 import Essencia from './pages/Essencia';
@@ -20,6 +24,8 @@ import Storyboard from './pages/Storyboard';
 import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
 import DialogEngine from './pages/DialogEngine';
+
+// AS LINHAS DO EXPRESS (express, cors, app.listen) DEVEM FICAR APENAS NO SEU server.js DO BACKEND!
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
@@ -96,13 +102,40 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
-  // ESTADOS DE AUTENTICAÇÃO E NAVEGAÇÃO
   const [currentUser, setCurrentUser] = useState(null); 
-  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register' | 'forgot-password'
-  
-  // ESTADOS DOS PROJETOS
+  const [authScreen, setAuthScreen] = useState('login');
+  const [confirmToken, setConfirmToken] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
+
   const [currentProject, setCurrentProject] = useState(null);
   const [activePage, setActivePage] = useState('dashboard');
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const savedToken = localStorage.getItem('storyforge_token');
+      if (savedToken) {
+        try {
+          const res = await apiClient.get('/auth/me');
+          if (res.data?.user) {
+            setCurrentUser(res.data.user);
+          }
+        } catch {
+          localStorage.removeItem('storyforge_token');
+        }
+      }
+      setLoadingSession(false);
+    };
+
+    checkSession();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('confirmToken');
+    if (token) {
+      setConfirmToken(token);
+    }
+  }, []);
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
@@ -117,12 +150,27 @@ export default function App() {
     setCurrentProject(null);
   };
 
-  // 1. PRIMEIRA ETAPA: SE NÃO HOUVER USUÁRIO LOGADO, GERENCIA O FLUXO DE AUTH
+  if (loadingSession) {
+    return <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center text-gray-400">Carregando StoryForge...</div>;
+  }
+
+  if (confirmToken) {
+    return (
+      <ConfirmEmail 
+        token={confirmToken} 
+        onNavigateToLogin={() => {
+          setConfirmToken(null);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setAuthScreen('login');
+        }} 
+      />
+    );
+  }
+
   if (!currentUser) {
     if (authScreen === 'register') {
       return (
         <Register 
-          onRegisterSuccess={handleLoginSuccess}
           onNavigateToLogin={() => setAuthScreen('login')}
         />
       );
@@ -146,7 +194,6 @@ export default function App() {
       );
     }
 
-    // TELAS PADRÃO AO ACESSAR O SITE: LOGIN
     return (
       <Login 
         onLoginSuccess={handleLoginSuccess}
@@ -156,12 +203,10 @@ export default function App() {
     );
   }
 
-  // 2. SE LOGOU, VAI PARA A HOME (MEUS PROJETOS)
   if (!currentProject) {
     return <Home onSelectProject={handleSelectProject} />;
   }
 
-  // 3. SE SELECIONOU UM PROJETO, ENTRA NO ESTÚDIO
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':

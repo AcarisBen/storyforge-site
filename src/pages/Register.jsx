@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { 
   User, Sparkles, Mail, Lock, UserPlus, 
-  ShieldCheck, ArrowLeft, Check, X 
+  ShieldCheck, ArrowLeft, Check, X, Eye, EyeOff 
 } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
-export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
+export default function Register({ onNavigateToLogin }) {
   const [fullName, setFullName] = useState('');
   const [writerName, setWriterName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   // Regras de validação da senha
   const hasMinLength = password.length >= 8;
@@ -23,7 +26,7 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
 
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSpecialChar;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -42,30 +45,55 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
       return;
     }
 
-    // Exemplo de verificação de e-mail existente (substituir por chamada à API)
-    const registeredEmails = ['autor@storyforge.com', 'teste@exemplo.com'];
-    if (registeredEmails.includes(email.toLowerCase().trim())) {
-      setError('Este e-mail já está cadastrado. Tente fazer login ou use outro e-mail.');
-      return;
-    }
+    try {
+      setLoading(true);
 
-    setLoading(true);
+      const cleanEmail = email.trim().toLowerCase();
+      await apiClient.post('/auth/register', {
+        fullName: fullName.trim(),
+        writerName: writerName.trim(),
+        email: cleanEmail,
+        password,
+      });
 
-    // Simulação de criação de conta
-    setTimeout(() => {
+      // Define o e-mail registrado para alternar a tela para o aviso de e-mail enviado
+      setRegisteredEmail(cleanEmail);
+    } catch (err) {
+      console.error('Erro ao cadastrar usuário:', err);
+      setError(err.data?.message || err.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
       setLoading(false);
-      const newUser = {
-        fullName,
-        writerName,
-        email,
-      };
-
-      if (onRegisterSuccess) {
-        onRegisterSuccess(newUser);
-      }
-    }, 800);
+    }
   };
 
+  // 1. TELA INTERMEDIÁRIA DE SUCESSO (EXIBIDA APÓS O ENVIO DO E-MAIL)
+  if (registeredEmail) {
+    return (
+      <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
+        <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
+          <div className="w-14 h-14 bg-purple-950/60 border border-purple-800/50 text-purple-400 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg">
+            📧
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white">Confirme seu e-mail</h2>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Enviamos um link de confirmação para <b className="text-purple-300">{registeredEmail}</b>.
+              Acesse sua caixa de entrada para ativá-lo.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onNavigateToLogin}
+            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+          >
+            Ir para a Tela de Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. TELA PADRÃO DO FORMULÁRIO DE CADASTRO
   return (
     <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white">
       
@@ -75,7 +103,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
         {/* COLUNA DA ESQUERDA: APRESENTAÇÃO */}
         <div className="space-y-8 pr-0 lg:pr-8">
           
-          {/* BOTÃO VOLTAR */}
           <button
             type="button"
             onClick={onNavigateToLogin}
@@ -84,7 +111,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
             <ArrowLeft size={16} /> Voltar para o Login
           </button>
 
-          {/* LOGO */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-950/50">
               <span className="text-xl">✦</span>
@@ -92,7 +118,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
             <span className="text-2xl font-black tracking-tight text-white">StoryForge</span>
           </div>
 
-          {/* TÍTULO */}
           <div className="space-y-3">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
               Crie sua conta e comece a <br />
@@ -105,7 +130,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
             </p>
           </div>
 
-          {/* CARD EXPLICATIVO */}
           <div className="p-4 bg-[#13131c]/80 border border-gray-800/80 rounded-2xl space-y-2 max-w-md">
             <span className="text-xs font-bold text-purple-300 flex items-center gap-2">
               <Sparkles size={16} className="text-amber-400" /> Pseudônimo / Nome de Escritor
@@ -192,20 +216,25 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-3 text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
 
-                {/* INDICADORES DE VALIDAÇÃO DA SENHA */}
                 {password.length > 0 && (
                   <div className="p-3 bg-[#171724] rounded-xl border border-gray-800/80 space-y-1.5 text-[11px] mt-2">
                     <span className="text-gray-400 font-bold block mb-1">A senha deve conter:</span>
-                    
                     <div className="grid grid-cols-2 gap-1">
                       <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-400' : 'text-gray-500'}`}>
                         {hasMinLength ? <Check size={12} /> : <X size={12} />} Mínimo 8 caracteres
@@ -230,7 +259,7 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
                     value={confirmPassword}
@@ -245,7 +274,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
                 )}
               </div>
 
-              {/* BOTÃO CADASTRAR */}
               <button
                 type="submit"
                 disabled={loading}
@@ -275,7 +303,6 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
 
       </div>
 
-      {/* RODAPÉ */}
       <div className="max-w-7xl mx-auto w-full pt-6 border-t border-gray-900/60 flex items-center gap-2 text-gray-500 text-[11px]">
         <ShieldCheck size={14} className="text-purple-400" />
         <span>Seus dados protegidos com criptografia e autenticação segura</span>

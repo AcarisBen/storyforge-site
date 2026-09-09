@@ -1,3 +1,5 @@
+//Home.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
@@ -85,6 +87,12 @@ export default function Home({ onSelectProject }) {
       alert('Não foi possível conectar ao servidor para criar o projeto.');
     }
   };
+
+// Função para encerrar a sessão
+const handleLogout = () => {
+  localStorage.removeItem('storyforge_token'); // Limpa o token salvo
+  window.location.reload(); // Recarrega a aplicação voltando para a tela de Login
+};
 
   const handleDeleteProject = async (e, projectId, projectTitle) => {
     e.stopPropagation();
@@ -384,6 +392,15 @@ export default function Home({ onSelectProject }) {
           >
             <Upload size={18} /> Importar Projeto (.json)
           </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+          >
+            <LogOut size={15} /> Sair da Conta
+          </button>
+
 
           <button
             type="button"
