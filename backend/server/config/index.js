@@ -1,6 +1,5 @@
 // backend/server/config/index.js
 
-
 import express from 'express';
 import cors from 'cors';
 
@@ -9,8 +8,15 @@ import entityRoutes from '../routes/entities.js';
 
 const app = express();
 
+// Libera requisições de qualquer porta vinda do localhost
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: (origin, callback) => {
+    if (!origin || origin.startsWith('http://localhost:')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqueado pelo CORS'));
+    }
+  },
   credentials: true
 }));
 
