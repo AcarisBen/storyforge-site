@@ -1,3 +1,5 @@
+// DialogEngine.jsx
+
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -256,6 +258,14 @@ export default function DialogEngine({ projectId }) {
     <main className="dialog-engine-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
       
       {/* 1. GUIA DO MÓDULO */}
+      <header className="mb-6">
+        <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
+          Diálogos
+        </h1>
+        <p className="text-sm text-gray-400">
+          Construção de conversas e monólogos para revelar subtexto e conflito.
+        </p>
+      </header>
       <section className="bg-[#11111a] border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="flex justify-between items-center p-4 bg-[#161622] border-b border-gray-800/80">
           <div className="flex items-center gap-2">

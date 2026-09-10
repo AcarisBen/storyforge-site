@@ -208,11 +208,13 @@ export default function Relacoes({ projectId }) {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#0b0c10] text-gray-200 p-6 font-sans">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Relações</h1>
-        <p className="text-xs text-gray-400">
-          Grafo interativo mostrando as conexões entre personagens.
+    <main className="max-w-6xl mx-auto space-y-6 pb-32 text-gray-200 font-sans p-6">
+      <header className="mb-6">
+        <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
+          Relações
+        </h1>
+        <p className="text-sm text-gray-400">
+          Grafo interativo mostrando as conexões e dinâmicas entre personagens.
         </p>
       </header>
 
@@ -577,6 +579,6 @@ export default function Relacoes({ projectId }) {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

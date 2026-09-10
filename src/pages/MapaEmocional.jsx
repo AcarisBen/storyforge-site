@@ -1,3 +1,5 @@
+// MapaEmocional.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ResponsiveContainer,
@@ -117,12 +119,12 @@ export default function MapaEmocional({ projectId }) {
     }
   }, [projectId]);
 
-  // 3. AUTO-SAVE DO TIMER CORRIGIDO (Chama a função certa)
+  // 3. AUTO-SAVE DO TIMER CORRIGIDO
   useEffect(() => {
     if (!isLoaded) return;
 
     const timer = setTimeout(() => {
-      savePointsToBackend(points); // 👈 NOME DA FUNÇÃO CORRIGIDO AQUI!
+      savePointsToBackend(points);
     }, 1200);
 
     return () => clearTimeout(timer);
@@ -172,21 +174,23 @@ export default function MapaEmocional({ projectId }) {
   };
   
   return (
-    <div className="p-6 space-y-6 bg-[#0a0a0f] text-gray-200 min-h-screen">
-      <div className="flex justify-between items-center">
+    <main className="max-w-6xl mx-auto space-y-6 pb-32 text-gray-200 font-sans p-6">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Mapa Emocional</h1>
-          <p className="text-xs text-gray-400">
-            Gráfico das emoções que o público sente ao longo da história.
+          <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
+            Mapa Emocional
+          </h1>
+          <p className="text-sm text-gray-400">
+            Gráfico das emoções que o público sente ao longo da jornada da história.
           </p>
         </div>
-        <div className="text-xs font-semibold">
+        <div className="text-xs font-semibold pt-2">
           <span className={isSaving ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}>
             {isSaving ? '⏳ Salvando...' : '✓ Salvo no Banco'}
           </span>
         </div>
       </div>
-
+      
       {/* GUIA DO MÓDULO */}
       <div className="border border-gray-800/80 rounded-2xl bg-[#12121a] overflow-hidden">
         <button
@@ -452,6 +456,6 @@ export default function MapaEmocional({ projectId }) {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
