@@ -2,17 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================
+   BARRA DE ROLAGEM ROXA PERSONALIZADA
+   Aplica na Sidebar e nas Páginas do Sistema
+   ========================================== */
+
+/* Suporte para Chrome, Edge, Brave e Safari */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0d0f13; /* Fundo escuro igual ao body */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #9333ea; /* Roxo principal */
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a855f7; /* Roxo ligeiramente mais claro no hover */
+}
+
+/* Suporte para Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #9333ea #0d0f13;
+}
+
+/* Força o scroll roxo especificamente nos contêineres de rolagem do StoryForge */
+.sidebar,
+.sidebar-nav,
+.page-content,
+body {
+    scrollbar-width: thin;
+    scrollbar-color: #9333ea #0d0f13;
+}
+
+/* ==========================================
+   ESTILOS GERAIS DA APLICAÇÃO
+   ========================================== */
+
 html,
 body,
 #root {
-	min-height: 100%;
+    min-height: 100%;
 }
 
 body {
-	margin: 0;
-	background: #0d0f13;
-	color: #8c8f99;
-	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
+    background: #0d0f13;
+    color: #8c8f99;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -20,15 +63,15 @@ body {
 .app-shell { min-height: 100vh; display: flex; }
 
 .sidebar {
-	position: sticky;
-	top: 0;
-	width: 274px;
-	height: 100vh;
-	flex: 0 0 274px;
-	overflow-y: auto;
-	padding: 17px 15px 24px;
-	background: #111318;
-	border-right: 1px solid #252831;
+    position: sticky;
+    top: 0;
+    width: 274px;
+    height: 100vh;
+    flex: 0 0 274px;
+    overflow-y: auto;
+    padding: 17px 15px 24px;
+    background: #111318;
+    border-right: 1px solid #252831;
 }
 
 .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 16px; color: #c16de0; font-size: 17px; }
@@ -49,7 +92,7 @@ body {
 .nav-item { display: flex; align-items: center; width: 100%; gap: 11px; min-height: 42px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #92949e; font: inherit; font-size: 16px; text-align: left; cursor: pointer; }
 .nav-item:hover { color: #d0c1ef; background: #1b1925; }
 .nav-item.active { border-color: #4a2d76; background: #211a32; color: #c7adf4; }
-.nav-symbol { width: 14px; color: #8c8e99; font-size: 19px; text-align: center; }
+.nav-symbol { width: 16px; color: #8c8e99; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
 .nav-item.active .nav-symbol { color: #b88cff; }
 .page-content { min-width: 0; flex: 1; }
 .coming-soon { display: grid; min-height: 100vh; place-items: center; color: #777a84; font-size: 18px; }
@@ -206,30 +249,30 @@ body {
 .character-fields input, .character-fields textarea { font-size: 16px; }
 
 @media (max-width: 700px) {
-	.characters-page { width: min(100% - 24px, 1060px); padding-top: 18px; }
-	.characters-header h1 { font-size: 26px; }
-	.characters-header p { font-size: 14px; }
-	.character-toolbar { align-items: flex-start; flex-direction: column; }
-	.character-filters { gap: 4px; }
-	.world-toolbar { flex-direction: column; }
-	.world-filters { gap: 3px 5px; }
-	.characters-grid { grid-template-columns: 1fr; }
-	.character-create-form { grid-template-columns: 1fr; }
-	.character-create-form button { grid-column: auto; }
-	.character-profile-header { grid-template-columns: 72px 1fr; }
-	.character-avatar.large { width: 72px; height: 88px; }
-	.delete-character { grid-column: 2; justify-self: start; }
-	.world-card { flex-direction: column; }
-	.scenes-toolbar { align-items: flex-start; gap: 12px; }
-	.scene-card-header { gap: 8px; padding: 0 12px; }
-	.scene-expand { font-size: 15px; }
-	.scene-details { padding: 0 10px 14px; }
-	.mystery-toolbar { align-items: flex-start; gap: 12px; }
-	.mystery-summary { grid-template-columns: 1fr; }
-	.mystery-card-header { align-items: flex-start; }
-	.twist-summary { grid-template-columns: 1fr; }
-	.twist-card-header { align-items: flex-start; }
-	.foreshadowing-info { padding: 16px; }
+    .characters-page { width: min(100% - 24px, 1060px); padding-top: 18px; }
+    .characters-header h1 { font-size: 26px; }
+    .characters-header p { font-size: 14px; }
+    .character-toolbar { align-items: flex-start; flex-direction: column; }
+    .character-filters { gap: 4px; }
+    .world-toolbar { flex-direction: column; }
+    .world-filters { gap: 3px 5px; }
+    .characters-grid { grid-template-columns: 1fr; }
+    .character-create-form { grid-template-columns: 1fr; }
+    .character-create-form button { grid-column: auto; }
+    .character-profile-header { grid-template-columns: 72px 1fr; }
+    .character-avatar.large { width: 72px; height: 88px; }
+    .delete-character { grid-column: 2; justify-self: start; }
+    .world-card { flex-direction: column; }
+    .scenes-toolbar { align-items: flex-start; gap: 12px; }
+    .scene-card-header { gap: 8px; padding: 0 12px; }
+    .scene-expand { font-size: 15px; }
+    .scene-details { padding: 0 10px 14px; }
+    .mystery-toolbar { align-items: flex-start; gap: 12px; }
+    .mystery-summary { grid-template-columns: 1fr; }
+    .mystery-card-header { align-items: flex-start; }
+    .twist-summary { grid-template-columns: 1fr; }
+    .twist-card-header { align-items: flex-start; }
+    .foreshadowing-info { padding: 16px; }
 }
 
 .module-page { width: min(100% - 48px, 960px); margin: 0 auto; padding: 27px 0 40px; }
@@ -308,104 +351,104 @@ body {
 .act-item textarea { min-height: 112px; }
 
 @media (max-width: 700px) {
-	.module-page { width: min(100% - 24px, 960px); padding-top: 18px; }
-	.module-header { display: block; }
-	.module-header h1 { font-size: 24px; }
-	.module-header p { font-size: 14px; }
-	.module-progress { margin-top: 14px; }
-	.guide-tabs { flex-wrap: wrap; }
-	.framework-grid { grid-template-columns: 1fr; }
-	.milestone-header { align-items: flex-start; }
-	.timeline-event { align-items: flex-start; }
+    .module-page { width: min(100% - 24px, 960px); padding-top: 18px; }
+    .module-header { display: block; }
+    .module-header h1 { font-size: 24px; }
+    .module-header p { font-size: 14px; }
+    .module-progress { margin-top: 14px; }
+    .guide-tabs { flex-wrap: wrap; }
+    .framework-grid { grid-template-columns: 1fr; }
+    .milestone-header { align-items: flex-start; }
+    .timeline-event { align-items: flex-start; }
 }
 
 .identity-page {
-	min-height: 100vh;
-	padding: 8px 24px 40px;
+    min-height: 100vh;
+    padding: 8px 24px 40px;
 }
 
 .progress-panel,
 .identity-form {
-	width: min(66.6667vw, 960px);
-	margin: 0 auto;
+    width: min(66.6667vw, 960px);
+    margin: 0 auto;
 }
 
 .progress-panel {
-	margin-bottom: 21px;
-	padding: 17px 18px 15px;
-	background: #121419;
-	border: 1px solid #24272e;
-	border-radius: 11px;
+    margin-bottom: 21px;
+    padding: 17px 18px 15px;
+    background: #121419;
+    border: 1px solid #24272e;
+    border-radius: 11px;
 }
 
 .progress-heading {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	color: #9a9da7;
-	font-size: 14px;
-	font-weight: 700;
-	text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #9a9da7;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .progress-heading strong {
-	color: #c5c7ce;
-	font-size: 14px;
+    color: #c5c7ce;
+    font-size: 14px;
 }
 
 .progress-track {
-	height: 7px;
-	margin-top: 12px;
-	overflow: hidden;
-	background: #24272e;
-	border-radius: 99px;
+    height: 7px;
+    margin-top: 12px;
+    overflow: hidden;
+    background: #24272e;
+    border-radius: 99px;
 }
 
 .progress-value {
-	height: 100%;
-	background: #f97316;
-	border-radius: inherit;
-	transition: width 200ms ease;
+    height: 100%;
+    background: #f97316;
+    border-radius: inherit;
+    transition: width 200ms ease;
 }
 
 .progress-panel p {
-	margin: 8px 0 0;
-	color: #686b76;
-	font-size: 14px;
+    margin: 8px 0 0;
+    color: #686b76;
+    font-size: 14px;
 }
 
 .identity-form {
-	display: grid;
-	gap: 21px;
+    display: grid;
+    gap: 21px;
 }
 
 .identity-card {
-	padding: 18px 18px 16px;
-	background: #121419;
-	border: 1px solid #24272e;
-	border-radius: 11px;
+    padding: 18px 18px 16px;
+    background: #121419;
+    border: 1px solid #24272e;
+    border-radius: 11px;
 }
 
 .field-label {
-	display: block;
-	margin-bottom: 9px;
-	color: #8e9099;
-	font-size: 20px;
-	font-weight: 700;
-	letter-spacing: 0.03em;
-	text-transform: uppercase;
+    display: block;
+    margin-bottom: 9px;
+    color: #8e9099;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 input,
 textarea {
-	width: 100%;
-	border: 1px solid #292c33;
-	border-radius: 11px;
-	outline: none;
-	background: #1a1d23;
-	color: #c5c7ce;
-	font: inherit;
-	font-size: 20px;
+    width: 100%;
+    border: 1px solid #292c33;
+    border-radius: 11px;
+    outline: none;
+    background: #1a1d23;
+    color: #c5c7ce;
+    font: inherit;
+    font-size: 20px;
 }
 
 input { height: 56px; padding: 0 14px; }
@@ -419,12 +462,12 @@ textarea:focus { border-color: #4b4f59; background: #1c1f25; }
 
 .field-note,
 .field-example {
-	display: flex;
-	align-items: flex-start;
-	gap: 7px;
-	margin: 9px 0 0;
-	font-size: 14px;
-	line-height: 1.35;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 9px 0 0;
+    font-size: 14px;
+    line-height: 1.35;
 }
 
 .field-note { color: #777a84; }
@@ -435,12 +478,11 @@ textarea:focus { border-color: #4b4f59; background: #1c1f25; }
 .example-icon { color: #7863bd; }
 
 @media (max-width: 520px) {
-	.sidebar { position: relative; width: 100%; height: auto; min-height: auto; flex-basis: auto; }
-	.app-shell { display: block; }
-	.sidebar-nav { max-height: 320px; overflow-y: auto; }
-	.identity-page { padding: 8px 12px 28px; }
-	.progress-panel,
-	.identity-form { width: 100%; }
-	.identity-card { padding: 16px 14px 14px; }
+    .sidebar { position: relative; width: 100%; height: auto; min-height: auto; flex-basis: auto; }
+    .app-shell { display: block; }
+    .sidebar-nav { max-height: 320px; overflow-y: auto; }
+    .identity-page { padding: 8px 12px 28px; }
+    .progress-panel,
+    .identity-form { width: 100%; }
+    .identity-card { padding: 16px 14px 14px; }
 }
-
