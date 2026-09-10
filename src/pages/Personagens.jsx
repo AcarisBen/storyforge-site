@@ -86,7 +86,6 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
           type: localCharacter.type,
           details: localCharacter.details,
         };
-        // URL Corrigida com /entities
         const res = await apiClient.put(`/entities/characters/${localCharacter.id}`, payload);
         setSavingStatus('Salvo no banco');
         if (onUpdate) onUpdate(res.data);
@@ -101,7 +100,7 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
 
   function updateField(key, value) {
     if (key === 'imageUrl') setImageError(false);
-
+    
     setLocalCharacter((prev) => {
       const updatedDetails = { ...prev.details, [key]: value };
       return {
@@ -126,7 +125,11 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
       <header className="character-profile-header">
         <div className={`character-avatar large ${type.className}`}>
           {details.imageUrl && !imageError ? (
-            <img src={details.imageUrl} alt="" onError={() => setImageError(true)} />
+            <img
+              src={details.imageUrl}
+              alt=""
+              onError={() => setImageError(true)}
+            />
           ) : (
             type.icon
           )}
@@ -194,7 +197,6 @@ export default function Personagens({ projectId }) {
     const fetchCharacters = async () => {
       try {
         setLoading(true);
-        // URL Corrigida com /entities
         const res = await apiClient.get(`/entities/projects/${projectId}/characters`);
         setCharacters(res.data || []);
       } catch (err) {
@@ -214,10 +216,7 @@ export default function Personagens({ projectId }) {
 
   // Criar Personagem no PostgreSQL
   async function createCharacter() {
-    if (!newCharacter.name.trim() || !projectId) {
-      alert('Selecione um projeto válido antes de criar o personagem.');
-      return;
-    }
+    if (!newCharacter.name.trim() || !projectId) return;
 
     try {
       const payload = {
@@ -226,7 +225,6 @@ export default function Personagens({ projectId }) {
         details: { ...emptyDetails(), nome: newCharacter.name.trim() },
       };
 
-      // URL Corrigida com /entities
       const res = await apiClient.post(`/entities/projects/${projectId}/characters`, payload);
       const created = res.data;
 
@@ -235,11 +233,12 @@ export default function Personagens({ projectId }) {
       setIsCreating(false);
       setNewCharacter({ name: '', type: 'protagonista' });
     } catch (err) {
-      console.error('Erro detalhado ao criar personagem:', err.response?.data || err.message);
-      alert(`Não foi possível criar o personagem: ${err.response?.data?.error || err.message}`);
+      console.error('Erro ao criar personagem no banco:', err);
+      alert('Não foi possível criar o personagem.');
     }
   }
 
+  // Atualiza no estado local
   function updateCharacterState(updated) {
     setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }
@@ -249,8 +248,7 @@ export default function Personagens({ projectId }) {
     if (!window.confirm('Tem certeza que deseja excluir este personagem?')) return;
 
     try {
-      // URL Corrigida com /entities
-      await apiClient.delete(`/entities/characters/${id}`);
+      await apiClient.delete(`/characters/${id}`);
       setCharacters((prev) => prev.filter((c) => c.id !== id));
       if (selectedCharacter?.id === id) setSelectedCharacter(null);
     } catch (err) {

@@ -27,7 +27,7 @@ import {
   LayoutDashboard, Fingerprint, Sparkles, Cpu, GitBranch, 
   Activity, Users, Globe, Clapperboard, MessageSquare, 
   Network, Search, Zap, HeartHandshake, PenTool, LayoutGrid, 
-  CheckSquare, BookOpen, Menu 
+  CheckSquare, BookOpen, Menu, FolderKanban 
 } from 'lucide-react';
 
 const navigation = [
@@ -86,7 +86,7 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* CABEÇALHO COM LOGO E BOTÃO DE MENU (3 LINHAS) */}
+      {/* CABEÇALHO COM LOGO E BOTÃO DE MENU */}
       <div className="brand">
         <div className="brand-left">
           <span className="brand-mark">✦</span>
@@ -102,9 +102,15 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         </button>
       </div>
       
-      {/* BOTÃO MEUS PROJETOS */}
-      <button className="projects-link" type="button" onClick={onBackToProjects} title="Meus Projetos">
-        <span>←</span> {!isCollapsed && <span>Meus Projetos</span>}
+      {/* BOTÃO MEUS PROJETOS COM O ÍCONE AO LADO DO TEXTO */}
+      <button 
+        className="projects-link flex items-center gap-2" 
+        type="button" 
+        onClick={onBackToProjects} 
+        title="Meus Projetos"
+      >
+        <FolderKanban size={20} className="text-purple-400 shrink-0" />
+        {!isCollapsed && <span>Meus Projetos</span>}
       </button>
 
       {/* RESUMO DO PROJETO */}
