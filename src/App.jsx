@@ -25,32 +25,64 @@ import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
 import DialogEngine from './pages/DialogEngine';
 
+import { 
+  LayoutDashboard, Fingerprint, Sparkles, Cpu, GitBranch, 
+  Activity, Users, Globe, Clapperboard, MessageSquare, 
+  Network, Search, Zap, HeartHandshake, PenTool, LayoutGrid, 
+  CheckSquare, BookOpen 
+} from 'lucide-react';
+
 // AS LINHAS DO EXPRESS (express, cors, app.listen) DEVEM FICAR APENAS NO SEU server.js DO BACKEND!
 
 const navigation = [
-  { title: 'Visão geral', items: [['Dashboard', 'dashboard']] },
-  { title: 'Fundação', items: [['Identidade', 'identidade'], ['Essência da História', 'essencia'], ['Engenharia Narrativa', 'engenharia']] },
-  { title: 'Estrutura', items: [['Estrutura Dramática', 'estrutura'], ['Ritmo & Timeline', 'ritmo']] },
+  { title: 'Visão geral', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
+  { 
+    title: 'Fundação', 
+    items: [
+      ['Identidade', 'identidade', Fingerprint], 
+      ['Essência da História', 'essencia', Sparkles], 
+      ['Engenharia Narrativa', 'engenharia', Cpu]
+    ] 
+  },
+  { 
+    title: 'Estrutura', 
+    items: [
+      ['Estrutura Dramática', 'estrutura', GitBranch], 
+      ['Ritmo & Timeline', 'ritmo', Activity]
+    ] 
+  },
   { 
     title: 'Conteúdo', 
     items: [
-      ['Personagens', 'personagens'], 
-      ['Mundo', 'mundo'], 
-      ['Cenas', 'cenas'], 
-      ['Diálogos', 'dialogos'], 
-      ['Relações', 'relacoes']
+      ['Personagens', 'personagens', Users], 
+      ['Mundo', 'mundo', Globe], 
+      ['Cenas', 'cenas', Clapperboard], 
+      ['Diálogos', 'dialogos', MessageSquare], 
+      ['Relações', 'relacoes', Network]
     ] 
   },
   { 
     title: 'Camadas', 
     items: [
-      ['Mistérios', 'misterios'], 
-      ['Plot Twists', 'plot-twists'],
-      ['Mapa Emocional', 'mapa-emocional'] 
+      ['Mistérios', 'misterios', Search], 
+      ['Plot Twists', 'plot-twists', Zap], 
+      ['Mapa Emocional', 'mapa-emocional', HeartHandshake]
     ] 
   },
-  { title: 'Escrita', items: [['Escrita & Manuscrito', 'escrita'], ['Storyboard', 'storyboard']] },
-  { title: 'Verificação', items: [['Checklist', 'checklist'], ['Story Bible', 'story-bible']] },
+  { 
+    title: 'Escrita', 
+    items: [
+      ['Escrita & Manuscrito', 'escrita', PenTool], 
+      ['Storyboard', 'storyboard', LayoutGrid]
+    ] 
+  },
+  { 
+    title: 'Verificação', 
+    items: [
+      ['Checklist', 'checklist', CheckSquare], 
+      ['Story Bible', 'story-bible', BookOpen]
+    ] 
+  },
 ];
 
 function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
@@ -81,16 +113,14 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         {navigation.map((section) => (
           <div className="nav-section" key={section.title}>
             <p>{section.title}</p>
-            {section.items.map(([label, id]) => (
+            {section.items.map(([label, id, Icon]) => (
               <button 
                 className={activePage === id ? 'nav-item active' : 'nav-item'} 
                 type="button" 
                 key={id} 
                 onClick={() => onNavigate(id)}
               >
-                <span className="nav-symbol" aria-hidden="true">
-                  {activePage === id ? '✧' : '◇'}
-                </span>
+                <Icon size={16} className="nav-symbol" />
                 {label}
               </button>
             ))}
