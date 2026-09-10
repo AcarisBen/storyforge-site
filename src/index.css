@@ -18,18 +18,18 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #9333ea; /* Roxo principal */
+    background: #50346b; /* Roxo principal */
     border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a855f7; /* Roxo ligeiramente mais claro no hover */
+    background: #50346b; /* Roxo ligeiramente mais claro no hover */
 }
 
 /* Suporte para Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #9333ea #0d0f13;
+    scrollbar-color: #50346b #0d0f13;
 }
 
 /* Força o scroll roxo especificamente nos contêineres de rolagem do StoryForge */
@@ -38,7 +38,7 @@
 .page-content,
 body {
     scrollbar-width: thin;
-    scrollbar-color: #9333ea #0d0f13;
+    scrollbar-color: #50346b #0d0f13;
 }
 
 /* ==========================================
