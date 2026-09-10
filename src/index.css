@@ -3,42 +3,128 @@
 @tailwind utilities;
 
 /* ==========================================
-   BARRA DE ROLAGEM ROXA PERSONALIZADA
-   Aplica na Sidebar e nas Páginas do Sistema
+   BARRA DE ROLAGEM ROXA PERSONALIZADA (#50346b)
    ========================================== */
 
-/* Suporte para Chrome, Edge, Brave e Safari */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #0d0f13; /* Fundo escuro igual ao body */
+    background: #0d0f13;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #50346b; /* Roxo principal */
+    background: #50346b;
     border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #50346b; /* Roxo ligeiramente mais claro no hover */
+    background: #624183;
 }
 
-/* Suporte para Firefox */
 * {
     scrollbar-width: thin;
     scrollbar-color: #50346b #0d0f13;
 }
 
-/* Força o scroll roxo especificamente nos contêineres de rolagem do StoryForge */
 .sidebar,
 .sidebar-nav,
 .page-content,
 body {
     scrollbar-width: thin;
     scrollbar-color: #50346b #0d0f13;
+}
+
+/* ==========================================
+   ESTILOS PARA SIDEBAR RETRAÍDA / EXPANDIDA
+   ========================================== */
+
+.brand { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  width: 100%;
+  padding: 0 8px 16px; 
+  color: #c16de0; 
+  font-size: 17px; 
+}
+
+.brand strong { 
+  background: linear-gradient(90deg, #a86be5, #f59e0b); 
+  color: transparent; 
+  background-clip: text; 
+}
+
+.brand-mark { 
+  display: grid; 
+  width: 27px; 
+  height: 27px; 
+  place-items: center; 
+  border-radius: 8px; 
+  background: #28212f; 
+  color: #a875ef; 
+  font-size: 19px; 
+}
+
+.brand-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.toggle-sidebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: 0;
+  color: #8c8f99;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar-btn:hover {
+  background: #211a32;
+  color: #c7adf4;
+}
+
+.sidebar {
+  transition: width 0.3s ease, flex-basis 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 72px;
+  flex: 0 0 72px;
+  padding: 17px 8px 24px;
+}
+
+.sidebar.collapsed .brand {
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar.collapsed .projects-link {
+  justify-content: center;
+  margin: 0 0 16px;
+}
+
+.sidebar.collapsed .project-summary {
+  justify-content: center;
+  padding: 0 0 14px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .nav-section {
+  margin-bottom: 8px;
 }
 
 /* ==========================================
@@ -74,9 +160,6 @@ body {
     border-right: 1px solid #252831;
 }
 
-.brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 16px; color: #c16de0; font-size: 17px; }
-.brand strong { background: linear-gradient(90deg, #a86be5, #f59e0b); color: transparent; background-clip: text; }
-.brand-mark { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 8px; background: #28212f; color: #a875ef; font-size: 19px; }
 .projects-link { display: flex; align-items: center; gap: 9px; margin: 0 8px 16px; padding: 0; border: 0; background: transparent; color: #858892; font: inherit; font-size: 15px; cursor: pointer; }
 .project-summary { display: flex; align-items: center; gap: 12px; padding: 0 8px 14px; }
 .project-icon { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 12px; background: linear-gradient(135deg, #33263e, #45331c); color: #b185ff; font-size: 26px; }

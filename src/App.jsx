@@ -1,5 +1,3 @@
-// App.jsx 
-
 import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -29,10 +27,8 @@ import {
   LayoutDashboard, Fingerprint, Sparkles, Cpu, GitBranch, 
   Activity, Users, Globe, Clapperboard, MessageSquare, 
   Network, Search, Zap, HeartHandshake, PenTool, LayoutGrid, 
-  CheckSquare, BookOpen 
+  CheckSquare, BookOpen, Menu 
 } from 'lucide-react';
-
-// AS LINHAS DO EXPRESS (express, cors, app.listen) DEVEM FICAR APENAS NO SEU server.js DO BACKEND!
 
 const navigation = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
@@ -86,42 +82,64 @@ const navigation = [
 ];
 
 function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* CABEÇALHO COM LOGO E BOTÃO DE MENU (3 LINHAS) */}
       <div className="brand">
-        <span className="brand-mark">✦</span>
-        <strong>StoryForge</strong>
+        <div className="brand-left">
+          <span className="brand-mark">✦</span>
+          {!isCollapsed && <strong>StoryForge</strong>}
+        </div>
+        <button 
+          type="button" 
+          onClick={() => setIsCollapsed(!isCollapsed)} 
+          className="toggle-sidebar-btn"
+          title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          <Menu size={18} />
+        </button>
       </div>
       
-      <button className="projects-link" type="button" onClick={onBackToProjects}>
-        ← <span>Meus Projetos</span>
+      {/* BOTÃO MEUS PROJETOS */}
+      <button className="projects-link" type="button" onClick={onBackToProjects} title="Meus Projetos">
+        <span>←</span> {!isCollapsed && <span>Meus Projetos</span>}
       </button>
-      
+
+      {/* RESUMO DO PROJETO */}
       <div className="project-summary">
         <div className="project-icon">✧</div>
-        <div>
-          <strong>{currentProject?.title || 'Projeto'}</strong>
-          <span>{currentProject?.format || 'Romance / Livro'}</span>
-        </div>
-      </div>
-      <div className="project-status">
-        <span>{currentProject?.status || 'Desenvolvimento'}</span>
-        <small>{currentProject?.progress || 0}% completo</small>
+        {!isCollapsed && (
+          <div>
+            <strong>{currentProject?.title || 'Projeto'}</strong>
+            <span>{currentProject?.format || 'Romance / Livro'}</span>
+          </div>
+        )}
       </div>
 
+      {!isCollapsed && (
+        <div className="project-status">
+          <span>{currentProject?.status || 'Desenvolvimento'}</span>
+          <small>{currentProject?.progress || 0}% completo</small>
+        </div>
+      )}
+
+      {/* NAVEGAÇÃO DOS MÓDULOS */}
       <nav className="sidebar-nav" aria-label="Navegação do projeto">
         {navigation.map((section) => (
           <div className="nav-section" key={section.title}>
-            <p>{section.title}</p>
+            {!isCollapsed && <p>{section.title}</p>}
             {section.items.map(([label, id, Icon]) => (
               <button 
                 className={activePage === id ? 'nav-item active' : 'nav-item'} 
                 type="button" 
                 key={id} 
                 onClick={() => onNavigate(id)}
+                title={isCollapsed ? label : ''}
               >
-                <Icon size={16} className="nav-symbol" />
-                {label}
+                <Icon size={18} className="nav-symbol" />
+                {!isCollapsed && <span>{label}</span>}
               </button>
             ))}
           </div>
