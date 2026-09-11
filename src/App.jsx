@@ -103,14 +103,14 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
       
       {/* BOTÃO MEUS PROJETOS */}
       <button 
-        className="projects-link flex items-center gap-2" 
-        type="button" 
-        onClick={onBackToProjects} 
-        title="Meus Projetos"
-      >
-        <FolderKanban size={20} className="text-purple-400 shrink-0" />
-        {!isCollapsed && <span>Meus Projetos</span>}
-      </button>
+  className={`projects-link flex items-center gap-2 ${isCollapsed ? 'justify-center w-full mx-0 px-0' : ''}`}
+  type="button" 
+  onClick={onBackToProjects} 
+  title="Meus Projetos"
+>
+  <FolderKanban size={20} className="text-purple-400 shrink-0" />
+  {!isCollapsed && <span>Meus Projetos</span>}
+</button>
 
       {/* RESUMO DO PROJETO */}
       <div className="project-summary">
