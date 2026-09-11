@@ -1,20 +1,9 @@
-// backend/server/routes/entities.js
+// entities.js
 
 import express from 'express';
 import prisma from '../config/prisma.js';
 
 const router = express.Router();
-
-// ==========================================
-// MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
-// Remove o prefixo /entities redundante automaticamente para todas as rotas
-// ==========================================
-router.use((req, res, next) => {
-  if (req.url.startsWith('/entities/')) {
-    req.url = req.url.replace('/entities', '');
-  }
-  next();
-});
 
 // ==========================================
 // EXTRAIR USUÁRIO LOGADO VIA TOKEN
@@ -26,11 +15,12 @@ const getUserIdFromReq = (req) => {
 };
 
 // ==========================================
-// PROJETO(S)
+// BUSCAR APENAS OS PROJETOS DO USUÁRIO LOGADO
 // ==========================================
 const getProjectsHandler = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
+
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
@@ -47,66 +37,78 @@ const getProjectsHandler = async (req, res) => {
   }
 };
 
+router.get('/projects', getProjectsHandler);
+router.get('/entities/projects', getProjectsHandler);
+
+// ==========================================
+// CRIAR PROJETO VINCULADO AO AUTOR LOGADO
+// ==========================================
 const createProjectHandler = async (req, res) => {
+  console.log('--- INICIANDO CRIAÇÃO/IMPORTAÇÃO DE PROJETO ---');
+  console.log('BODY RECEBIDO:', req.body);
+  
   try {
     const { title, format, status, progress, writerName } = req.body;
     const userId = getUserIdFromReq(req);
 
+    console.log('USER ID EXTRAÍDO:', userId);
+
     if (!userId) {
-      return res.status(401).json({ error: 'Você precisa estar logado para criar ou importar um projeto.' });
+      console.log('ERRO: Sem userId no token');
+      return res.status(401).json({ error: 'Você precisa estar logado para criar um projeto.' });
     }
 
     const authorName = writerName || 'Autor StoryForge';
-    const importDate = new Date().toLocaleDateString('pt-BR');
 
-    // Garantia de registro do usuário no PostgreSQL
-    try {
-      await prisma.user.upsert({
-        where: { id: userId },
-        update: {},
-        create: {
-          id: userId,
-          email: `${userId}@storyforge.local`,
-          name: authorName,
-          password: 'hash_placeholder',
-        },
-      });
-    } catch (uErr) {
-      console.log('Aviso (User em memória):', uErr.message);
-    }
+    // 1. Tenta criar/garantir o usuário no banco
+    console.log('Buscando/Criando usuário no Prisma...');
+    const user = await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email: `${userId}@storyforge.local`,
+        name: authorName,
+        password: 'hash_placeholder',
+      },
+    });
+    console.log('Usuário garantido no Prisma:', user.id);
 
-    // Título limpo e descrição formatada para o rodapé do card
-    const cleanTitle = (title || 'Projeto Importado').replace(/\s*\(Importado\)\s*/gi, '').trim();
-    const formattedFooter = `Projeto importado em ${importDate} por ${authorName}`;
-
+    // 2. Cria o projeto
+    console.log('Criando projeto no Prisma...');
     const newProject = await prisma.project.create({
       data: {
-        title: cleanTitle,
-        description: formattedFooter,
+        title: title || 'Projeto Importado',
+        description: `Autor: ${authorName} | Formato: ${format || 'Romance'} | Importado em: ${new Date().toLocaleDateString('pt-BR')}`,
         userId: userId,
       },
     });
 
+    console.log('Projeto criado com sucesso ID:', newProject.id);
+
     return res.status(201).json({
       ...newProject,
-      title: cleanTitle,
       format: format || 'Romance / Livro',
       status: status || 'Desenvolvimento',
       progress: Number(progress) || 0,
       createdAt: newProject.createdAt,
       author: authorName,
-      footerText: formattedFooter,
     });
   } catch (error) {
-    console.error('Erro ao criar/importar projeto no Prisma:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('❌ ERRO DETALHADO NO PRISMA:', error);
+    return res.status(500).json({ error: error.message || 'Erro interno no servidor' });
   }
 };
 
+// ==========================================
+// DELETAR PROJETO
+// ==========================================
 const deleteProjectHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.project.delete({ where: { id } });
+    await prisma.project.delete({
+      where: { id },
+    });
     res.json({ success: true, message: 'Projeto excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar projeto:', error);
@@ -114,9 +116,8 @@ const deleteProjectHandler = async (req, res) => {
   }
 };
 
-router.get('/projects', getProjectsHandler);
-router.post('/projects', createProjectHandler);
 router.delete('/projects/:id', deleteProjectHandler);
+router.delete('/entities/projects/:id', deleteProjectHandler);
 
 // ==========================================
 // RELAÇÕES
@@ -135,6 +136,9 @@ const getRelationsHandler = async (req, res) => {
   }
 };
 
+router.get('/projects/:projectId/relations', getRelationsHandler);
+router.get('/entities/projects/:projectId/relations', getRelationsHandler);
+
 const saveRelationHandler = async (req, res) => {
   const { id, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
 
@@ -144,6 +148,7 @@ const saveRelationHandler = async (req, res) => {
 
   try {
     let savedRelation;
+
     if (id && !isNaN(Number(id))) {
       savedRelation = await prisma.characterRelation.update({
         where: { id: Number(id) },
@@ -169,6 +174,7 @@ const saveRelationHandler = async (req, res) => {
         },
       });
     }
+
     res.status(200).json(savedRelation);
   } catch (err) {
     console.error('Erro ao salvar relação no Prisma:', err);
@@ -176,10 +182,15 @@ const saveRelationHandler = async (req, res) => {
   }
 };
 
+router.post('/relations', saveRelationHandler);
+router.post('/entities/relations', saveRelationHandler);
+
 const deleteRelationHandler = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.characterRelation.delete({ where: { id: Number(id)} });
+    await prisma.characterRelation.delete({
+      where: { id: Number(id) },
+    });
     res.json({ success: true, message: 'Relação removida com sucesso' });
   } catch (err) {
     console.error('Erro ao deletar relação:', err);
@@ -187,9 +198,8 @@ const deleteRelationHandler = async (req, res) => {
   }
 };
 
-router.get('/projects/:projectId/relations', getRelationsHandler);
-router.post('/relations', saveRelationHandler);
 router.delete('/relations/:id', deleteRelationHandler);
+router.delete('/entities/relations/:id', deleteRelationHandler);
 
 // ==========================================
 // CONFIGURAÇÕES DO PROJETO (Identity, Essência, Engenharia)
@@ -419,6 +429,7 @@ const getCharactersHandler = async (req, res) => {
 };
 
 router.get('/projects/:projectId/characters', getCharactersHandler);
+router.get('/entities/projects/:projectId/characters', getCharactersHandler);
 
 router.post('/projects/:projectId/characters', async (req, res) => {
   try {
@@ -608,6 +619,7 @@ const getScenesHandler = async (req, res) => {
 };
 
 router.get('/projects/:projectId/scenes', getScenesHandler);
+router.get('/entities/projects/:projectId/scenes', getScenesHandler);
 
 router.post('/projects/:projectId/scenes', async (req, res) => {
   try {
@@ -969,7 +981,7 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
 });
 
 // ==========================================
-// STORYBOARD
+// STORYBOARD (PERSISTÊNCIA DE DIAGRAMA)
 // ==========================================
 const getStoryboardHandler = async (req, res) => {
   try {
@@ -983,6 +995,9 @@ const getStoryboardHandler = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+router.get('/projects/:projectId/storyboard', getStoryboardHandler);
+router.get('/entities/projects/:projectId/storyboard', getStoryboardHandler);
 
 const saveStoryboardHandler = async (req, res) => {
   try {
@@ -1017,11 +1032,11 @@ const saveStoryboardHandler = async (req, res) => {
   }
 };
 
-router.get('/projects/:projectId/storyboard', getStoryboardHandler);
 router.post('/projects/:projectId/storyboard', saveStoryboardHandler);
+router.post('/entities/projects/:projectId/storyboard', saveStoryboardHandler);
 
 // ==========================================
-// MAPA EMOCIONAL
+// MAPA EMOCIONAL (PERSISTÊNCIA DE PONTOS)
 // ==========================================
 const getMapaEmocionalHandler = async (req, res) => {
   try {
@@ -1035,6 +1050,9 @@ const getMapaEmocionalHandler = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+router.get('/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
+router.get('/entities/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
 
 const saveMapaEmocionalHandler = async (req, res) => {
   try {
@@ -1069,8 +1087,8 @@ const saveMapaEmocionalHandler = async (req, res) => {
   }
 };
 
-router.get('/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
 router.post('/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
+router.post('/entities/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
 
 // ==========================================
 // DIÁLOGOS
@@ -1095,6 +1113,9 @@ const getDialoguesHandler = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+router.get('/projects/:projectId/dialogues', getDialoguesHandler);
+router.get('/entities/projects/:projectId/dialogues', getDialoguesHandler);
 
 const saveDialogueHandler = async (req, res) => {
   try {
@@ -1121,6 +1142,9 @@ const saveDialogueHandler = async (req, res) => {
   }
 };
 
+router.post('/projects/:projectId/dialogues', saveDialogueHandler);
+router.post('/entities/projects/:projectId/dialogues', saveDialogueHandler);
+
 const updateDialogueHandler = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1145,6 +1169,9 @@ const updateDialogueHandler = async (req, res) => {
   }
 };
 
+router.put('/dialogues/:id', updateDialogueHandler);
+router.put('/entities/dialogues/:id', updateDialogueHandler);
+
 const deleteDialogueHandler = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1156,9 +1183,7 @@ const deleteDialogueHandler = async (req, res) => {
   }
 };
 
-router.get('/projects/:projectId/dialogues', getDialoguesHandler);
-router.post('/projects/:projectId/dialogues', saveDialogueHandler);
-router.put('/dialogues/:id', updateDialogueHandler);
 router.delete('/dialogues/:id', deleteDialogueHandler);
+router.delete('/entities/dialogues/:id', deleteDialogueHandler);
 
 export default router;

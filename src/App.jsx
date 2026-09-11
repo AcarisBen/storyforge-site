@@ -89,7 +89,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
       {/* CABEÇALHO COM LOGO E BOTÃO DE MENU */}
       <div className="brand">
         <div className="brand-left">
-          <span className="brand-mark">✦</span>
           {!isCollapsed && <strong>StoryForge</strong>}
         </div>
         <button 
@@ -98,11 +97,11 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
           className="toggle-sidebar-btn"
           title={isCollapsed ? "Expandir menu" : "Recolher menu"}
         >
-          <Menu size={18} />
+          <Menu size={20} />
         </button>
       </div>
       
-      {/* BOTÃO MEUS PROJETOS COM O ÍCONE AO LADO DO TEXTO */}
+      {/* BOTÃO MEUS PROJETOS */}
       <button 
         className="projects-link flex items-center gap-2" 
         type="button" 
@@ -115,21 +114,19 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 
       {/* RESUMO DO PROJETO */}
       <div className="project-summary">
-        <div className="project-icon">✧</div>
-        {!isCollapsed && (
-          <div>
-            <strong>{currentProject?.title || 'Projeto'}</strong>
-            <span>{currentProject?.format || 'Romance / Livro'}</span>
-          </div>
-        )}
-      </div>
-
-      {!isCollapsed && (
-        <div className="project-status">
-          <span>{currentProject?.status || 'Desenvolvimento'}</span>
-          <small>{currentProject?.progress || 0}% completo</small>
-        </div>
-      )}
+  {!isCollapsed && (
+    <div>
+      <strong 
+        style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', display: 'block', marginBottom: '2px' }}
+      >
+        {currentProject?.title || 'Projeto'}
+      </strong>
+      <span className="text-xs text-gray-400">
+        {currentProject?.format || 'Romance / Livro'}
+      </span>
+    </div>
+  )}
+</div>
 
       {/* NAVEGAÇÃO DOS MÓDULOS */}
       <nav className="sidebar-nav" aria-label="Navegação do projeto">
