@@ -465,10 +465,13 @@ useEffect(() => {
 };
 
   // Substitui o trecho incorreto no texto e remove a sugestão da lista
-function handleApplyCorrection(suggestion) {
+function handleApplyCorrection(suggestion, chosenReplacement) {
   if (!selectedChapter) return;
   const currentContent = selectedChapter.content || '';
-  const updatedContent = currentContent.replace(suggestion.original, suggestion.replacement);
+  const replacementToUse = chosenReplacement || suggestion.replacement || suggestion.replacements?.[0];
+  if (!replacementToUse) return;
+
+  const updatedContent = currentContent.replace(suggestion.original, replacementToUse);
 
   updateSelectedChapter('content', updatedContent);
   setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
@@ -822,48 +825,81 @@ function handleApplyCorrection(suggestion) {
                 />
               </div>
 
-              {/* PAINEL DINÂMICO DE REVISÃO E CORREÇÃO DE PORTUGUÊS */}
-              {showCorrectionsPanel && textSuggestions.length > 0 && (
-                <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 transition-all animate-fadeIn shadow-xl">
-                  <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
-                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
-                      <span>🪄</span> Assistente de Revisão (Português)
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                      Análise 100% privada e local
-                    </span>
-                  </div>
+              {/* PAINEL DINÂMICO DE REVISÃO */}
+<div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
+  {textSuggestions.map((sug) => {
+    // Lista completa de opções vindas do backend
+    const options = sug.replacements && sug.replacements.length > 0 
+      ? sug.replacements 
+      : (sug.replacement ? [sug.replacement] : []);
 
-                  <div className="grid grid-cols-1 gap-2.5 max-h-56 overflow-y-auto pr-1">
-                    {textSuggestions.map((sug) => (
-                      <div
-                        key={sug.id}
-                        className="bg-[#1c1b2c] border border-gray-800 p-3 rounded-lg flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${sug.badgeStyle}`}>
-                              {sug.label}
-                            </span>
-                            <span className="text-gray-400 line-through">
-                              "{sug.original}"
-                            </span>
-                          </div>
-                          <p className="text-gray-300">{sug.message}</p>
-                        </div>
+    // Limita as exibições primárias a 4 botões
+    const visibleOptions = options.slice(0, 4);
+    const extraOptions = options.slice(4);
 
-                        <button
-                          type="button"
-                          onClick={() => handleApplyCorrection(sug)}
-                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-md transition-colors cursor-pointer shrink-0 shadow-md"
-                        >
-                          Aplicar: "{sug.replacement}"
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+    return (
+      <div
+        key={sug.id}
+        className="bg-[#1c1b2c] border border-gray-800 p-3 rounded-xl flex items-center justify-between gap-3 text-xs"
+      >
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
+              {sug.label}
+            </span>
+            <span className="text-gray-400 line-through truncate font-mono">
+              "{sug.original}"
+            </span>
+          </div>
+          <p className="text-gray-300 text-xs truncate">{sug.message}</p>
+        </div>
+
+        {/* Grupo de Correções Organizado */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Primeiras 4 Opções Principais */}
+          {visibleOptions.map((option, oIdx) => (
+            <button
+              key={oIdx}
+              type="button"
+              onClick={() => handleApplyCorrection(sug, option)}
+              className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
+            >
+              "{option}"
+            </button>
+          ))}
+
+          {/* 5º Botão: Dropdown com Todas as Outras Sugestões */}
+          {extraOptions.length > 0 && (
+            <div className="relative">
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleApplyCorrection(sug, e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+                className="px-2.5 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-lg cursor-pointer transition-colors outline-none pr-6 appearance-none"
+              >
+                <option value="" disabled hidden>
+                  +{extraOptions.length} mais ▾
+                </option>
+                {options.map((option, idx) => (
+                  <option key={idx} value={option} className="bg-[#1c1b2c] text-white py-1">
+                    "{option}"
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
+                ▼
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
             </>
           ) : (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-16 text-center space-y-3">

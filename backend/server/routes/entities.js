@@ -1,5 +1,4 @@
 // backend/server/routes/entities.js
-// 
 
 import express from 'express';
 import prisma from '../config/prisma.js';
@@ -16,16 +15,38 @@ router.use((req, res, next) => {
   next();
 });
 
-// ==========================================
-// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
-// ==========================================
+// Função auxiliar para gerar variações fonéticas universais caso o LT entregue poucas opções
+function generatePhoneticVariants(word) {
+  const variants = new Set();
+  const lower = word.toLowerCase();
+
+  // Troca ç por s, ss, c, lh e vice-versa
+  if (lower.includes('çe')) variants.add(lower.replace(/çe/g, 'se')).add(lower.replace(/çe/g, 'she'));
+  if (lower.includes('ço')) {
+    variants.add(lower.replace(/ço/g, 'so'));
+    variants.add(lower.replace(/ço/g, 'sso'));
+    variants.add(lower.replace(/ço/g, 'lho'));
+    variants.add(lower.replace(/ço/g, 'co'));
+  }
+  if (lower.includes('se')) variants.add(lower.replace(/se/g, 'çe'));
+  if (lower.includes('so')) variants.add(lower.replace(/so/g, 'ço'));
+
+  return Array.from(variants);
+}
+
+// ROTA PROXY ATUALIZADA
 router.post('/grammar-check', async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || text.trim().length < 3) return res.json([]);
 
-    // Requisição local fechada para a porta 8010
-    const params = new URLSearchParams({ text, language: 'pt-BR' });
+    const params = new URLSearchParams({
+      text,
+      language: 'pt-BR',
+      level: 'picky',
+      enableHiddenRules: 'true',
+    });
+
     const response = await fetch('http://localhost:8010/v2/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -36,22 +57,90 @@ router.post('/grammar-check', async (req, res) => {
 
     const data = await response.json();
 
-    // Mapeia os alertas retornados para o formato que o componente React lê
-    const suggestions = (data.matches || []).map((match, idx) => ({
-      id: `lt-${idx}-${match.offset}`,
-      label: match.rule?.category?.name || 'Gramática',
-      original: text.substring(match.offset, match.offset + match.length),
-      replacement: match.replacements[0]?.value || '',
-      message: match.message,
-      badgeStyle: match.rule?.issueType === 'misspelling' 
-        ? 'bg-red-950/80 text-red-300 border-red-700/60' 
-        : 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-    }));
+    const suggestions = (data.matches || []).map((match, idx) => {
+      const original = text.substring(match.offset, match.offset + match.length);
+      
+      let replacements = (match.replacements || [])
+        .map((r) => r.value)
+        .filter(Boolean);
+
+      // Se o LanguageTool entregar apenas 1 opção, injeta as variações fonéticas automáticas
+      if (replacements.length === 1) {
+        const extraOptions = generatePhoneticVariants(original);
+        replacements = Array.from(new Set([...replacements, ...extraOptions])).slice(0, 4);
+      }
+
+      return {
+        id: `lt-${idx}-${match.offset}`,
+        label: match.rule?.category?.name || 'Ortografia/Gramática',
+        original,
+        replacements, // Agora envia múltipla escolha garantida
+        message: match.message,
+        badgeStyle: match.rule?.issueType === 'misspelling' 
+          ? 'bg-red-950/80 text-red-300 border-red-700/60' 
+          : 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+      };
+    });
 
     return res.json(suggestions);
   } catch (err) {
     console.error('Erro na checagem gramatical:', err.message);
-    return res.json([]); // Retorna lista vazia em caso de falha temporária
+    return res.json([]);
+  }
+});
+
+// ==========================================
+// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
+// ==========================================
+router.post('/grammar-check', async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim().length < 3) return res.json([]);
+
+    const params = new URLSearchParams({
+      text,
+      language: 'pt-BR',
+      level: 'picky',
+      enableHiddenRules: 'true',
+      preferredVariants: 'pt-BR',
+    });
+
+    const response = await fetch('http://localhost:8010/v2/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+
+    if (!response.ok) throw new Error('Servidor LanguageTool offline');
+
+    const data = await response.json();
+
+    const suggestions = (data.matches || []).map((match, idx) => {
+      const original = text.substring(match.offset, match.offset + match.length);
+
+      // Extrai até 5 alternativas do LanguageTool
+      const replacements = (match.replacements || [])
+        .map((r) => r.value)
+        .filter(Boolean)
+        .slice(0, 5);
+
+      return {
+        id: `lt-${idx}-${match.offset}`,
+        label: match.rule?.category?.name || 'Ortografia/Gramática',
+        original,
+        replacements, // Envia array com até 5 opções (ex: ["jogo", "queijo"])
+        replacement: replacements[0] || '',
+        message: match.message,
+        badgeStyle: match.rule?.issueType === 'misspelling' 
+          ? 'bg-red-950/80 text-red-300 border-red-700/60' 
+          : 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+      };
+    });
+
+    return res.json(suggestions);
+  } catch (err) {
+    console.error('Erro na checagem gramatical:', err.message);
+    return res.json([]);
   }
 });
 
