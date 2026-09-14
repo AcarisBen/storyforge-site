@@ -534,7 +534,7 @@ export default function StoryBible({ projectId }) {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 1.2cm;
+            margin: 1.8cm;
           }
 
           /* Oculta apenas os elementos interativos de tela */
@@ -673,7 +673,7 @@ export default function StoryBible({ projectId }) {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500" />
         <div>
           <span className="text-xs uppercase tracking-widest text-purple-400 font-bold">
-            📖 DOCUMENTO MESTRE NARRATIVO
+             📖 DOCUMENTO MESTRE NARRATIVO
           </span>
           <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
             {data.identity['Título'] || data.identity['title'] || 'StoryBible'}

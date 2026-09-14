@@ -1,40 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, Shield, LogOut, Trash2, AlertTriangle, 
-  Mail, Key, Info, CheckCircle, Cookie 
+  Key, Info, CheckCircle, Cookie 
 } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
-export default function Configuracoes() {
+export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('perfil');
 
-  // Formulário do Perfil
-  const [displayName, setDisplayName] = useState('Usuário StoryForge');
-  const [email, setEmail] = useState('autor@storyforge.com');
+  // Inicializa os estados com os dados do usuário logado
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modais de Exclusão
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
-  const handleSaveProfile = (e) => {
+  // Carrega os dados reais do usuário logado
+  useEffect(() => {
+    if (currentUser) {
+      setDisplayName(currentUser.name || currentUser.nome || '');
+      setEmail(currentUser.email || '');
+    } else {
+      // Fallback caso não venha via props: busca direto da API /auth/me
+      apiClient.get('/auth/me')
+        .then((res) => {
+          if (res.data?.user) {
+            setDisplayName(res.data.user.name || res.data.user.nome || '');
+            setEmail(res.data.user.email || '');
+          }
+        })
+        .catch((err) => console.error('Erro ao carregar usuário:', err));
+    }
+  }, [currentUser]);
+
+  // Salvar Nome / Perfil no Backend
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    alert('Informações salvas com sucesso!');
+    if (!displayName.trim()) {
+      alert('O nome de exibição não pode ficar em branco.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await apiClient.put('/auth/profile', { name: displayName });
+      alert('Nome de exibição salvo com sucesso!');
+      if (setCurrentUser && res.data?.user) {
+        setCurrentUser(res.data.user);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar nome:', err);
+      alert(err.response?.data?.error || 'Erro ao atualizar o perfil.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleResetPassword = (e) => {
+  // Alterar Senha no Backend
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) {
       alert('Preencha a senha atual e a nova senha.');
       return;
     }
-    alert('Senha alterada com sucesso!');
-    setCurrentPassword('');
-    setNewPassword('');
+
+    try {
+      await apiClient.put('/auth/profile', { currentPassword, newPassword });
+      alert('Senha alterada com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err) {
+      console.error('Erro ao alterar senha:', err);
+      alert(err.response?.data?.error || 'Erro ao alterar a senha.');
+    }
   };
 
   const handleLogout = () => {
     if (confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
+      localStorage.removeItem('storyforge_token');
       window.location.href = '/login';
     }
   };
@@ -44,7 +91,7 @@ export default function Configuracoes() {
       
       {/* CABEÇALHO */}
       <div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Configurações</h1>
+        <h1 className="text-3xl font-normal text-white tracking-tight">Configurações</h1>
         <p className="text-sm text-gray-400 mt-1">
           Gerencie seu perfil, segurança de acesso, privacidade e conta no StoryForge.
         </p>
@@ -102,9 +149,10 @@ export default function Configuracoes() {
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer"
+                disabled={isSaving}
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all"
               >
-                Salvar Nome
+                {isSaving ? 'Salvando...' : 'Salvar Nome'}
               </button>
             </div>
           </form>
@@ -121,8 +169,8 @@ export default function Configuracoes() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                  disabled
+                  className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-gray-400 opacity-75 cursor-not-allowed"
                 />
               </div>
             </div>

@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+//Escrita.jsx
+// 
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import apiClient from '../api/apiClient';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
@@ -91,7 +93,6 @@ function getWorldTheme(type = '') {
   }
 }
 
-// Função auxiliar para aplicar as 7 cores do Ritmo no Apoio Visual
 function getTimelineBadgeStyle(type = '') {
   const norm = String(type).toLowerCase();
   if (norm.includes('incitante')) return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
@@ -181,6 +182,66 @@ function getCharacterBadgeStyle(type = '') {
   return 'bg-gray-800 text-gray-300 border-gray-700';
 }
 
+// MOTOR DE CORREÇÃO E ESTILO (100% CLIENT-SIDE E SEGURO)
+function analyzePortugueseText(text) {
+  if (!text || text.trim().length < 3) return [];
+  const suggestions = [];
+
+  // 1. Detecção de Palavras Duplicadas (ex: "o o", "que que", "com com")
+  const dupRegex = /\b([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\s+\1\b/gi;
+  let match;
+  while ((match = dupRegex.exec(text)) !== null) {
+    suggestions.push({
+      id: `dup-${match.index}`,
+      type: 'repeticao',
+      label: 'Palavra Duplicada',
+      original: match[0],
+      replacement: match[1],
+      message: `A palavra "${match[1]}" está repetida.`,
+      badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
+    });
+  }
+
+  // 2. Detecção de Próclise em Início de Frase (ex: "Te devo...", "Me avise...")
+  const procliseRegex = /(?:^|[.!?]\s+)(Te|Me|Nos|Lhe|Se)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)/g;
+  while ((match = procliseRegex.exec(text)) !== null) {
+    const pronome = match[1];
+    const verbo = match[2];
+    const fullMatch = match[0];
+    const prefix = fullMatch.substring(0, fullMatch.indexOf(pronome));
+
+    const pronomeClean = pronome.toLowerCase();
+    const verboFormatted = verbo.charAt(0).toUpperCase() + verbo.slice(1);
+    const suggestedText = `${prefix}${verboFormatted}-${pronomeClean}`;
+
+    suggestions.push({
+      id: `proclise-${match.index}`,
+      type: 'estilo',
+      label: 'Próclise Inicial',
+      original: fullMatch,
+      replacement: suggestedText,
+      message: `Evite iniciar frase com pronome oblíquo. Sugestão: "${verboFormatted}-${pronomeClean}".`,
+      badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+    });
+  }
+
+  // 3. Detecção de Múltiplos Espaços em Sequência
+  const spaceRegex = / {2,}/g;
+  while ((match = spaceRegex.exec(text)) !== null) {
+    suggestions.push({
+      id: `space-${match.index}`,
+      type: 'formatacao',
+      label: 'Espaçamento Duplo',
+      original: match[0],
+      replacement: ' ',
+      message: 'Múltiplos espaços detectados.',
+      badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+    });
+  }
+
+  return suggestions;
+}
+
 export default function Escrita({ projectId, onNavigate }) {
   const [chapters, setChapters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -189,6 +250,8 @@ export default function Escrita({ projectId, onNavigate }) {
   const [newType, setNewType] = useState('Capítulo');
   const [draggedId, setDraggedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [showCorrectionsPanel, setShowCorrectionsPanel] = useState(true);
 
   // Categoria ativa no Apoio Visual
   const [activeDrawer, setActiveDrawer] = useState('personagens');
@@ -203,7 +266,7 @@ export default function Escrita({ projectId, onNavigate }) {
     twists: [],
   });
 
-  // Carregar Capítulos e Dados de Apoio (Rotas 100% Padronizadas e Protegidas)
+  // Carregar Capítulos e Dados de Apoio
   useEffect(() => {
     if (!projectId) return;
 
@@ -296,7 +359,6 @@ export default function Escrita({ projectId, onNavigate }) {
     fetchData();
   }, [projectId]);
 
-  
   // Progresso
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
@@ -320,6 +382,97 @@ export default function Escrita({ projectId, onNavigate }) {
       : 0;
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
+
+  // ESTADO E DEBOUNCE PARA A VERIFICAÇÃO VIA BACKEND
+const [textSuggestions, setTextSuggestions] = useState([]);
+const [isCheckingGrammar, setIsCheckingGrammar] = useState(false);
+const grammarTimeoutRef = useRef(null);
+
+useEffect(() => {
+  const content = selectedChapter?.content || '';
+  
+  if (!content || content.trim().length < 5) {
+    setTextSuggestions([]);
+    return;
+  }
+
+  // Limpa o temporizador anterior (debounce de 800ms)
+  if (grammarTimeoutRef.current) {
+    clearTimeout(grammarTimeoutRef.current);
+  }
+
+  grammarTimeoutRef.current = setTimeout(async () => {
+    setIsCheckingGrammar(true);
+    try {
+      // 1. Regras Rápidas Locais (Regex instantâneo)
+      const localErrors = analyzePortugueseText(content); // Mantém a função regex leve
+      
+      // 2. Consulta ao LanguageTool Self-Hosted via Backend Express do StoryForge
+      const res = await apiClient.post('/entities/grammar-check', { text: content });
+      const apiSuggestions = res.data || [];
+
+      // Unifica os resultados
+      setTextSuggestions([...localErrors, ...apiSuggestions]);
+    } catch (err) {
+      console.error('Erro ao consultar verificador gramatical:', err);
+    } finally {
+      setIsCheckingGrammar(false);
+    }
+  }, 800);
+
+  return () => {
+    if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
+  };
+}, [selectedChapter?.content]);
+
+  // Copiar Capítulo (Título + Conteúdo)
+  const handleCopyChapter = () => {
+    if (!selectedChapter) return;
+    const fullText = `${selectedChapter.title}\n\n${selectedChapter.content || ''}`;
+    navigator.clipboard.writeText(fullText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCheckGrammarWithLanguageTool = async () => {
+  if (!selectedChapter?.content) return;
+
+  setLoadingSuggestions(true);
+  try {
+    // Chamada enviada para o seu próprio backend via apiClient
+    const res = await apiClient.post('/grammar/check', {
+      text: selectedChapter.content,
+    });
+
+    // Mapeamento dos erros oficiais retornados pelo motor LanguageTool
+    const formattedSuggestions = (res.data.matches || []).map((match, index) => ({
+      id: index,
+      original: match.context.text.substring(
+        match.context.offset,
+        match.context.offset + match.context.length
+      ),
+      message: match.message,
+      replacement: match.replacements[0]?.value || '',
+      rule: match.rule?.description || 'Correção gramatical'
+    }));
+
+    setTextSuggestions(formattedSuggestions);
+  } catch (err) {
+    console.error('Erro ao consultar revisão gramatical:', err);
+  } finally {
+    setLoadingSuggestions(false);
+  }
+};
+
+  // Substitui o trecho incorreto no texto e remove a sugestão da lista
+function handleApplyCorrection(suggestion) {
+  if (!selectedChapter) return;
+  const currentContent = selectedChapter.content || '';
+  const updatedContent = currentContent.replace(suggestion.original, suggestion.replacement);
+
+  updateSelectedChapter('content', updatedContent);
+  setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+}
 
   // Criar capítulo
   async function handleAddChapter() {
@@ -437,7 +590,6 @@ export default function Escrita({ projectId, onNavigate }) {
     if (entries.length === 0) return null;
 
     const fieldLabels = {
-      // Personagens e Mundo
       idade: 'Idade',
       descricao: 'Descrição',
       description: 'Descrição',
@@ -448,21 +600,13 @@ export default function Escrita({ projectId, onNavigate }) {
       passado: 'Passado',
       segredo: 'Segredo',
       detalhes: 'Detalhes',
-
-      // Estrutura Dramática
       act: 'Ato',
-      descricao: 'Descrição',
-    description: 'Descrição',
       beat: 'Ponto (Beat)',
       stage: 'Estágio',
       objective: 'Objetivo',
       summary: 'Resumo',
       notes: 'Notas',
-
-      // Ritmo e Timeline
       pacing: 'Ritmo',
-      descricao: 'Descrição',
-    description: 'Descrição',
       intensity: 'Intensidade',
       time: 'Momento/Tempo',
       duration: 'Duração',
@@ -470,8 +614,6 @@ export default function Escrita({ projectId, onNavigate }) {
       location: 'Local',
       conflict: 'Conflito',
       hook: 'Gancho',
-
-      // Mistérios e Plot Twists
       whoKnows: 'Quem sabe',
       clues: 'Pistas',
       revelation: 'Revelação',
@@ -609,38 +751,114 @@ export default function Escrita({ projectId, onNavigate }) {
           )}
         </div>
 
-        {/* Coluna Direita: Editor de Escrita */}
-        <div className="md:col-span-8">
+        {/* Coluna Direita: Editor de Escrita + Painel de Correção Português */}
+        <div className="md:col-span-8 space-y-4">
           {selectedChapter ? (
-            <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-5 space-y-4">
-              <div className="flex items-center justify-between gap-4 pb-3 border-b border-gray-800/60">
-                <input
-                  type="text"
-                  className="bg-transparent font-bold text-lg text-white focus:outline-none focus:border-b border-purple-500 flex-1"
-                  value={selectedChapter.title}
-                  onChange={(e) => updateSelectedChapter('title', e.target.value)}
+            <>
+              <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-5 space-y-4 shadow-lg">
+                <div className="flex items-center justify-between gap-4 pb-3 border-b border-gray-800/60">
+                  <input
+                    type="text"
+                    className="bg-transparent font-bold text-lg text-white focus:outline-none focus:border-b border-purple-500 flex-1"
+                    value={selectedChapter.title}
+                    onChange={(e) => updateSelectedChapter('title', e.target.value)}
+                  />
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCorrectionsPanel((prev) => !prev)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        textSuggestions.length > 0
+                          ? 'bg-amber-950/60 border-amber-500/80 text-amber-300'
+                          : 'bg-[#1c1c28] border-gray-800 text-gray-400'
+                      }`}
+                      title="Alternar Painel de Correção Ortográfica"
+                    >
+                      <span>✨</span>
+                      <span>{textSuggestions.length} Alertas</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyChapter}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        copied
+                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                          : 'bg-[#1c1c28] border-gray-800 hover:border-purple-600 text-gray-300 hover:text-white'
+                      }`}
+                      title="Copiar Título e Conteúdo do Capítulo"
+                    >
+                      <span>{copied ? '✓' : '📋'}</span>
+                      <span>{copied ? 'Copiado!' : 'Copiar'}</span>
+                    </button>
+
+                    <select
+                      className="bg-[#1c1c28] border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-gray-300 focus:outline-none cursor-pointer"
+                      value={selectedChapter.type}
+                      onChange={(e) => updateSelectedChapter('type', e.target.value)}
+                    >
+                      {chapterTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Área do Manuscrito Livre com Texto Justificado */}
+                <textarea
+                  className="w-full h-96 bg-transparent text-gray-200 placeholder-gray-600 text-sm leading-relaxed focus:outline-none resize-y text-justify"
+                  placeholder="Escreva livremente..."
+                  value={selectedChapter.content || ''}
+                  onChange={(e) => updateSelectedChapter('content', e.target.value)}
                 />
-                <select
-                  className="bg-[#1c1c28] border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-gray-300 focus:outline-none cursor-pointer"
-                  value={selectedChapter.type}
-                  onChange={(e) => updateSelectedChapter('type', e.target.value)}
-                >
-                  {chapterTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
               </div>
 
-              {/* Área do Manuscrito Livre */}
-              <textarea
-                className="w-full h-96 bg-transparent text-gray-200 placeholder-gray-600 text-sm leading-relaxed focus:outline-none resize-y"
-                placeholder="Escreva livremente..."
-                value={selectedChapter.content || ''}
-                onChange={(e) => updateSelectedChapter('content', e.target.value)}
-              />
-            </div>
+              {/* PAINEL DINÂMICO DE REVISÃO E CORREÇÃO DE PORTUGUÊS */}
+              {showCorrectionsPanel && textSuggestions.length > 0 && (
+                <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 transition-all animate-fadeIn shadow-xl">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
+                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
+                      <span>🪄</span> Assistente de Revisão (Português)
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      Análise 100% privada e local
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                    {textSuggestions.map((sug) => (
+                      <div
+                        key={sug.id}
+                        className="bg-[#1c1b2c] border border-gray-800 p-3 rounded-lg flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${sug.badgeStyle}`}>
+                              {sug.label}
+                            </span>
+                            <span className="text-gray-400 line-through">
+                              "{sug.original}"
+                            </span>
+                          </div>
+                          <p className="text-gray-300">{sug.message}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCorrection(sug)}
+                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-md transition-colors cursor-pointer shrink-0 shadow-md"
+                        >
+                          Aplicar: "{sug.replacement}"
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-16 text-center space-y-3">
               <span className="text-4xl text-gray-600 block">📖</span>
@@ -758,22 +976,22 @@ export default function Escrita({ projectId, onNavigate }) {
                             {displayName}
                           </h4>
                           {item.type && (
-  <span
-    className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
-      activeDrawer === 'personagens'
-        ? getCharacterBadgeStyle(item.type)
-        : activeDrawer === 'estrutura'
-        ? getFrameworkBadgeStyle(item.type)
-        : activeDrawer === 'ritmo'
-        ? getTimelineBadgeStyle(item.type)
-        : activeDrawer === 'mundo'
-        ? getWorldTheme(item.type)
-        : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
-    }`}
-  >
-    {item.type}
-  </span>
-)}
+                            <span
+                              className={`inline-block border px-2 py-0.5 rounded text-[11px] font-medium mt-1 ${
+                                activeDrawer === 'personagens'
+                                  ? getCharacterBadgeStyle(item.type)
+                                  : activeDrawer === 'estrutura'
+                                  ? getFrameworkBadgeStyle(item.type)
+                                  : activeDrawer === 'ritmo'
+                                  ? getTimelineBadgeStyle(item.type)
+                                  : activeDrawer === 'mundo'
+                                  ? getWorldTheme(item.type)
+                                  : 'bg-purple-950/80 text-purple-300 border-purple-800/40'
+                              }`}
+                            >
+                              {item.type}
+                            </span>
+                          )}
                         </div>
                       </div>
 
