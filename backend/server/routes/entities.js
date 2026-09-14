@@ -6,40 +6,39 @@ import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
+// ==========================================
+// MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
+// ==========================================
+router.use((req, res, next) => {
+  if (req.url.startsWith('/entities/')) {
+    req.url = req.url.replace('/entities', '');
+  }
+  next();
+});
 
 // ==========================================
-// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL PRIVADO)
+// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
 // ==========================================
 router.post('/grammar-check', async (req, res) => {
   try {
     const { text } = req.body;
+    if (!text || text.trim().length < 3) return res.json([]);
 
-    if (!text || text.trim().length < 3) {
-      return res.json({ matches: [] });
-    }
-
-    // URL do container local do LanguageTool (configurável via .env)
-    const langToolUrl = process.env.LANGUAGETOOL_URL || 'http://localhost:8010/v2/check';
-
-    const response = await fetch(langToolUrl, {
+    // Requisição local fechada para a porta 8010
+    const params = new URLSearchParams({ text, language: 'pt-BR' });
+    const response = await fetch('http://localhost:8010/v2/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        text: text,
-        language: 'pt-BR'
-      })
+      body: params,
     });
 
-    if (!response.ok) {
-      throw new Error(`Erro na API do LanguageTool: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error('Servidor LanguageTool offline');
 
     const data = await response.json();
 
-    // Mapeia e formata os erros retornados pelo LanguageTool
+    // Mapeia os alertas retornados para o formato que o componente React lê
     const suggestions = (data.matches || []).map((match, idx) => ({
       id: `lt-${idx}-${match.offset}`,
-      type: match.rule?.issueType || 'gramatica',
       label: match.rule?.category?.name || 'Gramática',
       original: text.substring(match.offset, match.offset + match.length),
       replacement: match.replacements[0]?.value || '',
@@ -50,21 +49,10 @@ router.post('/grammar-check', async (req, res) => {
     }));
 
     return res.json(suggestions);
-  } catch (error) {
-    console.error('Erro na verificação gramatical do servidor:', error.message);
-    // Retorna lista vazia em caso de indisponibilidade do serviço local
-    return res.json([]);
+  } catch (err) {
+    console.error('Erro na checagem gramatical:', err.message);
+    return res.json([]); // Retorna lista vazia em caso de falha temporária
   }
-});
-
-// ==========================================
-// MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
-// ==========================================
-router.use((req, res, next) => {
-  if (req.url.startsWith('/entities/')) {
-    req.url = req.url.replace('/entities', '');
-  }
-  next();
 });
 
 // ==========================================

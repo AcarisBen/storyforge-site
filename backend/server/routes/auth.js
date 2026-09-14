@@ -157,39 +157,27 @@ router.get('/me', async (req, res) => {
 // PUT /auth/profile - Atualiza o perfil do usuário autenticado
 router.put('/profile', async (req, res) => {
   try {
-    const { name, email, currentPassword, newPassword } = req.body;
-    const userId = req.user.id; // Supondo que você use middleware de autenticação
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
 
-    // Busca usuário no banco (ex: Prisma, Sequelize ou SQL puro)
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const token = authHeader.split(' ')[1];
+    const userId = token?.replace('token_seguro_', '');
+    const { name, email, currentPassword, newPassword } = req.body;
+
+    const user = users.find((u) => u.id === userId);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    const updates = {};
-    if (name) updates.name = name;
-    if (email) updates.email = email;
-
-    // Se houver troca de senha, valida a senha atual primeiro
+    if (name) user.fullName = name;
+    if (email) user.email = email;
     if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: 'Informe a senha atual.' });
-      }
-      const isValid = await bcrypt.compare(currentPassword, user.password);
-      if (!isValid) {
+      if (currentPassword !== user.password) {
         return res.status(400).json({ error: 'Senha atual incorreta.' });
       }
-      updates.password = await bcrypt.hash(newPassword, 10);
+      user.password = newPassword;
     }
 
-    const updatedUser = await db.user.update({
-      where: { id: userId },
-      data: updates,
-    });
-
-    return res.json({ 
-      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email } 
-    });
+    return res.json({ user: { id: user.id, name: user.fullName, email: user.email } });
   } catch (err) {
-    console.error('Erro ao atualizar perfil:', err);
     return res.status(500).json({ error: 'Erro interno ao atualizar perfil' });
   }
 });

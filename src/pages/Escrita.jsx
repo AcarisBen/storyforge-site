@@ -486,16 +486,22 @@ function handleApplyCorrection(suggestion) {
       };
 
       const res = await apiClient.post(`/entities/projects/${projectId}/chapters`, payload);
-      const created = res.data;
+      // Trata caso a API retorne diretamente o objeto ou envolto em .data
+      const created = res?.data || res;
 
-      setChapters((prev) => [...prev, created]);
+      if (!created || !created.id) {
+      throw new Error('A resposta da API não retornou um capítulo válido com ID.');
+    }
+
+      // Atualiza o estado de forma segura
+      setChapters((prev) => [...(Array.isArray(prev) ? prev : []), created]);
       setSelectedId(created.id);
       setNewTitle('');
       setNewType('Capítulo');
       setIsCreating(false);
     } catch (err) {
       console.error('Erro ao criar capítulo:', err);
-      alert('Não foi possível criar o capítulo.');
+      alert('Não foi possível criar o capítulo. Verifique o servidor backend.');
     }
   }
 

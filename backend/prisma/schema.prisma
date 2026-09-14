@@ -21,6 +21,9 @@ model Project {
   id          String      @id @default(uuid())
   title       String
   description String?
+  isImported  Boolean     @default(false)
+  exportedAt  String?
+  exportedBy  String?
   userId      String
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
