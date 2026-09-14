@@ -154,4 +154,44 @@ router.get('/me', async (req, res) => {
   return res.status(200).json({ user: userClean });
 });
 
+// PUT /auth/profile - Atualiza o perfil do usuário autenticado
+router.put('/profile', async (req, res) => {
+  try {
+    const { name, email, currentPassword, newPassword } = req.body;
+    const userId = req.user.id; // Supondo que você use middleware de autenticação
+
+    // Busca usuário no banco (ex: Prisma, Sequelize ou SQL puro)
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const updates = {};
+    if (name) updates.name = name;
+    if (email) updates.email = email;
+
+    // Se houver troca de senha, valida a senha atual primeiro
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Informe a senha atual.' });
+      }
+      const isValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Senha atual incorreta.' });
+      }
+      updates.password = await bcrypt.hash(newPassword, 10);
+    }
+
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: updates,
+    });
+
+    return res.json({ 
+      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email } 
+    });
+  } catch (err) {
+    console.error('Erro ao atualizar perfil:', err);
+    return res.status(500).json({ error: 'Erro interno ao atualizar perfil' });
+  }
+});
+
 export default router;

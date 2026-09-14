@@ -1,12 +1,74 @@
-// entities.js
+// backend/server/routes/entities.js
+// 
 
 import express from 'express';
 import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
+
 // ==========================================
-// EXTRAIR USUÁRIO LOGADO VIA TOKEN
+// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL PRIVADO)
+// ==========================================
+router.post('/grammar-check', async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || text.trim().length < 3) {
+      return res.json({ matches: [] });
+    }
+
+    // URL do container local do LanguageTool (configurável via .env)
+    const langToolUrl = process.env.LANGUAGETOOL_URL || 'http://localhost:8010/v2/check';
+
+    const response = await fetch(langToolUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        text: text,
+        language: 'pt-BR'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro na API do LanguageTool: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Mapeia e formata os erros retornados pelo LanguageTool
+    const suggestions = (data.matches || []).map((match, idx) => ({
+      id: `lt-${idx}-${match.offset}`,
+      type: match.rule?.issueType || 'gramatica',
+      label: match.rule?.category?.name || 'Gramática',
+      original: text.substring(match.offset, match.offset + match.length),
+      replacement: match.replacements[0]?.value || '',
+      message: match.message,
+      badgeStyle: match.rule?.issueType === 'misspelling' 
+        ? 'bg-red-950/80 text-red-300 border-red-700/60' 
+        : 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+    }));
+
+    return res.json(suggestions);
+  } catch (error) {
+    console.error('Erro na verificação gramatical do servidor:', error.message);
+    // Retorna lista vazia em caso de indisponibilidade do serviço local
+    return res.json([]);
+  }
+});
+
+// ==========================================
+// MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
+// ==========================================
+router.use((req, res, next) => {
+  if (req.url.startsWith('/entities/')) {
+    req.url = req.url.replace('/entities', '');
+  }
+  next();
+});
+
+// ==========================================
+// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA TOKEN
 // ==========================================
 const getUserIdFromReq = (req) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -14,13 +76,22 @@ const getUserIdFromReq = (req) => {
   return token.replace('token_seguro_', '');
 };
 
+// Middleware utilitário de proteção de rota
+const requireAuth = (req, res, next) => {
+  const userId = getUserIdFromReq(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
+  }
+  req.userId = userId;
+  next();
+};
+
 // ==========================================
-// BUSCAR APENAS OS PROJETOS DO USUÁRIO LOGADO
+// PROJETO(S) - ISOLAMENTO SEGURO POR USUÁRIO
 // ==========================================
 const getProjectsHandler = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
-
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
@@ -30,85 +101,94 @@ const getProjectsHandler = async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(projects);
+    const formattedProjects = projects.map((p) => ({
+      ...p,
+      isImported: Boolean(p.isImported),
+      exportedAt: p.exportedAt || null,
+      exportedBy: p.exportedBy || null,
+    }));
+
+    res.json(formattedProjects);
   } catch (error) {
     console.error('Erro ao buscar projetos:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-router.get('/projects', getProjectsHandler);
-router.get('/entities/projects', getProjectsHandler);
-
-// ==========================================
-// CRIAR PROJETO VINCULADO AO AUTOR LOGADO
-// ==========================================
 const createProjectHandler = async (req, res) => {
-  console.log('--- INICIANDO CRIAÇÃO/IMPORTAÇÃO DE PROJETO ---');
-  console.log('BODY RECEBIDO:', req.body);
-  
   try {
-    const { title, format, status, progress, writerName } = req.body;
+    const { title, format, status, progress, writerName, isImported, exportedAt, exportedBy } = req.body;
     const userId = getUserIdFromReq(req);
 
-    console.log('USER ID EXTRAÍDO:', userId);
-
     if (!userId) {
-      console.log('ERRO: Sem userId no token');
-      return res.status(401).json({ error: 'Você precisa estar logado para criar um projeto.' });
+      return res.status(401).json({ error: 'Você precisa estar logado para criar ou importar um projeto.' });
     }
 
-    const authorName = writerName || 'Autor StoryForge';
+    const cleanTitle = (title || 'Novo Projeto').replace(/\s*\(Importado\)\s*/gi, '').trim();
+    const isImportProcess = Boolean(isImported);
+    const authorName = exportedBy || writerName || 'Autor StoryForge';
+    const importDate = exportedAt || new Date().toLocaleDateString('pt-BR');
 
-    // 1. Tenta criar/garantir o usuário no banco
-    console.log('Buscando/Criando usuário no Prisma...');
-    const user = await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: {
-        id: userId,
-        email: `${userId}@storyforge.local`,
-        name: authorName,
-        password: 'hash_placeholder',
-      },
-    });
-    console.log('Usuário garantido no Prisma:', user.id);
+    // Garantia de registro do usuário no banco
+    try {
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: {
+          id: userId,
+          email: `${userId}@storyforge.local`,
+          name: authorName,
+          password: 'hash_placeholder',
+        },
+      });
+    } catch (uErr) {
+      console.log('Aviso (User em memória):', uErr.message);
+    }
 
-    // 2. Cria o projeto
-    console.log('Criando projeto no Prisma...');
     const newProject = await prisma.project.create({
       data: {
-        title: title || 'Projeto Importado',
-        description: `Autor: ${authorName} | Formato: ${format || 'Romance'} | Importado em: ${new Date().toLocaleDateString('pt-BR')}`,
+        title: cleanTitle,
+        description: isImportProcess ? `Projeto importado em ${importDate} por ${authorName}` : '',
         userId: userId,
+        isImported: isImportProcess,
+        exportedAt: isImportProcess ? importDate : null,
+        exportedBy: isImportProcess ? authorName : null,
       },
     });
-
-    console.log('Projeto criado com sucesso ID:', newProject.id);
 
     return res.status(201).json({
       ...newProject,
       format: format || 'Romance / Livro',
       status: status || 'Desenvolvimento',
       progress: Number(progress) || 0,
-      createdAt: newProject.createdAt,
-      author: authorName,
     });
   } catch (error) {
-    console.error('❌ ERRO DETALHADO NO PRISMA:', error);
-    return res.status(500).json({ error: error.message || 'Erro interno no servidor' });
+    console.error('Erro ao criar/importar projeto no Prisma:', error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// ==========================================
-// DELETAR PROJETO
-// ==========================================
 const deleteProjectHandler = async (req, res) => {
   try {
+    const userId = getUserIdFromReq(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
+    }
+
     const { id } = req.params;
-    await prisma.project.delete({
-      where: { id },
+
+    // Proteção de Dados: Deleta apenas se o projeto pertencer ao userId autenticado
+    const deleted = await prisma.project.deleteMany({
+      where: {
+        id: id,
+        userId: userId,
+      },
     });
+
+    if (deleted.count === 0) {
+      return res.status(403).json({ error: 'Operação não permitida ou projeto não encontrado.' });
+    }
+
     res.json({ success: true, message: 'Projeto excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar projeto:', error);
@@ -116,13 +196,14 @@ const deleteProjectHandler = async (req, res) => {
   }
 };
 
+router.get('/projects', getProjectsHandler);
+router.post('/projects', createProjectHandler);
 router.delete('/projects/:id', deleteProjectHandler);
-router.delete('/entities/projects/:id', deleteProjectHandler);
 
 // ==========================================
 // RELAÇÕES
 // ==========================================
-const getRelationsHandler = async (req, res) => {
+router.get('/projects/:projectId/relations', async (req, res) => {
   const { projectId } = req.params;
   try {
     const relations = await prisma.characterRelation.findMany({
@@ -134,12 +215,9 @@ const getRelationsHandler = async (req, res) => {
     console.error('Erro ao buscar relações:', err);
     res.status(500).json({ error: 'Erro ao carregar relações' });
   }
-};
+});
 
-router.get('/projects/:projectId/relations', getRelationsHandler);
-router.get('/entities/projects/:projectId/relations', getRelationsHandler);
-
-const saveRelationHandler = async (req, res) => {
+router.post('/relations', async (req, res) => {
   const { id, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
 
   if (!projectId || !charAId || !charBId) {
@@ -148,7 +226,6 @@ const saveRelationHandler = async (req, res) => {
 
   try {
     let savedRelation;
-
     if (id && !isNaN(Number(id))) {
       savedRelation = await prisma.characterRelation.update({
         where: { id: Number(id) },
@@ -174,32 +251,23 @@ const saveRelationHandler = async (req, res) => {
         },
       });
     }
-
     res.status(200).json(savedRelation);
   } catch (err) {
-    console.error('Erro ao salvar relação no Prisma:', err);
+    console.error('Erro ao salvar relação:', err);
     res.status(500).json({ error: 'Erro ao salvar a relação no banco de dados.' });
   }
-};
+});
 
-router.post('/relations', saveRelationHandler);
-router.post('/entities/relations', saveRelationHandler);
-
-const deleteRelationHandler = async (req, res) => {
+router.delete('/relations/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.characterRelation.delete({
-      where: { id: Number(id) },
-    });
+    await prisma.characterRelation.delete({ where: { id: Number(id) } });
     res.json({ success: true, message: 'Relação removida com sucesso' });
   } catch (err) {
     console.error('Erro ao deletar relação:', err);
     res.status(500).json({ error: 'Erro ao excluir relação' });
   }
-};
-
-router.delete('/relations/:id', deleteRelationHandler);
-router.delete('/entities/relations/:id', deleteRelationHandler);
+});
 
 // ==========================================
 // CONFIGURAÇÕES DO PROJETO (Identity, Essência, Engenharia)
@@ -406,7 +474,7 @@ router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
 // ==========================================
 // PERSONAGENS
 // ==========================================
-const getCharactersHandler = async (req, res) => {
+router.get('/projects/:projectId/characters', async (req, res) => {
   try {
     const { projectId } = req.params;
     const characters = await prisma.character.findMany({
@@ -426,10 +494,7 @@ const getCharactersHandler = async (req, res) => {
     console.error('Erro ao buscar personagens:', error);
     res.status(500).json({ error: error.message });
   }
-};
-
-router.get('/projects/:projectId/characters', getCharactersHandler);
-router.get('/entities/projects/:projectId/characters', getCharactersHandler);
+});
 
 router.post('/projects/:projectId/characters', async (req, res) => {
   try {
@@ -452,7 +517,7 @@ router.post('/projects/:projectId/characters', async (req, res) => {
       details: newChar.details,
     });
   } catch (error) {
-    console.error('Erro ao criar personagem no Prisma:', error);
+    console.error('Erro ao criar personagem:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -478,7 +543,7 @@ router.put('/characters/:id', async (req, res) => {
       details: updatedChar.details,
     });
   } catch (error) {
-    console.error('Erro ao atualizar personagem no Prisma:', error);
+    console.error('Erro ao atualizar personagem:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -489,7 +554,7 @@ router.delete('/characters/:id', async (req, res) => {
     await prisma.character.delete({ where: { id } });
     res.json({ message: 'Personagem excluído com sucesso' });
   } catch (error) {
-    console.error('Erro ao deletar personagem no Prisma:', error);
+    console.error('Erro ao deletar personagem:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -597,7 +662,7 @@ router.delete('/world/:id', async (req, res) => {
 // ==========================================
 // CENAS
 // ==========================================
-const getScenesHandler = async (req, res) => {
+router.get('/projects/:projectId/scenes', async (req, res) => {
   try {
     const { projectId } = req.params;
     const scenes = await prisma.entity.findMany({
@@ -616,10 +681,7 @@ const getScenesHandler = async (req, res) => {
     console.error('Erro ao buscar cenas:', error);
     res.status(500).json({ error: error.message });
   }
-};
-
-router.get('/projects/:projectId/scenes', getScenesHandler);
-router.get('/entities/projects/:projectId/scenes', getScenesHandler);
+});
 
 router.post('/projects/:projectId/scenes', async (req, res) => {
   try {
@@ -983,7 +1045,7 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
 // ==========================================
 // STORYBOARD (PERSISTÊNCIA DE DIAGRAMA)
 // ==========================================
-const getStoryboardHandler = async (req, res) => {
+router.get('/projects/:projectId/storyboard', async (req, res) => {
   try {
     const { projectId } = req.params;
     const entity = await prisma.entity.findFirst({
@@ -994,12 +1056,9 @@ const getStoryboardHandler = async (req, res) => {
     console.error('Erro ao buscar Storyboard:', error);
     res.status(500).json({ error: error.message });
   }
-};
+});
 
-router.get('/projects/:projectId/storyboard', getStoryboardHandler);
-router.get('/entities/projects/:projectId/storyboard', getStoryboardHandler);
-
-const saveStoryboardHandler = async (req, res) => {
+router.post('/projects/:projectId/storyboard', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { nodes = [], edges = [] } = req.body;
@@ -1030,15 +1089,12 @@ const saveStoryboardHandler = async (req, res) => {
     console.error('Erro ao salvar Storyboard:', error);
     res.status(500).json({ error: error.message });
   }
-};
-
-router.post('/projects/:projectId/storyboard', saveStoryboardHandler);
-router.post('/entities/projects/:projectId/storyboard', saveStoryboardHandler);
+});
 
 // ==========================================
 // MAPA EMOCIONAL (PERSISTÊNCIA DE PONTOS)
 // ==========================================
-const getMapaEmocionalHandler = async (req, res) => {
+router.get('/projects/:projectId/mapa-emocional', async (req, res) => {
   try {
     const { projectId } = req.params;
     const entity = await prisma.entity.findFirst({
@@ -1049,12 +1105,9 @@ const getMapaEmocionalHandler = async (req, res) => {
     console.error('Erro ao buscar Mapa Emocional:', error);
     res.status(500).json({ error: error.message });
   }
-};
+});
 
-router.get('/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
-router.get('/entities/projects/:projectId/mapa-emocional', getMapaEmocionalHandler);
-
-const saveMapaEmocionalHandler = async (req, res) => {
+router.post('/projects/:projectId/mapa-emocional', async (req, res) => {
   try {
     const { projectId } = req.params;
     const points = req.body;
@@ -1085,15 +1138,12 @@ const saveMapaEmocionalHandler = async (req, res) => {
     console.error('Erro ao salvar Mapa Emocional:', error);
     res.status(500).json({ error: error.message });
   }
-};
-
-router.post('/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
-router.post('/entities/projects/:projectId/mapa-emocional', saveMapaEmocionalHandler);
+});
 
 // ==========================================
 // DIÁLOGOS
 // ==========================================
-const getDialoguesHandler = async (req, res) => {
+router.get('/projects/:projectId/dialogues', async (req, res) => {
   try {
     const { projectId } = req.params;
     const dialogues = await prisma.entity.findMany({
@@ -1112,12 +1162,9 @@ const getDialoguesHandler = async (req, res) => {
     console.error('Erro ao buscar diálogos:', error);
     res.status(500).json({ error: error.message });
   }
-};
+});
 
-router.get('/projects/:projectId/dialogues', getDialoguesHandler);
-router.get('/entities/projects/:projectId/dialogues', getDialoguesHandler);
-
-const saveDialogueHandler = async (req, res) => {
+router.post('/projects/:projectId/dialogues', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, ...restData } = req.body;
@@ -1140,12 +1187,9 @@ const saveDialogueHandler = async (req, res) => {
     console.error('Erro ao criar diálogo:', error);
     res.status(500).json({ error: error.message });
   }
-};
+});
 
-router.post('/projects/:projectId/dialogues', saveDialogueHandler);
-router.post('/entities/projects/:projectId/dialogues', saveDialogueHandler);
-
-const updateDialogueHandler = async (req, res) => {
+router.put('/dialogues/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, ...restData } = req.body;
@@ -1167,12 +1211,9 @@ const updateDialogueHandler = async (req, res) => {
     console.error('Erro ao atualizar diálogo:', error);
     res.status(500).json({ error: error.message });
   }
-};
+});
 
-router.put('/dialogues/:id', updateDialogueHandler);
-router.put('/entities/dialogues/:id', updateDialogueHandler);
-
-const deleteDialogueHandler = async (req, res) => {
+router.delete('/dialogues/:id', async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.entity.delete({ where: { id } });
@@ -1181,9 +1222,6 @@ const deleteDialogueHandler = async (req, res) => {
     console.error('Erro ao excluir diálogo:', error);
     res.status(500).json({ error: error.message });
   }
-};
-
-router.delete('/dialogues/:id', deleteDialogueHandler);
-router.delete('/entities/dialogues/:id', deleteDialogueHandler);
+});
 
 export default router;
