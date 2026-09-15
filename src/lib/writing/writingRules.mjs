@@ -62,6 +62,7 @@ export const ACCENT_SUGGESTIONS = Object.freeze({
 export const SPELLING_SUGGESTIONS = Object.freeze({
   veses: 'vezes',
   ves: 'vez',
+  meza: 'mesa',
 });
 
 export const DESTINATION_NOUNS = Object.freeze([

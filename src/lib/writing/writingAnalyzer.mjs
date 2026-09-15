@@ -157,7 +157,15 @@ export function removeWritingAlert(alerts, alertId) {
 }
 
 export async function createWritingAnalyzer(options = {}) {
-  const dataset = options.dataset || await loadWritingDataset(options);
+  let dataset = options.dataset;
+  if (!dataset) {
+    try {
+      dataset = await loadWritingDataset(options);
+    } catch (error) {
+      console.warn('Writing dataset unavailable; using built-in rules:', error);
+      dataset = null;
+    }
+  }
   const baseRules = options.rules || [];
   return {
     dataset,

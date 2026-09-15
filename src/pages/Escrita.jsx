@@ -5,6 +5,7 @@ import apiClient from '../api/apiClient';
 import {
   analyzeWriting,
   applyWritingSuggestion,
+  createWritingAnalyzer,
   removeWritingAlert,
 } from '../lib/writing/writingAnalyzer.mjs';
 
@@ -197,6 +198,9 @@ export default function Escrita({ projectId, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [writingAlerts, setWritingAlerts] = useState([]);
+  const [writingAnalyzer, setWritingAnalyzer] = useState(() => ({
+    analyze: analyzeWriting,
+  }));
   const [isReviewOpen, setIsReviewOpen] = useState(true);
   const [expandedAlertId, setExpandedAlertId] = useState(null);
 
@@ -331,6 +335,22 @@ export default function Escrita({ projectId, onNavigate }) {
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
   useEffect(() => {
+    let active = true;
+
+    createWritingAnalyzer()
+      .then((analyzer) => {
+        if (active && analyzer) setWritingAnalyzer(analyzer);
+      })
+      .catch((error) => {
+        console.warn('Dataset de escrita indisponível; usando analisador local:', error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     setWritingAlerts([]);
     setIsReviewOpen(true);
     setExpandedAlertId(null);
@@ -339,11 +359,11 @@ export default function Escrita({ projectId, onNavigate }) {
   useEffect(() => {
     const content = selectedChapter?.content || '';
     const analysisTimeout = setTimeout(() => {
-      setWritingAlerts(analyzeWriting(content));
+      setWritingAlerts(writingAnalyzer.analyze(content));
     }, 350);
 
     return () => clearTimeout(analysisTimeout);
-  }, [selectedChapter?.content, selectedId]);
+  }, [selectedChapter?.content, selectedId, writingAnalyzer]);
 
   // Copiar Capítulo (Título + Conteúdo)
   const handleCopyChapter = () => {

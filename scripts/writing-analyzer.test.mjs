@@ -31,3 +31,11 @@ test('applies only the occurrence represented by an alert', () => {
   const alert = analyzeWriting(text).find((item) => item.ruleId === 'missing-accent');
   assert.equal(applyWritingSuggestion(text, alert, alert.suggestions[0]), 'você e voce');
 });
+
+test('produces alerts for non-empty text without an imported dataset', () => {
+  const alerts = analyzeWriting('voce chegou na meza');
+  assert.ok(alerts.some((alert) => alert.ruleId === 'missing-accent'));
+  assert.ok(
+    alerts.some((alert) => alert.ruleId === 'spelling-confusion' && alert.original === 'meza')
+  );
+});
