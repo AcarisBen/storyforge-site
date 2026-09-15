@@ -399,19 +399,6 @@ export default function Escrita({ projectId, onNavigate }) {
       clearTimeout(updateTimeoutRef.current[selectedId]);
     }
 
-    function handleApplyWritingSuggestion(alert, suggestion) {
-      if (!selectedChapter) return;
-      const content = selectedChapter.content || '';
-      const nextContent = applyWritingSuggestion(content, alert, suggestion);
-      if (nextContent === content) return;
-      updateSelectedChapter('content', nextContent);
-      setWritingAlerts(analyzeWriting(nextContent));
-    }
-
-    function handleIgnoreWritingAlert(alertId) {
-      setWritingAlerts((currentAlerts) => removeWritingAlert(currentAlerts, alertId));
-    }
-
     updateTimeoutRef.current[selectedId] = setTimeout(async () => {
       try {
         const targetChapter = chapters.find((c) => c.id === selectedId);
@@ -423,6 +410,19 @@ export default function Escrita({ projectId, onNavigate }) {
         console.error('Erro ao salvar capítulo automaticamente:', err);
       }
     }, 1000);
+  }
+
+  function handleApplyWritingSuggestion(alert, suggestion) {
+    if (!selectedChapter) return;
+    const content = selectedChapter.content || '';
+    const nextContent = applyWritingSuggestion(content, alert, suggestion);
+    if (nextContent === content) return;
+    updateSelectedChapter('content', nextContent);
+    setWritingAlerts(analyzeWriting(nextContent));
+  }
+
+  function handleIgnoreWritingAlert(alertId) {
+    setWritingAlerts((currentAlerts) => removeWritingAlert(currentAlerts, alertId));
   }
 
   // Excluir capítulo

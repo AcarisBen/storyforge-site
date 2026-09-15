@@ -1,47 +1,51 @@
-export const WRITING_RULES = Object.freeze({
-  repeatedWord: {
+import { defineGrammarRule } from './grammarSchema.mjs';
+
+const rules = {
+  repeatedWord: defineGrammarRule({
     id: 'repeated-word',
     category: 'Repetição',
     severity: 'medium',
     message: 'Esta palavra aparece repetida em sequência.',
-  },
-  multipleSpaces: {
+  }),
+  multipleSpaces: defineGrammarRule({
     id: 'multiple-spaces',
     category: 'Formatação',
     severity: 'low',
     message: 'Há mais de um espaço entre estas palavras.',
-  },
-  accent: {
+  }),
+  accent: defineGrammarRule({
     id: 'missing-accent',
     category: 'Acentuação',
     severity: 'medium',
     message: 'Esta palavra costuma precisar de acento neste uso.',
-  },
-  spelling: {
+  }),
+  spelling: defineGrammarRule({
     id: 'spelling-confusion',
     category: 'Ortografia',
     severity: 'high',
     message: 'Esta grafia pode estar incorreta neste contexto.',
-  },
-  agreement: {
+  }),
+  agreement: defineGrammarRule({
     id: 'subject-noun-agreement',
     category: 'Concordância',
     severity: 'high',
     message: 'O artigo, o substantivo e o verbo parecem estar em desacordo.',
-  },
-  porque: {
+  }),
+  porque: defineGrammarRule({
     id: 'punctuation-before-porque',
     category: 'Pontuação',
     severity: 'medium',
     message: 'Uma vírgula pode separar esta explicação da oração anterior.',
-  },
-  crase: {
+  }),
+  crase: defineGrammarRule({
     id: 'crase',
     category: 'Crase',
     severity: 'medium',
     message: 'Este contexto pede crase antes do destino indicado.',
-  },
-});
+  }),
+};
+
+export const WRITING_RULES = Object.freeze(rules);
 
 export const ACCENT_SUGGESTIONS = Object.freeze({
   voce: 'você',

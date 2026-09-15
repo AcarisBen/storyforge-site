@@ -4,6 +4,8 @@ import {
   SPELLING_SUGGESTIONS,
   WRITING_RULES,
 } from './writingRules.mjs';
+import { tokenize, applyPointCorrection } from './tokenizer.mjs';
+import { createGrammarAlert } from './grammarSchema.mjs';
 
 const WORD_PATTERN = /[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu;
 const WORD_WITH_SPAN_PATTERN = /[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu;
@@ -18,27 +20,17 @@ function preserveCase(original, suggestion) {
 }
 
 function makeAlert(rule, original, offset, suggestions, message = rule.message) {
-  return {
-    id: `${rule.id}-${offset}`,
-    ruleId: rule.id,
-    category: rule.category,
-    original,
-    offset,
-    length: original.length,
-    message,
-    severity: rule.severity,
-    suggestions: [...new Set(suggestions)],
-  };
+  return createGrammarAlert({ ...rule, message }, original, offset, suggestions);
 }
 
 function analyzeRepeatedWords(text, alerts) {
-  const words = [...text.matchAll(WORD_WITH_SPAN_PATTERN)];
+  const words = tokenize(text);
   for (let index = 1; index < words.length; index += 1) {
     const previous = words[index - 1];
     const current = words[index];
-    if (previous[0].toLocaleLowerCase() !== current[0].toLocaleLowerCase()) continue;
-    const original = text.slice(previous.index, current.index + current[0].length);
-    alerts.push(makeAlert(WRITING_RULES.repeatedWord, original, previous.index, [previous[0]]));
+    if (previous.normalized !== current.normalized) continue;
+    const original = text.slice(previous.offset, current.end);
+    alerts.push(makeAlert(WRITING_RULES.repeatedWord, original, previous.offset, [previous.text]));
   }
 }
 
@@ -49,10 +41,11 @@ function analyzeMultipleSpaces(text, alerts) {
   }
 }
 
-function analyzeAccentAndSpelling(text, alerts) {
+function analyzeAccentAndSpelling(text, alerts, { ignoredWords = new Set(), authorWords = new Set() } = {}) {
   for (const [word, suggestion] of Object.entries(ACCENT_SUGGESTIONS)) {
     const pattern = new RegExp(`\\b${word}\\b`, CASE_INSENSITIVE);
     for (const match of text.matchAll(pattern)) {
+      if (ignoredWords.has(match[0].toLocaleLowerCase('pt-BR')) || authorWords.has(match[0].toLocaleLowerCase('pt-BR'))) continue;
       alerts.push(
         makeAlert(
           WRITING_RULES.accent,
@@ -67,6 +60,7 @@ function analyzeAccentAndSpelling(text, alerts) {
   for (const [word, suggestion] of Object.entries(SPELLING_SUGGESTIONS)) {
     const pattern = new RegExp(`\\b${word}\\b`, CASE_INSENSITIVE);
     for (const match of text.matchAll(pattern)) {
+      if (ignoredWords.has(match[0].toLocaleLowerCase('pt-BR')) || authorWords.has(match[0].toLocaleLowerCase('pt-BR'))) continue;
       alerts.push(
         makeAlert(
           WRITING_RULES.spelling,
@@ -118,14 +112,14 @@ function analyzeCrase(text, alerts) {
   }
 }
 
-export function analyzeWriting(text = '') {
+export function analyzeWriting(text = '', options = {}) {
   const value = String(text);
   if (!value) return [];
 
   const alerts = [];
   analyzeRepeatedWords(value, alerts);
   analyzeMultipleSpaces(value, alerts);
-  analyzeAccentAndSpelling(value, alerts);
+  analyzeAccentAndSpelling(value, alerts, options);
   analyzeAgreement(value, alerts);
   analyzePorque(value, alerts);
   analyzeCrase(value, alerts);
@@ -138,7 +132,11 @@ export function applyWritingSuggestion(text, alert, suggestion) {
   if (!alert || !suggestion || value.slice(alert.offset, alert.offset + alert.length) !== alert.original) {
     return value;
   }
-  return `${value.slice(0, alert.offset)}${suggestion}${value.slice(alert.offset + alert.length)}`;
+  return applyPointCorrection(value, {
+    offset: alert.offset,
+    length: alert.length,
+    replacement: suggestion,
+  });
 }
 
 export function removeWritingAlert(alerts, alertId) {
