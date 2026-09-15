@@ -20,7 +20,7 @@ export function createPosTaggerClient({ WorkerCtor, workerUrl, dictionary } = {}
   }
   return {
     analyze(text) {
-      if (!worker) return Promise.resolve(tagPartsOfSpeech(text));
+      if (!worker) return Promise.resolve(tagPartsOfSpeech(text, { dictionary }));
       return new Promise((resolve) => {
         const requestId = ++sequence;
         pending.set(requestId, resolve);

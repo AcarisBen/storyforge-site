@@ -30,7 +30,9 @@ export function adaptLanguageToolMatches(matches = [], { ruleMap = {} } = {}) {
   });
 }
 
-export function parseLanguageToolRulesXml(xml, { source = 'languagetool' } = {}) {
+export function parseLanguageToolRulesXml(xml, {
+  source = 'languagetool', version, license,
+} = {}) {
   const value = String(xml ?? '');
   return [...value.matchAll(/<rule\b([^>]*)>([\s\S]*?)<\/rule>/gi)].map((match) => {
     const attrs = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]));
@@ -47,6 +49,8 @@ export function parseLanguageToolRulesXml(xml, { source = 'languagetool' } = {})
       severity: 'medium',
       message,
       source,
+      ...(version ? { version } : {}),
+      ...(license ? { license } : {}),
       suggestions,
       ...(tokens.length ? {
         pattern: `\\b${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+') }\\b`,

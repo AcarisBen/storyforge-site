@@ -1,4 +1,5 @@
 import { createLexicalDictionary, importHunspell } from './lexicalDictionary.mjs';
+import { loadWritingDatasetFromIndexedDB, saveWritingDataset } from './writingDatasetStore.mjs';
 
 const REQUIRED_METADATA = ['language', 'source', 'license'];
 
@@ -44,16 +45,26 @@ export async function loadWritingDataset({
   baseUrl = '/writing-datasets/',
   manifestUrl,
   fetcher = globalThis.fetch,
+  indexedDBFactory = globalThis.indexedDB,
 } = {}) {
-  if (typeof fetcher !== 'function') return null;
+  if (typeof fetcher !== 'function') {
+    const cached = await loadWritingDatasetFromIndexedDB({ indexedDBFactory });
+    return cached ? materializeDataset(cached) : null;
+  }
   const root = manifestUrl || relativeUrl(baseUrl, 'manifest.json');
   let response;
   try {
     response = await fetcher(root);
-  } catch {
-    return null;
+  } catch (error) {
+    const cached = await loadWritingDatasetFromIndexedDB({ indexedDBFactory });
+    if (cached) return materializeDataset(cached);
+    if (error?.name === 'TypeError') return null;
+    throw error;
   }
-  if (!response?.ok) return null;
+  if (!response?.ok) {
+    const cached = await loadWritingDatasetFromIndexedDB({ indexedDBFactory });
+    return cached ? materializeDataset(cached) : null;
+  }
   const manifest = validateWritingManifest(await response.json());
   const readJson = async (file) => {
     const result = await fetcher(relativeUrl(root, file));
@@ -65,5 +76,25 @@ export async function loadWritingDataset({
   const dictionary = dictionaryData?.dic
     ? importHunspell({ ...dictionaryData, metadata: manifest })
     : createLexicalDictionary({ words: dictionaryData?.words || [], metadata: manifest });
-  return Object.freeze({ manifest, dictionary, rules: importedRulesToRegistryRules(rules) });
+  const dataset = Object.freeze({
+    manifest, dictionary, rules: importedRulesToRegistryRules(rules),
+    dictionaryData, rulesData: rules,
+  });
+  await saveWritingDataset(dataset, { indexedDBFactory });
+  return dataset;
+}
+
+function materializeDataset(record) {
+  const dictionaryData = record.dictionary || {};
+  const rules = record.rules || [];
+  const dictionary = dictionaryData.dic
+    ? importHunspell({ ...dictionaryData, metadata: record.manifest })
+    : createLexicalDictionary({ words: dictionaryData.words || [], metadata: record.manifest });
+  return Object.freeze({
+    manifest: validateWritingManifest(record.manifest),
+    dictionary,
+    rules: importedRulesToRegistryRules(rules),
+    dictionaryData,
+    rulesData: rules,
+  });
 }

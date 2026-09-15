@@ -6,6 +6,9 @@ import { createLexicalDictionary, importHunspell } from '../src/lib/writing/lexi
 import { parseLanguageToolRulesXml, parseLanguageToolXml } from '../src/lib/writing/languagetoolAdapter.mjs';
 import { loadWritingDataset, validateWritingManifest } from '../src/lib/writing/writingDataset.mjs';
 import { tagPartsOfSpeech } from '../src/lib/writing/posTagger.mjs';
+import { createFreeLingPosAdapter, parseFreeLingTaggedOutput, FREELING_SOURCE } from '../src/lib/writing/freelingAdapter.mjs';
+import { createPosTaggerClient } from '../src/lib/writing/posTaggerClient.mjs';
+import { WRITING_DATABASE_VERSION, WRITING_DATASET_STORE } from '../src/lib/writing/writingDatasetStore.mjs';
 import {
   addAuthorWord, addLiteraryWord, isAuthorWord, isLiteraryWord,
 } from '../src/lib/writing/dictionaryStore.mjs';
@@ -49,10 +52,32 @@ test('POS tagger is conservative and local', () => {
   assert.equal(createLexicalDictionary({ words: ['casa'] }).has('casa'), true);
 });
 
+test('FreeLing adapter accepts offline tagged output without bundling native FreeLing', () => {
+  const entries = parseFreeLingTaggedOutput('casa casa NCFS000\nbonita bonito AQ0FS0');
+  const adapter = createFreeLingPosAdapter(entries);
+  assert.equal(adapter.tagFor('CASA'), 'NCFS000');
+  assert.equal(adapter.size, 2);
+  assert.equal(FREELING_SOURCE.repository.includes('TALP-UPC/FreeLing'), true);
+});
+
+test('POS worker client keeps dictionary-aware deterministic fallback', async () => {
+  const client = createPosTaggerClient({ dictionary: createLexicalDictionary({ words: [{ word: 'casa', tag: 'NOUN' }] }) });
+  assert.equal((await client.analyze('casa'))[0].tag, 'NOUN');
+  client.terminate();
+});
+
+test('writing dataset IndexedDB contract is versioned', () => {
+  assert.equal(WRITING_DATABASE_VERSION, 1);
+  assert.equal(WRITING_DATASET_STORE, 'datasets');
+});
+
 test('LanguageTool rules import into local detector descriptors', () => {
-  const rules = parseLanguageToolRulesXml('<rule id="R"><pattern><token>foo</token></pattern><message>Use bar</message><suggestion>bar</suggestion></rule>');
+  const rules = parseLanguageToolRulesXml('<rule id="R"><pattern><token>foo</token></pattern><message>Use bar</message><suggestion>bar</suggestion></rule>', {
+    source: 'languagetool', version: '6.6', license: 'LGPL-2.1-or-later',
+  });
   assert.equal(rules[0].id, 'R');
   assert.equal(rules[0].suggestions[0], 'bar');
+  assert.equal(rules[0].version, '6.6');
   assert.match('foo'.replace(new RegExp(rules[0].pattern, rules[0].flags || 'giu'), 'x'), /x/);
 });
 
