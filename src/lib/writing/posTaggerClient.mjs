@@ -4,7 +4,7 @@ import { tagPartsOfSpeech } from './posTagger.mjs';
  * Runs the conservative tagger off the UI thread when Worker is available.
  * The fallback is deliberately synchronous and returns the same shape.
  */
-export function createPosTaggerClient({ WorkerCtor, workerUrl } = {}) {
+export function createPosTaggerClient({ WorkerCtor, workerUrl, dictionary } = {}) {
   const Ctor = WorkerCtor || globalThis.Worker;
   let worker = null;
   let sequence = 0;
@@ -24,7 +24,7 @@ export function createPosTaggerClient({ WorkerCtor, workerUrl } = {}) {
       return new Promise((resolve) => {
         const requestId = ++sequence;
         pending.set(requestId, resolve);
-        worker.postMessage({ requestId, text: String(text || '') });
+        worker.postMessage({ requestId, text: String(text || ''), dictionaryWords: dictionary?.words?.() || [] });
       });
     },
     terminate() {

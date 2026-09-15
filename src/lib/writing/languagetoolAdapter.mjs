@@ -29,3 +29,28 @@ export function adaptLanguageToolMatches(matches = [], { ruleMap = {} } = {}) {
     match.replacements?.map((item) => typeof item === 'string' ? item : item.value) || []);
   });
 }
+
+export function parseLanguageToolRulesXml(xml, { source = 'languagetool' } = {}) {
+  const value = String(xml ?? '');
+  return [...value.matchAll(/<rule\b([^>]*)>([\s\S]*?)<\/rule>/gi)].map((match) => {
+    const attrs = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]));
+    const message = (match[2].match(/<message>([\s\S]*?)<\/message>/i)?.[1] || attrs.name || 'Revisão sugerida.')
+      .replace(/<[^>]+>/g, '').trim();
+    const suggestions = [...match[2].matchAll(/<suggestion>([\s\S]*?)<\/suggestion>/gi)]
+      .map((item) => item[1].replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+    const tokens = [...match[2].matchAll(/<token>([\s\S]*?)<\/token>/gi)]
+      .map((item) => item[1].replace(/<[^>]+>/g, '').trim())
+      .filter(Boolean);
+    return {
+      id: attrs.id || attrs.name,
+      category: attrs.type || 'grammar',
+      severity: 'medium',
+      message,
+      source,
+      suggestions,
+      ...(tokens.length ? {
+        pattern: `\\b${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+') }\\b`,
+      } : {}),
+    };
+  }).filter((rule) => rule.id);
+}

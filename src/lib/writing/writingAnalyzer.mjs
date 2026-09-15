@@ -6,6 +6,7 @@ import {
 } from './writingRules.mjs';
 import { tokenize, applyPointCorrection } from './tokenizer.mjs';
 import { createGrammarAlert } from './grammarSchema.mjs';
+import { loadWritingDataset } from './writingDataset.mjs';
 
 const WORD_PATTERN = /[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu;
 const WORD_WITH_SPAN_PATTERN = /[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu;
@@ -112,6 +113,17 @@ function analyzeCrase(text, alerts) {
   }
 }
 
+function analyzeImportedRules(text, alerts, rules = []) {
+  for (const imported of rules) {
+    if (typeof imported.detector !== 'function') continue;
+    const rule = imported.id ? imported : { ...imported, id: imported.rule?.id };
+    if (!rule.id || !rule.message) continue;
+    for (const match of imported.detector(text)) {
+      alerts.push(makeAlert(rule, match.original, match.offset, match.suggestions || []));
+    }
+  }
+}
+
 export function analyzeWriting(text = '', options = {}) {
   const value = String(text);
   if (!value) return [];
@@ -123,6 +135,7 @@ export function analyzeWriting(text = '', options = {}) {
   analyzeAgreement(value, alerts);
   analyzePorque(value, alerts);
   analyzeCrase(value, alerts);
+  analyzeImportedRules(value, alerts, options.rules || options.importedRules);
 
   return alerts.sort((left, right) => left.offset - right.offset || left.id.localeCompare(right.id));
 }
@@ -141,4 +154,19 @@ export function applyWritingSuggestion(text, alert, suggestion) {
 
 export function removeWritingAlert(alerts, alertId) {
   return alerts.filter((alert) => alert.id !== alertId);
+}
+
+export async function createWritingAnalyzer(options = {}) {
+  const dataset = options.dataset || await loadWritingDataset(options);
+  const baseRules = options.rules || [];
+  return {
+    dataset,
+    analyze(text, analyzeOptions = {}) {
+      return analyzeWriting(text, {
+        ...analyzeOptions,
+        rules: [...baseRules, ...(dataset?.rules || []), ...(analyzeOptions.rules || [])],
+        dictionary: analyzeOptions.dictionary || dataset?.dictionary,
+      });
+    },
+  };
 }

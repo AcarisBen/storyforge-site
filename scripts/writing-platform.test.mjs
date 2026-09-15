@@ -3,7 +3,8 @@ import test from 'node:test';
 import { tokenize, getPointCorrection, applyPointCorrection } from '../src/lib/writing/tokenizer.mjs';
 import { createGrammarAlert } from '../src/lib/writing/grammarSchema.mjs';
 import { createLexicalDictionary, importHunspell } from '../src/lib/writing/lexicalDictionary.mjs';
-import { parseLanguageToolXml } from '../src/lib/writing/languagetoolAdapter.mjs';
+import { parseLanguageToolRulesXml, parseLanguageToolXml } from '../src/lib/writing/languagetoolAdapter.mjs';
+import { loadWritingDataset, validateWritingManifest } from '../src/lib/writing/writingDataset.mjs';
 import { tagPartsOfSpeech } from '../src/lib/writing/posTagger.mjs';
 import {
   addAuthorWord, addLiteraryWord, isAuthorWord, isLiteraryWord,
@@ -46,4 +47,24 @@ test('POS tagger is conservative and local', () => {
   assert.equal(tags.find((item) => item.normalized === 'a').tag, 'FUNCTION');
   assert.equal(tags.find((item) => item.normalized === 'chegou').tag, 'VERB');
   assert.equal(createLexicalDictionary({ words: ['casa'] }).has('casa'), true);
+});
+
+test('LanguageTool rules import into local detector descriptors', () => {
+  const rules = parseLanguageToolRulesXml('<rule id="R"><pattern><token>foo</token></pattern><message>Use bar</message><suggestion>bar</suggestion></rule>');
+  assert.equal(rules[0].id, 'R');
+  assert.equal(rules[0].suggestions[0], 'bar');
+  assert.match('foo'.replace(new RegExp(rules[0].pattern, rules[0].flags || 'giu'), 'x'), /x/);
+});
+
+test('generated manifest loading is local and optional', async () => {
+  const files = {
+    '/writing-datasets/manifest.json': { language: 'pt-BR', source: 'test', license: 'MIT', sha256: {}, assets: { dictionary: 'dictionary.json', rules: 'rules.json' } },
+    '/writing-datasets/dictionary.json': { words: ['nuvem'] },
+    '/writing-datasets/rules.json': [{ id: 'local-rule', message: 'Troque', pattern: '\\bfoo\\b', suggestions: ['bar'] }],
+  };
+  const fetcher = async (url) => ({ ok: Boolean(files[url]), json: async () => files[url] });
+  const loaded = await loadWritingDataset({ baseUrl: '/writing-datasets/', fetcher });
+  assert.equal(loaded.dictionary.has('nuvem'), true);
+  assert.equal(loaded.rules[0].detector('foo')[0].suggestions[0], 'bar');
+  assert.throws(() => validateWritingManifest({ language: 'pt-BR' }), /source/);
 });
