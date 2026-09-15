@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:writing": "node --test scripts/writing-analyzer.test.mjs",
     "preview": "vite preview",
     "postinstall": "prisma skills sync || exit 0"
   },

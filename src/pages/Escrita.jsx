@@ -2,6 +2,11 @@
 // 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import {
+  analyzeWriting,
+  applyWritingSuggestion,
+  removeWritingAlert,
+} from '../lib/writing/writingAnalyzer.mjs';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
@@ -191,6 +196,9 @@ export default function Escrita({ projectId, onNavigate }) {
   const [draggedId, setDraggedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [writingAlerts, setWritingAlerts] = useState([]);
+  const [isReviewOpen, setIsReviewOpen] = useState(true);
+  const [expandedAlertId, setExpandedAlertId] = useState(null);
 
   // Categoria ativa no Apoio Visual
   const [activeDrawer, setActiveDrawer] = useState('personagens');
@@ -322,6 +330,21 @@ export default function Escrita({ projectId, onNavigate }) {
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
+  useEffect(() => {
+    setWritingAlerts([]);
+    setIsReviewOpen(true);
+    setExpandedAlertId(null);
+  }, [selectedId]);
+
+  useEffect(() => {
+    const content = selectedChapter?.content || '';
+    const analysisTimeout = setTimeout(() => {
+      setWritingAlerts(analyzeWriting(content));
+    }, 350);
+
+    return () => clearTimeout(analysisTimeout);
+  }, [selectedChapter?.content, selectedId]);
+
   // Copiar Capítulo (Título + Conteúdo)
   const handleCopyChapter = () => {
     if (!selectedChapter) return;
@@ -374,6 +397,19 @@ export default function Escrita({ projectId, onNavigate }) {
 
     if (updateTimeoutRef.current[selectedId]) {
       clearTimeout(updateTimeoutRef.current[selectedId]);
+    }
+
+    function handleApplyWritingSuggestion(alert, suggestion) {
+      if (!selectedChapter) return;
+      const content = selectedChapter.content || '';
+      const nextContent = applyWritingSuggestion(content, alert, suggestion);
+      if (nextContent === content) return;
+      updateSelectedChapter('content', nextContent);
+      setWritingAlerts(analyzeWriting(nextContent));
+    }
+
+    function handleIgnoreWritingAlert(alertId) {
+      setWritingAlerts((currentAlerts) => removeWritingAlert(currentAlerts, alertId));
     }
 
     updateTimeoutRef.current[selectedId] = setTimeout(async () => {
@@ -630,6 +666,24 @@ export default function Escrita({ projectId, onNavigate }) {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setIsReviewOpen((open) => !open)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        writingAlerts.length > 0
+                          ? 'bg-amber-950/70 border-amber-600/70 text-amber-200 hover:bg-amber-900/70'
+                          : 'bg-[#1c1c28] border-gray-800 text-gray-400'
+                      }`}
+                      title="Abrir revisão de escrita"
+                      aria-expanded={isReviewOpen}
+                    >
+                      <span aria-hidden="true">✦</span>
+                      <span>Revisar</span>
+                      <span className="rounded-full bg-black/25 px-1.5 py-0.5">
+                        {writingAlerts.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={handleCopyChapter}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
                         copied
@@ -663,6 +717,82 @@ export default function Escrita({ projectId, onNavigate }) {
                   value={selectedChapter.content || ''}
                   onChange={(e) => updateSelectedChapter('content', e.target.value)}
                 />
+
+                {isReviewOpen && writingAlerts.length > 0 && (
+                  <section className="border-t border-purple-900/50 pt-4 space-y-3" aria-label="Revisão de escrita">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Assistente de revisão</h3>
+                        <p className="text-xs text-gray-500">
+                          Sugestões locais para manter seu texto claro sem interferir no seu estilo.
+                        </p>
+                      </div>
+                      <span className="text-xs text-amber-300">
+                        {writingAlerts.length} {writingAlerts.length === 1 ? 'alerta' : 'alertas'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {writingAlerts.map((alert) => (
+                        <article
+                          key={alert.id}
+                          className="rounded-lg border border-gray-800 bg-[#1a1a26] p-3 space-y-2"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-amber-300">{alert.category}</span>
+                                <span className="text-[10px] uppercase tracking-wide text-gray-600">
+                                  {alert.severity}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm text-gray-200">
+                                <span className="rounded bg-red-950/40 px-1.5 py-0.5 text-red-200">
+                                  {alert.original}
+                                </span>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleIgnoreWritingAlert(alert.id)}
+                              className="text-xs text-gray-500 hover:text-gray-200 cursor-pointer"
+                            >
+                              Ignorar
+                            </button>
+                          </div>
+                          <p className="text-xs leading-relaxed text-gray-400">{alert.message}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {alert.suggestions
+                              .slice(0, expandedAlertId === alert.id ? alert.suggestions.length : 4)
+                              .map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => handleApplyWritingSuggestion(alert, suggestion)}
+                                className="rounded-md border border-purple-700/70 bg-purple-950/40 px-2.5 py-1 text-xs text-purple-200 hover:bg-purple-800/60 cursor-pointer"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                            {alert.suggestions.length > 4 && (
+                              <button
+                                type="button"
+                                className="text-xs text-gray-400 hover:text-white cursor-pointer"
+                                onClick={() =>
+                                  setExpandedAlertId((currentId) =>
+                                    currentId === alert.id ? null : alert.id
+                                  )
+                                }
+                              >
+                                {expandedAlertId === alert.id ? 'Ver menos' : 'Ver mais'}
+                              </button>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
             </>
           ) : (
