@@ -336,6 +336,10 @@ export default function Escrita({ projectId, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showCorrectionsPanel, setShowCorrectionsPanel] = useState(true);
+  const [activeModalSuggestion, setActiveModalSuggestion] = useState(null);
+  const ignoredSuggestionsRef = useRef(new Map());
+  const getSugKey = (sug) => `${sug.original}_${sug.offset}_${sug.label}`;
+
 
   // ESTADO DOS BOTOES DA BARRA DE FERRAMENTAS
   const [activeFormats, setActiveFormats] = useState({
@@ -465,14 +469,6 @@ export default function Escrita({ projectId, onNavigate }) {
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
   useEffect(() => {
-    if (editorRef.current && selectedChapter) {
-      if (editorRef.current.innerHTML !== (selectedChapter.content || '')) {
-        editorRef.current.innerHTML = selectedChapter.content || '';
-      }
-    }
-  }, [selectedId]);
-
- useEffect(() => {
   const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
 
   if (!rawText || rawText.trim().length < 3) {
@@ -487,19 +483,30 @@ export default function Escrita({ projectId, onNavigate }) {
   grammarTimeoutRef.current = setTimeout(async () => {
     let ltSuggestions = [];
 
-    // PASSO 1: Tenta obter correções do LanguageTool no Servidor
+    // 1. Consulta o LanguageTool
     try {
       const response = await apiClient.post('/entities/grammar-check', { text: rawText });
       ltSuggestions = response.data || [];
     } catch (err) {
-      console.warn('LanguageTool indisponível. Utilizando apenas o banco de regras local:', err.message);
+      console.warn('LanguageTool indisponível:', err.message);
     }
 
-    // PASSO 2: Executa o nosso banco de regras gerais APENAS para o que o LanguageTool não cobriu
+    // 2. Consulta nosso banco de regras locais
     const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
+    const allSuggestions = [...ltSuggestions, ...customSuggestions];
 
-    // PASSO 3: Une os alertas (LanguageTool tem prioridade total)
-    setTextSuggestions([...ltSuggestions, ...customSuggestions]);
+    // 3. FILTRA APENAS SUGESTÕES QUE NÃO ESTÃO NO PERÍODO DE COOLDOWN (30 min)
+    const now = Date.now();
+    const validSuggestions = allSuggestions.filter((sug) => {
+      const key = getSugKey(sug);
+      const expireTime = ignoredSuggestionsRef.current.get(key);
+      if (expireTime && now < expireTime) {
+        return false; // Ignorado temporariamente
+      }
+      return true;
+    });
+
+    setTextSuggestions(validSuggestions);
   }, 500);
 
   return () => {
@@ -770,10 +777,17 @@ const removeHighlightFromEditor = () => {
   setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
 }
 
-  function handleDismissSuggestion(sugId) {
-    removeHighlightFromEditor();
-    setTextSuggestions((prev) => prev.filter((s) => s.id !== sugId));
-  }
+  function handleDismissSuggestion(sug) {
+  removeHighlightFromEditor();
+  const key = getSugKey(sug);
+
+  // Define 30 minutos de tempo de espera antes que o mesmo erro volte a ser sugerido
+  const COOLDOWN_MS = 30 * 60 * 1000;
+  ignoredSuggestionsRef.current.set(key, Date.now() + COOLDOWN_MS);
+
+  // Remove da tela imediatamente
+  setTextSuggestions((prev) => prev.filter((s) => s.id !== sug.id));
+}
 
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
@@ -1347,16 +1361,36 @@ const removeHighlightFromEditor = () => {
                           className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80"
                         >
                           <div className="space-y-1 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
-                                {sug.label}
-                              </span>
-                              <span className="text-gray-400 line-through truncate font-mono">
-                                "{sug.original}"
-                              </span>
-                            </div>
-                            <p className="text-gray-300 text-xs truncate">{sug.message}</p>
-                          </div>
+  <div className="flex items-center gap-2">
+    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
+      {sug.label}
+    </span>
+    <span className="text-gray-400 line-through truncate font-mono">
+      "{sug.original}"
+    </span>
+  </div>
+
+  {/* MENSAGEM COM CLIQUE E BOTOÃO VER MAIS */}
+  <div className="flex items-center gap-1.5">
+    <p
+      onClick={() => setActiveModalSuggestion(sug)}
+      className="text-gray-300 text-xs truncate cursor-pointer hover:text-purple-300 transition-colors"
+      title="Clique para ver a explicação completa"
+    >
+      {sug.message}
+    </p>
+
+    {sug.message && sug.message.length > 55 && (
+      <button
+        type="button"
+        onClick={() => setActiveModalSuggestion(sug)}
+        className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline shrink-0 cursor-pointer"
+      >
+        [ver mais]
+      </button>
+    )}
+  </div>
+</div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
                             {visibleOptions.map((option, oIdx) => (
@@ -1397,14 +1431,15 @@ const removeHighlightFromEditor = () => {
                               </div>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => handleDismissSuggestion(sug.id)}
-                              className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
-                              title="Ignorar esta correção"
-                            >
-                              ✕
-                            </button>
+                            {/* BOTÃO X ATUALIZADO PASSANDO O OBJETO 'sug' COMPLETO */}
+<button
+  type="button"
+  onClick={() => handleDismissSuggestion(sug)}
+  className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
+  title="Ignorar esta correção por agora"
+>
+  ✕
+</button>
                           </div>
                         </div>
                       );
@@ -1566,6 +1601,72 @@ const removeHighlightFromEditor = () => {
           </p>
         )}
       </section>
+        {/* POPUP DE EXPLICAÇÃO COMPLETA */}
+{activeModalSuggestion && (
+  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+    <div className="bg-[#181726] border border-purple-600/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+      <div className="flex justify-between items-start pb-3 border-b border-gray-800">
+        <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${activeModalSuggestion.badgeStyle}`}>
+          {activeModalSuggestion.label}
+        </span>
+        <button
+          type="button"
+          onClick={() => setActiveModalSuggestion(null)}
+          className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trecho do Texto:</h3>
+        <span className="text-red-300 font-mono bg-red-950/50 border border-red-900/60 px-3 py-1 rounded-lg text-sm inline-block line-through">
+          "{activeModalSuggestion.original}"
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Explicação Detalhada:</h3>
+        <div className="bg-[#11111a] border border-gray-800/90 p-4 rounded-xl text-gray-200 text-sm leading-relaxed max-h-60 overflow-y-auto">
+          {activeModalSuggestion.message}
+        </div>
+      </div>
+
+      {activeModalSuggestion.replacements && activeModalSuggestion.replacements.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-gray-800">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sugestões de Correção:</h3>
+          <div className="flex flex-wrap gap-2">
+            {activeModalSuggestion.replacements.map((rep, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  handleApplyCorrection(activeModalSuggestion, rep);
+                  setActiveModalSuggestion(null);
+                }}
+                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-xl transition-all cursor-pointer shadow-md"
+              >
+                Substituir por: "{rep}"
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end pt-2">
+        <button
+          type="button"
+          onClick={() => setActiveModalSuggestion(null)}
+          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
     </main>
   );
 }
