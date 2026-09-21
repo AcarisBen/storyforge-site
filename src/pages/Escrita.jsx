@@ -569,105 +569,206 @@ export default function Escrita({ projectId, onNavigate }) {
   };
 
   // DESTAQUE ROXO
-  
 const highlightCorrectionInEditor = (sug) => {
   if (!editorRef.current || !sug || !sug.original) return;
   removeHighlightFromEditor();
 
+  // 1. Normaliza os nós de texto do editor HTML
+  editorRef.current.normalize();
+
+  const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
   const targetText = sug.original;
-  const targetOffset = typeof sug.offset === 'number' ? sug.offset : -1;
+  if (!targetText) return;
 
-  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-  let node;
-  const candidateMatches = [];
-  let currentPos = 0;
-
-  // Busca todos os nós de texto que contêm a expressão original
-  while ((node = walker.nextNode())) {
-    const textVal = node.nodeValue;
-    let index = textVal.indexOf(targetText);
-
-    while (index !== -1) {
-      candidateMatches.push({
-        node,
-        start: index,
-        end: index + targetText.length,
-        // Calcula a diferença em relação à posição estimada do erro
-        posDiff: Math.abs((currentPos + index) - targetOffset),
-      });
-      index = textVal.indexOf(targetText, index + 1);
-    }
-
-    currentPos += textVal.length;
+  // 2. Encontra todas as ocorrências da palavra/frase no texto completo
+  const occurrences = [];
+  let idx = fullText.indexOf(targetText);
+  while (idx !== -1) {
+    occurrences.push(idx);
+    idx = fullText.indexOf(targetText, idx + 1);
   }
 
-  if (candidateMatches.length === 0) return;
+  if (occurrences.length === 0) return;
 
-  // Seleciona a correspondência mais próxima da posição real no texto
-  candidateMatches.sort((a, b) => a.posDiff - b.posDiff);
-  const bestMatch = candidateMatches[0];
+  // 3. Escolhe a ocorrência com offset mais próximo do alerta (evita pegar a palavra no parágrafo errado)
+  let bestStartIndex = occurrences[0];
+  if (typeof sug.offset === 'number' && sug.offset >= 0) {
+    let minDiff = Infinity;
+    for (const pos of occurrences) {
+      const diff = Math.abs(pos - sug.offset);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestStartIndex = pos;
+      }
+    }
+  }
 
-  // Cria a marcação visual roxa
-  const mark = document.createElement('mark');
-  mark.id = 'active-correction-mark';
-  mark.style.cssText =
-    'background-color: rgba(168, 85, 247, 0.4) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);';
+  const bestEndIndex = bestStartIndex + targetText.length;
 
-  const range = document.createRange();
-  try {
-    range.setStart(bestMatch.node, bestMatch.start);
-    range.setEnd(bestMatch.node, bestMatch.end);
-    range.surroundContents(mark);
-  } catch (e) {
-    console.error('Erro ao grifar elemento:', e);
+  // 4. Mapeia os índices de caracteres para os nós de texto do DOM real
+  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+  let charCount = 0;
+  let startNode = null;
+  let startOffsetInNode = 0;
+  let endNode = null;
+  let endOffsetInNode = 0;
+
+  let node;
+  while ((node = walker.nextNode())) {
+    const nodeLen = node.nodeValue.length;
+    const nodeStart = charCount;
+    const nodeEnd = charCount + nodeLen;
+
+    if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+      startNode = node;
+      startOffsetInNode = bestStartIndex - nodeStart;
+    }
+
+    if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+      endNode = node;
+      endOffsetInNode = bestEndIndex - nodeStart;
+      break;
+    }
+
+    charCount += nodeLen;
+  }
+
+  // 5. Aplica a marcação roxa com inserção segura no DOM (não falha em nós formatados)
+  if (startNode && endNode) {
+    try {
+      const range = document.createRange();
+      range.setStart(startNode, startOffsetInNode);
+      range.setEnd(endNode, endOffsetInNode);
+
+      const mark = document.createElement('mark');
+      mark.id = 'active-correction-mark';
+      mark.style.cssText =
+        'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);';
+
+      const extracted = range.extractContents();
+      mark.appendChild(extracted);
+      range.insertNode(mark);
+    } catch (e) {
+      console.error('Erro ao grifar elemento no DOM:', e);
+    }
   }
 };
 
-
-  const removeHighlightFromEditor = () => {
-    if (!editorRef.current) return;
-    const mark = editorRef.current.querySelector('#active-correction-mark');
-    if (mark) {
-      const parent = mark.parentNode;
-      while (mark.firstChild) {
-        parent.insertBefore(mark.firstChild, mark);
-      }
-      parent.removeChild(mark);
-      parent.normalize();
+const removeHighlightFromEditor = () => {
+  if (!editorRef.current) return;
+  const mark = editorRef.current.querySelector('#active-correction-mark');
+  if (mark) {
+    const parent = mark.parentNode;
+    while (mark.firstChild) {
+      parent.insertBefore(mark.firstChild, mark);
     }
-  };
-
+    parent.removeChild(mark);
+    parent.normalize();
+  }
+};
   // APLICA CORREÇÃO SEM DESTRUIR A FORMATAÇÃO HTML
   function handleApplyCorrection(suggestion, chosenReplacement) {
-    if (!selectedChapter || !editorRef.current) return;
-    removeHighlightFromEditor();
+  if (!selectedChapter || !editorRef.current) return;
 
-    const replacementToUse = chosenReplacement || suggestion.replacement;
-    if (!replacementToUse) return;
+  // 1. Limpa qualquer marcação de fundo roxo ativa e normaliza o DOM
+  removeHighlightFromEditor();
+  editorRef.current.normalize();
 
-    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-    let node;
-    let replaced = false;
+  const replacementToUse = chosenReplacement || suggestion.replacement;
+  if (!replacementToUse || !suggestion.original) return;
 
-    while ((node = walker.nextNode())) {
-      if (node.nodeValue.includes(suggestion.original)) {
-        node.nodeValue = node.nodeValue.replace(suggestion.original, replacementToUse);
-        replaced = true;
-        break;
+  const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
+  const targetText = suggestion.original;
+
+  // 2. Mapeia todas as ocorrências da palavra no texto
+  const occurrences = [];
+  let idx = fullText.indexOf(targetText);
+  while (idx !== -1) {
+    occurrences.push(idx);
+    idx = fullText.indexOf(targetText, idx + 1);
+  }
+
+  if (occurrences.length === 0) return;
+
+  // 3. Escolhe a ocorrência com offset mais próximo da sugestão do alerta
+  let bestStartIndex = occurrences[0];
+  if (typeof suggestion.offset === 'number' && suggestion.offset >= 0) {
+    let minDiff = Infinity;
+    for (const pos of occurrences) {
+      const diff = Math.abs(pos - suggestion.offset);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestStartIndex = pos;
       }
     }
+  }
 
-    if (!replaced) {
-      // Fallback para substituição no HTML se a palavra atravessar múltiplos nós
-      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
-        suggestion.original,
-        replacementToUse
-      );
+  const bestEndIndex = bestStartIndex + targetText.length;
+
+  // 4. Localiza os nós de texto no DOM correspondentes a essa posição
+  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+  let charCount = 0;
+  let startNode = null;
+  let startOffsetInNode = 0;
+  let endNode = null;
+  let endOffsetInNode = 0;
+
+  let node;
+  while ((node = walker.nextNode())) {
+    const nodeLen = node.nodeValue.length;
+    const nodeStart = charCount;
+    const nodeEnd = charCount + nodeLen;
+
+    if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+      startNode = node;
+      startOffsetInNode = bestStartIndex - nodeStart;
     }
 
-    updateSelectedChapter('content', editorRef.current.innerHTML);
-    setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+    if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+      endNode = node;
+      endOffsetInNode = bestEndIndex - nodeStart;
+      break;
+    }
+
+    charCount += nodeLen;
   }
+
+  // 5. Executa a substituição exata no DOM
+  if (startNode && endNode) {
+    try {
+      const range = document.createRange();
+      range.setStart(startNode, startOffsetInNode);
+      range.setEnd(endNode, endOffsetInNode);
+
+      range.deleteContents();
+      const newTextNode = document.createTextNode(replacementToUse);
+      range.insertNode(newTextNode);
+    } catch (e) {
+      console.error('Erro na substituição precisa do DOM:', e);
+      // Fallback local se o nó for simples
+      if (startNode === endNode) {
+        const val = startNode.nodeValue;
+        startNode.nodeValue =
+          val.substring(0, startOffsetInNode) +
+          replacementToUse +
+          val.substring(endOffsetInNode);
+      }
+    }
+  } else {
+    // Fallback genérico caso o offset falhe
+    editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
+      targetText,
+      replacementToUse
+    );
+  }
+
+  // Unifica nós de texto divididos e salva
+  editorRef.current.normalize();
+  updateSelectedChapter('content', editorRef.current.innerHTML);
+
+  // Remove o alerta resolvido do painel
+  setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+}
 
   function handleDismissSuggestion(sugId) {
     removeHighlightFromEditor();
