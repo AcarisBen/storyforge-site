@@ -97,12 +97,16 @@ router.post('/grammar-check', async (req, res) => {
     const { text } = req.body;
     if (!text || text.trim().length < 3) return res.json([]);
 
+    // Remove tags HTML para enviar texto puro ao LanguageTool sem alterar os offsets
+    const cleanText = text.replace(/<[^>]*>/g, ' ');
+
     const params = new URLSearchParams({
-      text,
+      text: cleanText,
       language: 'pt-BR',
-      level: 'picky',
-      enableHiddenRules: 'true',
-      preferredVariants: 'pt-BR',
+      level: 'picky', // Modo rigoroso/minucioso
+      enabledOnly: 'false',
+      // Força a ativação de todas as categorias normativas da língua portuguesa
+      enableCategories: 'GRAMMAR,TYPOS,CASING,PUNCTUATION,STYLE,SEMANTICS,AGREEMENT,CONFUSED_WORDS',
     });
 
     const response = await fetch('http://localhost:8010/v2/check', {
@@ -116,9 +120,8 @@ router.post('/grammar-check', async (req, res) => {
     const data = await response.json();
 
     const suggestions = (data.matches || []).map((match, idx) => {
-      const original = text.substring(match.offset, match.offset + match.length);
+      const original = cleanText.substring(match.offset, match.offset + match.length);
 
-      // Extrai até 5 alternativas do LanguageTool
       const replacements = (match.replacements || [])
         .map((r) => r.value)
         .filter(Boolean)
@@ -128,7 +131,9 @@ router.post('/grammar-check', async (req, res) => {
         id: `lt-${idx}-${match.offset}`,
         label: match.rule?.category?.name || 'Ortografia/Gramática',
         original,
-        replacements, // Envia array com até 5 opções (ex: ["jogo", "queijo"])
+        offset: match.offset,
+        length: match.length,
+        replacements,
         replacement: replacements[0] || '',
         message: match.message,
         badgeStyle: match.rule?.issueType === 'misspelling' 

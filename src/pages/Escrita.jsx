@@ -1,7 +1,6 @@
-//Escrita.jsx
-// 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
@@ -182,62 +181,147 @@ function getCharacterBadgeStyle(type = '') {
   return 'bg-gray-800 text-gray-300 border-gray-700';
 }
 
-// MOTOR DE CORREÇÃO E ESTILO (100% CLIENT-SIDE E SEGURO)
+// MOTOR GRAMATICAL LOCAL
 function analyzePortugueseText(text) {
   if (!text || text.trim().length < 3) return [];
   const suggestions = [];
 
-  // 1. Detecção de Palavras Duplicadas (ex: "o o", "que que", "com com")
-  const dupRegex = /\b([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\s+\1\b/gi;
+  const addSug = (id, type, label, original, replacement, replacements, offset, message, badgeStyle) => {
+    suggestions.push({
+      id,
+      type,
+      label,
+      original,
+      replacement,
+      replacements: replacements || [replacement],
+      offset,
+      length: original.length,
+      message,
+      badgeStyle: badgeStyle || 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+    });
+  };
+
   let match;
-  while ((match = dupRegex.exec(text)) !== null) {
-    suggestions.push({
-      id: `dup-${match.index}`,
-      type: 'repeticao',
-      label: 'Palavra Duplicada',
-      original: match[0],
-      replacement: match[1],
-      message: `A palavra "${match[1]}" está repetida.`,
-      badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
-    });
+
+  const pluralSingularRegex = /\b(os|as|dos|das|nos|nas|uns|umas)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]{3,}[aeiou])\b/gi;
+  while ((match = pluralSingularRegex.exec(text)) !== null) {
+    const art = match[1];
+    const noun = match[2];
+    if (!noun.toLowerCase().endsWith('s') && !noun.toLowerCase().endsWith('z') && !noun.toLowerCase().endsWith('x')) {
+      const repl = `${art} ${noun}s`;
+      addSug(
+        `concordance-${match.index}`,
+        'concordancia',
+        'Concordância Nominal',
+        match[0],
+        repl,
+        [repl],
+        match.index,
+        `Falta de concordância no plural entre o artigo "${art}" e o substantivo "${noun}".`,
+        'bg-blue-950/80 text-blue-300 border-blue-700/60'
+      );
+    }
   }
 
-  // 2. Detecção de Próclise em Início de Frase (ex: "Te devo...", "Me avise...")
-  const procliseRegex = /(?:^|[.!?]\s+)(Te|Me|Nos|Lhe|Se)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)/g;
-  while ((match = procliseRegex.exec(text)) !== null) {
-    const pronome = match[1];
-    const verbo = match[2];
-    const fullMatch = match[0];
-    const prefix = fullMatch.substring(0, fullMatch.indexOf(pronome));
-
-    const pronomeClean = pronome.toLowerCase();
-    const verboFormatted = verbo.charAt(0).toUpperCase() + verbo.slice(1);
-    const suggestedText = `${prefix}${verboFormatted}-${pronomeClean}`;
-
-    suggestions.push({
-      id: `proclise-${match.index}`,
-      type: 'estilo',
-      label: 'Próclise Inicial',
-      original: fullMatch,
-      replacement: suggestedText,
-      message: `Evite iniciar frase com pronome oblíquo. Sugestão: "${verboFormatted}-${pronomeClean}".`,
-      badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-    });
+  const numeralPluralRegex = /\b(duas|três|quatro|cinco|seis|sete|oito|nove|dez|duzentas|trezentas)\s+([a-zA-Záàâãéèêíóòôõúç]{3,}[aeiou])\b/gi;
+  while ((match = numeralPluralRegex.exec(text)) !== null) {
+    const num = match[1];
+    const noun = match[2];
+    if (!noun.toLowerCase().endsWith('s') && !noun.toLowerCase().endsWith('z')) {
+      const repl = `${num} ${noun}s`;
+      addSug(
+        `numeral-${match.index}`,
+        'concordancia',
+        'Concordância de Plural',
+        match[0],
+        repl,
+        [repl],
+        match.index,
+        `Falta de concordância no plural após o numeral "${num}".`,
+        'bg-blue-950/80 text-blue-300 border-blue-700/60'
+      );
+    }
   }
 
-  // 3. Detecção de Múltiplos Espaços em Sequência
-  const spaceRegex = / {2,}/g;
-  while ((match = spaceRegex.exec(text)) !== null) {
-    suggestions.push({
-      id: `space-${match.index}`,
-      type: 'formatacao',
-      label: 'Espaçamento Duplo',
-      original: match[0],
-      replacement: ' ',
-      message: 'Múltiplos espaços detectados.',
-      badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
-    });
+  const locucaoHifenRegex = /\b([a-zA-Záàâãéèêíóòôõúç]{2,})-(de|da|do|das|dos|em|a)-([a-zA-Záàâãéèêíóòôõúç]{2,})\b/gi;
+  while ((match = locucaoHifenRegex.exec(text)) !== null) {
+    const w1 = match[1];
+    const prep = match[2];
+    const w2 = match[3];
+    const repl = `${w1} ${prep} ${w2}`;
+    addSug(
+      `hifen-${match.index}`,
+      'hifenizacao',
+      'Novo Acordo / Hífen',
+      match[0],
+      repl,
+      [repl],
+      match.index,
+      `Locuções substantivas perderam o hífen no Novo Acordo Ortográfico ("${repl}").`,
+      'bg-amber-950/80 text-amber-300 border-amber-700/60'
+    );
   }
+
+  const atStartRegex = /@([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)/g;
+  while ((match = atStartRegex.exec(text)) !== null) {
+    const word = match[1];
+    addSug(
+      `atstart-${match.index}`,
+      'simbolo',
+      'Símbolo Inadequado',
+      match[0],
+      word,
+      [word],
+      match.index,
+      `Remova o caractere "@" antes da palavra "${word}".`,
+      'bg-zinc-800 text-zinc-300 border-zinc-700'
+    );
+  }
+
+  const atEndRegex = /([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)@/g;
+  while ((match = atEndRegex.exec(text)) !== null) {
+    const word = match[1];
+    addSug(
+      `atend-${match.index}`,
+      'simbolo',
+      'Símbolo Inadequado',
+      match[0],
+      word,
+      [word],
+      match.index,
+      `Remova o caractere "@" do final de "${word}".`,
+      'bg-zinc-800 text-zinc-300 border-zinc-700'
+    );
+  }
+
+  const symbolRules = [
+    { regex: /d#/gi, repl: 'do', label: 'Símbolo em Preposição', msg: 'Substitua "d#" pela preposição "do".' },
+    { regex: /d@/gi, repl: 'da', label: 'Símbolo em Preposição', msg: 'Substitua "d@" pela preposição "da".' },
+    { regex: /\bsuper mercado\b/gi, repl: 'supermercado', label: 'Junta de Prefixo', msg: 'Escreve-se tudo junto: "supermercado".' },
+    { regex: /\bindi guinado\b/gi, repl: 'indignado', label: 'Palavra Fragmentada', msg: 'A palavra correta é "indignado".' },
+    { regex: /\bmaças\b/gi, repl: 'maçãs', label: 'Acentuação / Diacrítico', msg: 'Para a fruta, utilize o til: "maçãs".' },
+    { regex: /\bguarda-ropa\b/gi, repl: 'guarda-roupa', label: 'Ortografia', msg: 'A grafia correta é "guarda-roupa".' },
+    { regex: / > /g, repl: '. ', label: 'Caractere Estranho', msg: 'Substitua o operador ">" por ponto final.' },
+    { regex: /\btava\b/gi, repl: 'estava', label: 'Coloquialismo', msg: 'Substitua "tava" pela forma culta "estava".' },
+    { regex: /\btavam\b/gi, repl: 'estavam', label: 'Coloquialismo', msg: 'Substitua "tavam" pela forma culta "estavam".' },
+    { regex: /sem \$/gi, repl: 'sem dinheiro', label: 'Símbolo no Texto', msg: 'Substitua o símbolo "$" por "dinheiro".' },
+  ];
+
+  symbolRules.forEach(({ regex, repl, label, msg }) => {
+    while ((match = regex.exec(text)) !== null) {
+      addSug(
+        `sym-${match.index}`,
+        'simbolo',
+        label,
+        match[0],
+        repl,
+        [repl],
+        match.index,
+        msg,
+        'bg-zinc-800 text-zinc-300 border-zinc-700'
+      );
+    }
+  });
 
   return suggestions;
 }
@@ -253,7 +337,22 @@ export default function Escrita({ projectId, onNavigate }) {
   const [copied, setCopied] = useState(false);
   const [showCorrectionsPanel, setShowCorrectionsPanel] = useState(true);
 
-  // Categoria ativa no Apoio Visual
+  // ESTADO DOS BOTOES DA BARRA DE FERRAMENTAS
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false,
+    subscript: false,
+    superscript: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
+    insertUnorderedList: false,
+    insertOrderedList: false,
+  });
+
   const [activeDrawer, setActiveDrawer] = useState('personagens');
   const [searchTerm, setSearchTerm] = useState('');
   const [referenceData, setReferenceData] = useState({
@@ -266,7 +365,11 @@ export default function Escrita({ projectId, onNavigate }) {
     twists: [],
   });
 
-  // Carregar Capítulos e Dados de Apoio
+  const editorRef = useRef(null);
+  const [textSuggestions, setTextSuggestions] = useState([]);
+  const grammarTimeoutRef = useRef(null);
+  const updateTimeoutRef = useRef({});
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -359,7 +462,218 @@ export default function Escrita({ projectId, onNavigate }) {
     fetchData();
   }, [projectId]);
 
-  // Progresso
+  const selectedChapter = chapters.find((c) => c.id === selectedId);
+
+  useEffect(() => {
+    if (editorRef.current && selectedChapter) {
+      if (editorRef.current.innerHTML !== (selectedChapter.content || '')) {
+        editorRef.current.innerHTML = selectedChapter.content || '';
+      }
+    }
+  }, [selectedId]);
+
+ useEffect(() => {
+  const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
+
+  if (!rawText || rawText.trim().length < 3) {
+    setTextSuggestions([]);
+    return;
+  }
+
+  if (grammarTimeoutRef.current) {
+    clearTimeout(grammarTimeoutRef.current);
+  }
+
+  grammarTimeoutRef.current = setTimeout(async () => {
+    let ltSuggestions = [];
+
+    // PASSO 1: Tenta obter correções do LanguageTool no Servidor
+    try {
+      const response = await apiClient.post('/entities/grammar-check', { text: rawText });
+      ltSuggestions = response.data || [];
+    } catch (err) {
+      console.warn('LanguageTool indisponível. Utilizando apenas o banco de regras local:', err.message);
+    }
+
+    // PASSO 2: Executa o nosso banco de regras gerais APENAS para o que o LanguageTool não cobriu
+    const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
+
+    // PASSO 3: Une os alertas (LanguageTool tem prioridade total)
+    setTextSuggestions([...ltSuggestions, ...customSuggestions]);
+  }, 500);
+
+  return () => {
+    if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
+  };
+}, [selectedChapter?.content]);
+
+  // VERIFICA E ATUALIZA ESTADO ATIVO DOS BOTÕES DE FORMATAÇÃO
+  const checkActiveFormats = () => {
+    if (!editorRef.current) return;
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        strikeThrough: document.queryCommandState('strikeThrough'),
+        subscript: document.queryCommandState('subscript'),
+        superscript: document.queryCommandState('superscript'),
+        justifyLeft: document.queryCommandState('justifyLeft'),
+        justifyCenter: document.queryCommandState('justifyCenter'),
+        justifyRight: document.queryCommandState('justifyRight'),
+        justifyFull: document.queryCommandState('justifyFull'),
+        insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+        insertOrderedList: document.queryCommandState('insertOrderedList'),
+      });
+    } catch (e) {
+      // Ignora exceções em instâncias sem seleção
+    }
+  };
+
+  const executeCmd = (command, value = null) => {
+    document.execCommand(command, false, value);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  // TOGGLES ESPECÍFICOS PARA SOBSCRITO E SUBSCRITO
+  const toggleSubscript = () => {
+    if (document.queryCommandState('superscript')) {
+      document.execCommand('superscript', false, null);
+    }
+    document.execCommand('subscript', false, null);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  const toggleSuperscript = () => {
+    if (document.queryCommandState('subscript')) {
+      document.execCommand('subscript', false, null);
+    }
+    document.execCommand('superscript', false, null);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  const handleEditorInput = () => {
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  // DESTAQUE ROXO
+  
+const highlightCorrectionInEditor = (sug) => {
+  if (!editorRef.current || !sug || !sug.original) return;
+  removeHighlightFromEditor();
+
+  const targetText = sug.original;
+  const targetOffset = typeof sug.offset === 'number' ? sug.offset : -1;
+
+  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  const candidateMatches = [];
+  let currentPos = 0;
+
+  // Busca todos os nós de texto que contêm a expressão original
+  while ((node = walker.nextNode())) {
+    const textVal = node.nodeValue;
+    let index = textVal.indexOf(targetText);
+
+    while (index !== -1) {
+      candidateMatches.push({
+        node,
+        start: index,
+        end: index + targetText.length,
+        // Calcula a diferença em relação à posição estimada do erro
+        posDiff: Math.abs((currentPos + index) - targetOffset),
+      });
+      index = textVal.indexOf(targetText, index + 1);
+    }
+
+    currentPos += textVal.length;
+  }
+
+  if (candidateMatches.length === 0) return;
+
+  // Seleciona a correspondência mais próxima da posição real no texto
+  candidateMatches.sort((a, b) => a.posDiff - b.posDiff);
+  const bestMatch = candidateMatches[0];
+
+  // Cria a marcação visual roxa
+  const mark = document.createElement('mark');
+  mark.id = 'active-correction-mark';
+  mark.style.cssText =
+    'background-color: rgba(168, 85, 247, 0.4) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);';
+
+  const range = document.createRange();
+  try {
+    range.setStart(bestMatch.node, bestMatch.start);
+    range.setEnd(bestMatch.node, bestMatch.end);
+    range.surroundContents(mark);
+  } catch (e) {
+    console.error('Erro ao grifar elemento:', e);
+  }
+};
+
+
+  const removeHighlightFromEditor = () => {
+    if (!editorRef.current) return;
+    const mark = editorRef.current.querySelector('#active-correction-mark');
+    if (mark) {
+      const parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+      parent.normalize();
+    }
+  };
+
+  // APLICA CORREÇÃO SEM DESTRUIR A FORMATAÇÃO HTML
+  function handleApplyCorrection(suggestion, chosenReplacement) {
+    if (!selectedChapter || !editorRef.current) return;
+    removeHighlightFromEditor();
+
+    const replacementToUse = chosenReplacement || suggestion.replacement;
+    if (!replacementToUse) return;
+
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    let replaced = false;
+
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue.includes(suggestion.original)) {
+        node.nodeValue = node.nodeValue.replace(suggestion.original, replacementToUse);
+        replaced = true;
+        break;
+      }
+    }
+
+    if (!replaced) {
+      // Fallback para substituição no HTML se a palavra atravessar múltiplos nós
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
+        suggestion.original,
+        replacementToUse
+      );
+    }
+
+    updateSelectedChapter('content', editorRef.current.innerHTML);
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+  }
+
+  function handleDismissSuggestion(sugId) {
+    removeHighlightFromEditor();
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== sugId));
+  }
+
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
   let currentPoints = 0;
@@ -369,7 +683,8 @@ export default function Escrita({ projectId, onNavigate }) {
     if (c.type) currentPoints += 1;
 
     if (c.content && c.content.trim()) {
-      const wordCount = c.content.trim().split(/\s+/).length;
+      const textOnly = c.content.replace(/<[^>]*>/g, '').trim();
+      const wordCount = textOnly ? textOnly.split(/\s+/).length : 0;
       if (wordCount > 300) currentPoints += 8;
       else if (wordCount > 100) currentPoints += 5;
       else if (wordCount > 0) currentPoints += 2;
@@ -381,103 +696,15 @@ export default function Escrita({ projectId, onNavigate }) {
       ? Math.round((currentPoints / totalPossiblePoints) * 100)
       : 0;
 
-  const selectedChapter = chapters.find((c) => c.id === selectedId);
-
-  // ESTADO E DEBOUNCE PARA A VERIFICAÇÃO VIA BACKEND
-const [textSuggestions, setTextSuggestions] = useState([]);
-const [isCheckingGrammar, setIsCheckingGrammar] = useState(false);
-const grammarTimeoutRef = useRef(null);
-
-useEffect(() => {
-  const content = selectedChapter?.content || '';
-  
-  if (!content || content.trim().length < 5) {
-    setTextSuggestions([]);
-    return;
-  }
-
-  // Limpa o temporizador anterior (debounce de 800ms)
-  if (grammarTimeoutRef.current) {
-    clearTimeout(grammarTimeoutRef.current);
-  }
-
-  grammarTimeoutRef.current = setTimeout(async () => {
-    setIsCheckingGrammar(true);
-    try {
-      // 1. Regras Rápidas Locais (Regex instantâneo)
-      const localErrors = analyzePortugueseText(content); // Mantém a função regex leve
-      
-      // 2. Consulta ao LanguageTool Self-Hosted via Backend Express do StoryForge
-      const res = await apiClient.post('/entities/grammar-check', { text: content });
-      const apiSuggestions = res.data || [];
-
-      // Unifica os resultados
-      setTextSuggestions([...localErrors, ...apiSuggestions]);
-    } catch (err) {
-      console.error('Erro ao consultar verificador gramatical:', err);
-    } finally {
-      setIsCheckingGrammar(false);
-    }
-  }, 800);
-
-  return () => {
-    if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
-  };
-}, [selectedChapter?.content]);
-
-  // Copiar Capítulo (Título + Conteúdo)
   const handleCopyChapter = () => {
     if (!selectedChapter) return;
-    const fullText = `${selectedChapter.title}\n\n${selectedChapter.content || ''}`;
+    const plainText = editorRef.current ? editorRef.current.innerText : selectedChapter.content;
+    const fullText = `${selectedChapter.title}\n\n${plainText || ''}`;
     navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleCheckGrammarWithLanguageTool = async () => {
-  if (!selectedChapter?.content) return;
-
-  setLoadingSuggestions(true);
-  try {
-    // Chamada enviada para o seu próprio backend via apiClient
-    const res = await apiClient.post('/grammar/check', {
-      text: selectedChapter.content,
-    });
-
-    // Mapeamento dos erros oficiais retornados pelo motor LanguageTool
-    const formattedSuggestions = (res.data.matches || []).map((match, index) => ({
-      id: index,
-      original: match.context.text.substring(
-        match.context.offset,
-        match.context.offset + match.context.length
-      ),
-      message: match.message,
-      replacement: match.replacements[0]?.value || '',
-      rule: match.rule?.description || 'Correção gramatical'
-    }));
-
-    setTextSuggestions(formattedSuggestions);
-  } catch (err) {
-    console.error('Erro ao consultar revisão gramatical:', err);
-  } finally {
-    setLoadingSuggestions(false);
-  }
-};
-
-  // Substitui o trecho incorreto no texto e remove a sugestão da lista
-function handleApplyCorrection(suggestion, chosenReplacement) {
-  if (!selectedChapter) return;
-  const currentContent = selectedChapter.content || '';
-  const replacementToUse = chosenReplacement || suggestion.replacement || suggestion.replacements?.[0];
-  if (!replacementToUse) return;
-
-  const updatedContent = currentContent.replace(suggestion.original, replacementToUse);
-
-  updateSelectedChapter('content', updatedContent);
-  setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
-}
-
-  // Criar capítulo
   async function handleAddChapter() {
     if (!newTitle.trim() || !projectId) return;
 
@@ -489,14 +716,12 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
       };
 
       const res = await apiClient.post(`/entities/projects/${projectId}/chapters`, payload);
-      // Trata caso a API retorne diretamente o objeto ou envolto em .data
       const created = res?.data || res;
 
       if (!created || !created.id) {
-      throw new Error('A resposta da API não retornou um capítulo válido com ID.');
-    }
+        throw new Error('A resposta da API não retornou um capítulo válido com ID.');
+      }
 
-      // Atualiza o estado de forma segura
       setChapters((prev) => [...(Array.isArray(prev) ? prev : []), created]);
       setSelectedId(created.id);
       setNewTitle('');
@@ -504,12 +729,9 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
       setIsCreating(false);
     } catch (err) {
       console.error('Erro ao criar capítulo:', err);
-      alert('Não foi possível criar o capítulo. Verifique o servidor backend.');
+      alert('Não foi possível criar o capítulo.');
     }
   }
-
-  // Auto-save
-  const updateTimeoutRef = useRef({});
 
   function updateSelectedChapter(key, value) {
     setChapters((prev) =>
@@ -535,7 +757,6 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
     }, 1000);
   }
 
-  // Excluir capítulo
   async function handleDeleteChapter(id, event) {
     event.stopPropagation();
     if (!window.confirm('Deseja excluir este capítulo?')) return;
@@ -568,23 +789,10 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
     setDraggedId(null);
   }
 
-  // Renderiza ESTRITAMENTE campos preenchidos pelo usuário
   function renderFilledFields(item) {
     const ignoredKeys = [
-      'id',
-      'name',
-      'nome',
-      'title',
-      'type',
-      'pageKey',
-      'projectId',
-      'createdAt',
-      'updatedAt',
-      'imageUrl',
-      'avatarUrl',
-      'image',
-      'beat',
-      'sceneTitle',
+      'id', 'name', 'nome', 'title', 'type', 'pageKey', 'projectId',
+      'createdAt', 'updatedAt', 'imageUrl', 'avatarUrl', 'image', 'beat', 'sceneTitle',
     ];
 
     const entries = Object.entries(item).filter(
@@ -599,36 +807,16 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
     if (entries.length === 0) return null;
 
     const fieldLabels = {
-      idade: 'Idade',
-      descricao: 'Descrição',
-      description: 'Descrição',
-      trauma: 'Trauma',
-      motivacao: 'Motivação',
-      objetivos: 'Objetivos',
-      historia: 'História',
-      passado: 'Passado',
-      segredo: 'Segredo',
-      detalhes: 'Detalhes',
-      act: 'Ato',
-      beat: 'Ponto (Beat)',
-      stage: 'Estágio',
-      objective: 'Objetivo',
-      summary: 'Resumo',
-      notes: 'Notas',
-      pacing: 'Ritmo',
-      intensity: 'Intensidade',
-      time: 'Momento/Tempo',
-      duration: 'Duração',
-      impact: 'Impacto Emocional',
-      location: 'Local',
-      conflict: 'Conflito',
-      hook: 'Gancho',
-      whoKnows: 'Quem sabe',
-      clues: 'Pistas',
-      revelation: 'Revelação',
-      planning: 'Planejamento',
-      foreshadowing: 'Foreshadowing',
-      consequence: 'Consequência',
+      idade: 'Idade', descricao: 'Descrição', description: 'Descrição',
+      trauma: 'Trauma', motivacao: 'Motivação', objetivos: 'Objetivos',
+      historia: 'História', passado: 'Passado', segredo: 'Segredo',
+      detalhes: 'Detalhes', act: 'Ato', beat: 'Ponto (Beat)',
+      stage: 'Estágio', objective: 'Objetivo', summary: 'Resumo',
+      notes: 'Notas', pacing: 'Ritmo', intensity: 'Intensidade',
+      time: 'Momento/Tempo', duration: 'Duração', impact: 'Impacto Emocional',
+      location: 'Local', conflict: 'Conflito', hook: 'Gancho',
+      whoKnows: 'Quem sabe', clues: 'Pistas', revelation: 'Revelação',
+      planning: 'Planejamento', foreshadowing: 'Foreshadowing', consequence: 'Consequência',
     };
 
     return (
@@ -645,9 +833,24 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
     );
   }
 
+  const getBtnStyle = (isActive) =>
+    `w-7 h-7 rounded flex items-center justify-center font-bold text-xs transition-all cursor-pointer ${
+      isActive
+        ? 'bg-purple-600 text-white border border-purple-400 shadow-sm'
+        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+    }`;
+
   return (
     <main className="characters-page manuscript-page">
-      {/* Cabeçalho */}
+      {/* CSS DE COMPATIBILIDADE PARA LISTAS E FORMATAÇÃO */}
+      <style>{`
+        .rich-editor-content ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
+        .rich-editor-content ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
+        .rich-editor-content li { display: list-item !important; }
+        .rich-editor-content sub { vertical-align: sub !important; font-size: 0.75em !important; }
+        .rich-editor-content sup { vertical-align: super !important; font-size: 0.75em !important; }
+      `}</style>
+
       <header className="characters-header flex justify-between items-start mb-2">
         <div>
           <h1>Escrita & Manuscrito</h1>
@@ -659,7 +862,6 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
         </div>
       </header>
 
-      {/* Barra de Progresso */}
       <div className="w-full h-1 bg-gray-800 rounded-full mb-6 overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-purple-600 to-amber-500 transition-all duration-300"
@@ -669,9 +871,8 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
 
       <EscritaGuide />
 
-      {/* Grid Principal */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Coluna Esquerda: Lista de Capítulos */}
+        {/* Lista de Capítulos */}
         <div className="md:col-span-4 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Capítulos</h2>
@@ -760,7 +961,7 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
           )}
         </div>
 
-        {/* Coluna Direita: Editor de Escrita + Painel de Correção Português */}
+        {/* Editor Rich Text de Escrita */}
         <div className="md:col-span-8 space-y-4">
           {selectedChapter ? (
             <>
@@ -772,7 +973,7 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
                     value={selectedChapter.title}
                     onChange={(e) => updateSelectedChapter('title', e.target.value)}
                   />
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -816,90 +1017,300 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
                   </div>
                 </div>
 
-                {/* Área do Manuscrito Livre com Texto Justificado */}
-                <textarea
-                  className="w-full h-96 bg-transparent text-gray-200 placeholder-gray-600 text-sm leading-relaxed focus:outline-none resize-y text-justify"
-                  placeholder="Escreva livremente..."
-                  value={selectedChapter.content || ''}
-                  onChange={(e) => updateSelectedChapter('content', e.target.value)}
+                {/* BARRA DE FERRAMENTAS ESTILO WORD COM ESTADOS ATIVOS (ON/OFF) */}
+                <div className="bg-[#191926] border border-gray-800 rounded-lg p-2 flex flex-wrap items-center gap-3 text-xs text-gray-300 select-none">
+                  {/* GRUPO: FONTE */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <select
+                      onChange={(e) => executeCmd('fontName', e.target.value)}
+                      className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Calibri">Calibri</option>
+                      <option value="Georgia">Georgia</option>
+                      <option value="Garamond">Garamond</option>
+                      <option value="Inter">Inter</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+
+                    <select
+                      onChange={(e) => executeCmd('fontSize', e.target.value)}
+                      className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="3">12pt</option>
+                      <option value="4">14pt</option>
+                      <option value="5">18pt</option>
+                      <option value="6">24pt</option>
+                      <option value="7">36pt</option>
+                    </select>
+                  </div>
+
+                  {/* ESTILOS DE TEXTO */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('bold')}
+                      className={getBtnStyle(activeFormats.bold)}
+                      title="Negrito (Ctrl+B)"
+                    >
+                      N
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('italic')}
+                      className={getBtnStyle(activeFormats.italic)}
+                      title="Itálico (Ctrl+I)"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('underline')}
+                      className={getBtnStyle(activeFormats.underline)}
+                      title="Sublinhado (Ctrl+U)"
+                    >
+                      S
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('strikeThrough')}
+                      className={getBtnStyle(activeFormats.strikeThrough)}
+                      title="Tachado"
+                    >
+                      abc
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleSubscript}
+                      className={getBtnStyle(activeFormats.subscript)}
+                      title="Subscrito"
+                    >
+                      x₂
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleSuperscript}
+                      className={getBtnStyle(activeFormats.superscript)}
+                      title="Sobrescrito"
+                    >
+                      x²
+                    </button>
+                  </div>
+
+                  {/* CORES E REALCE */}
+                  <div className="flex items-center gap-1.5 pr-3 border-r border-gray-800">
+                    <label className="flex items-center gap-1 cursor-pointer bg-[#11111a] px-2 py-1 rounded border border-gray-800 hover:border-gray-700">
+                      <span className="text-[10px] text-gray-400 font-semibold">Texto:</span>
+                      <input
+                        type="color"
+                        onChange={(e) => executeCmd('foreColor', e.target.value)}
+                        className="w-4 h-4 bg-transparent cursor-pointer border-none"
+                        title="Cor da Fonte"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer bg-[#11111a] px-2 py-1 rounded border border-gray-800 hover:border-gray-700">
+                      <span className="text-[10px] text-gray-400 font-semibold">Realce:</span>
+                      <input
+                        type="color"
+                        onChange={(e) => executeCmd('hiliteColor', e.target.value)}
+                        className="w-4 h-4 bg-transparent cursor-pointer border-none"
+                        title="Cor do Realce (Marca-Texto)"
+                      />
+                    </label>
+                  </div>
+
+                  {/* ALINHAMENTOS DE PARÁGRAFO */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyLeft')}
+                      className={getBtnStyle(activeFormats.justifyLeft)}
+                      title="Alinhar à Esquerda"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyCenter')}
+                      className={getBtnStyle(activeFormats.justifyCenter)}
+                      title="Centralizar"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyRight')}
+                      className={getBtnStyle(activeFormats.justifyRight)}
+                      title="Alinhar à Direita"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyFull')}
+                      className={getBtnStyle(activeFormats.justifyFull)}
+                      title="Justificar"
+                    >
+                      ⵂ
+                    </button>
+                  </div>
+
+                  {/* LISTAS E RECUO */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('insertUnorderedList')}
+                      className={getBtnStyle(activeFormats.insertUnorderedList)}
+                      title="Lista com Marcadores"
+                    >
+                      •
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('insertOrderedList')}
+                      className={getBtnStyle(activeFormats.insertOrderedList)}
+                      title="Lista Numerada"
+                    >
+                      1.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('outdent')}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer"
+                      title="Diminuir Recuo"
+                    >
+                      ⇤
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('indent')}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer"
+                      title="Aumentar Recuo"
+                    >
+                      ⇥
+                    </button>
+                  </div>
+
+                  {/* LIMPAR FORMATAÇÃO (ISOLADO) */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('removeFormat')}
+                      className="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs flex items-center gap-1 transition-all cursor-pointer font-semibold"
+                      title="Remover todas as formatações do texto selecionado"
+                    >
+                      <span>🧹</span>
+                      <span>Limpar Formatação</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* CONTAINER EDITÁVEL RICH TEXT */}
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  onInput={handleEditorInput}
+                  onKeyUp={checkActiveFormats}
+                  onMouseUp={checkActiveFormats}
+                  onSelect={checkActiveFormats}
+                  className="rich-editor-content w-full h-96 p-4 bg-[#11111a] text-gray-200 text-sm leading-relaxed focus:outline-none resize-y overflow-y-auto font-sans border border-gray-800/80 rounded-lg text-justify focus:border-purple-600 transition-all"
+                  style={{ minHeight: '384px' }}
                 />
               </div>
 
-              {/* PAINEL DINÂMICO DE REVISÃO */}
-<div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
-  {textSuggestions.map((sug) => {
-    // Lista completa de opções vindas do backend
-    const options = sug.replacements && sug.replacements.length > 0 
-      ? sug.replacements 
-      : (sug.replacement ? [sug.replacement] : []);
+              {/* Assistente de Revisão */}
+              {showCorrectionsPanel && textSuggestions.length > 0 && (
+                <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 shadow-xl">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
+                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
+                      🪄 Assistente de Revisão ({textSuggestions.length} Alertas)
+                    </span>
+                    <span className="text-[11px] text-gray-400">Análise 100% privada e local</span>
+                  </div>
 
-    // Limita as exibições primárias a 4 botões
-    const visibleOptions = options.slice(0, 4);
-    const extraOptions = options.slice(4);
+                  <div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                    {textSuggestions.map((sug) => {
+                      const options = sug.replacements && sug.replacements.length > 0 
+                        ? sug.replacements 
+                        : (sug.replacement ? [sug.replacement] : []);
 
-    return (
-      <div
-        key={sug.id}
-        className="bg-[#1c1b2c] border border-gray-800 p-3 rounded-xl flex items-center justify-between gap-3 text-xs"
-      >
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
-              {sug.label}
-            </span>
-            <span className="text-gray-400 line-through truncate font-mono">
-              "{sug.original}"
-            </span>
-          </div>
-          <p className="text-gray-300 text-xs truncate">{sug.message}</p>
-        </div>
+                      const visibleOptions = options.slice(0, 4);
+                      const extraOptions = options.slice(4);
 
-        {/* Grupo de Correções Organizado */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Primeiras 4 Opções Principais */}
-          {visibleOptions.map((option, oIdx) => (
-            <button
-              key={oIdx}
-              type="button"
-              onClick={() => handleApplyCorrection(sug, option)}
-              className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
-            >
-              "{option}"
-            </button>
-          ))}
+                      return (
+                        <div
+                          key={sug.id}
+                          onMouseEnter={() => highlightCorrectionInEditor(sug)}
+                          onMouseLeave={removeHighlightFromEditor}
+                          className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80"
+                        >
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
+                                {sug.label}
+                              </span>
+                              <span className="text-gray-400 line-through truncate font-mono">
+                                "{sug.original}"
+                              </span>
+                            </div>
+                            <p className="text-gray-300 text-xs truncate">{sug.message}</p>
+                          </div>
 
-          {/* 5º Botão: Dropdown com Todas as Outras Sugestões */}
-          {extraOptions.length > 0 && (
-            <div className="relative">
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleApplyCorrection(sug, e.target.value);
-                    e.target.value = '';
-                  }
-                }}
-                className="px-2.5 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-lg cursor-pointer transition-colors outline-none pr-6 appearance-none"
-              >
-                <option value="" disabled hidden>
-                  +{extraOptions.length} mais ▾
-                </option>
-                {options.map((option, idx) => (
-                  <option key={idx} value={option} className="bg-[#1c1b2c] text-white py-1">
-                    "{option}"
-                  </option>
-                ))}
-              </select>
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
-                ▼
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  })}
-</div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {visibleOptions.map((option, oIdx) => (
+                              <button
+                                key={oIdx}
+                                type="button"
+                                onClick={() => handleApplyCorrection(sug, option)}
+                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
+                              >
+                                {option}
+                              </button>
+                            ))}
+
+                            {extraOptions.length > 0 && (
+                              <div className="relative">
+                                <select
+                                  defaultValue=""
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleApplyCorrection(sug, e.target.value);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-lg cursor-pointer transition-colors outline-none pr-6 appearance-none"
+                                >
+                                  <option value="" disabled hidden>
+                                    +{extraOptions.length} mais ▾
+                                  </option>
+                                  {extraOptions.map((option, idx) => (
+                                    <option key={idx} value={option} className="bg-[#1c1b2c] text-white py-1">
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
+                                  ▼
+                                </span>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleDismissSuggestion(sug.id)}
+                              className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
+                              title="Ignorar esta correção"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-16 text-center space-y-3">
@@ -912,7 +1323,7 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
         </div>
       </div>
 
-      {/* SEÇÃO INFERIOR: APOIO VISUAL */}
+      {/* Seção Inferior: Apoio Visual */}
       <section className="mt-8 bg-[#14141e] border border-purple-900/50 rounded-xl p-6 space-y-5 shadow-2xl">
         <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-gray-800">
           <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -966,7 +1377,6 @@ function handleApplyCorrection(suggestion, chosenReplacement) {
           </div>
         </div>
 
-        {/* Renderização dos Cards */}
         {activeDrawer ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {referenceData[activeDrawer]
