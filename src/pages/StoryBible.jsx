@@ -9,16 +9,13 @@ import apiClient from '../api/apiClient';
 function cleanAndFormatText(rawText) {
   if (!rawText) return [];
 
-  // 1. Substitui tags de quebra de parágrafo/linha por quebras de linha padrão
   let cleaned = String(rawText)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n\n');
 
-  // 2. Remove todas as demais tags HTML (como <span>, <div style="...">, etc.)
   cleaned = cleaned.replace(/<[^>]+>/g, '');
 
-  // 3. Decodifica entidades HTML comuns
   cleaned = cleaned
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -27,7 +24,6 @@ function cleanAndFormatText(rawText) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
-  // 4. Divide o texto em parágrafos limpos removendo linhas em branco consecutivas
   return cleaned
     .split(/\n\s*\n+/)
     .map((p) => p.trim())
@@ -231,7 +227,7 @@ const CHECKLIST_CATEGORIES_ORDER = [
     items: [
       'O ritmo varia adequadamente entre picos de tensão e momentos de alívio?',
       'A jornada emocional do leitor é variada ao longo dos atos?',
-      'O tom do final corresponde ao pacto established com leitor?',
+      'O tom do final corresponde ao pacto estabelecido com leitor?',
       'O estilo de prosa e o ritmo de frases casam com o nível de ação da cena?',
       'A voz narrativa (1ª ou 3ª pessoa) é consistente em ponto de vista (POV)?',
       'Os diálogos soam naturais quando lidos em voz alta?',
@@ -285,11 +281,11 @@ export default function StoryBible({ projectId, currentUser }) {
     currentUser?.writerName || 
     currentUser?.fullName || 
     currentUser?.name || 
-    data.identity['Autor'] || 
-    data.identity['autor'] || 
+    data.identity?.['Autor'] || 
+    data.identity?.['autor'] || 
     'Usuário StoryForge';
 
-  // Garante que o cabeçalho nativo impresso contenha "StoryForge" ao centro e o Pseudônimo do Usuário na direita
+  // Garante que o cabeçalho nativo impresso contenha "StoryForge" e o Pseudônimo
   useEffect(() => {
     const originalTitle = document.title;
     const currentYear = new Date().getFullYear();
@@ -346,7 +342,10 @@ export default function StoryBible({ projectId, currentUser }) {
           apiClient.get(`/entities/projects/${projectId}/dialogues`).catch(() => ({ data: [] })),
         ]);
 
-        const unwrap = (r) => (r.data?.data ? r.data.data : r.data || {});
+        const unwrap = (r) => {
+          if (!r || !r.data) return {};
+          return r.data.data ? r.data.data : (r.data || {});
+        };
 
         const structureData = unwrap(resStructure);
         const selectedFrameworks = resStructure.data?.selectedFrameworks || structureData.selectedFrameworks || [];
@@ -375,31 +374,33 @@ export default function StoryBible({ projectId, currentUser }) {
           { key: 'freytag', name: 'Freytag (Pirâmide Dramática)' }
         ];
 
-        frameworkKeysMap.forEach(({ key, name }) => {
-          if (rawValues[key]) {
-            Object.entries(rawValues[key]).forEach(([beatTitle, textVal]) => {
-              if (textVal && String(textVal).trim() !== '') {
-                const alreadyExists = compiledCards.some(
-                  (c) => c.title === beatTitle && c.descricao === textVal
-                );
-                if (!alreadyExists) {
-                  compiledCards.push({
-                    id: `${key}-${beatTitle}`,
-                    title: beatTitle,
-                    descricao: textVal,
-                    framework: name
-                  });
+        if (rawValues && typeof rawValues === 'object') {
+          frameworkKeysMap.forEach(({ key, name }) => {
+            if (rawValues[key] && typeof rawValues[key] === 'object') {
+              Object.entries(rawValues[key]).forEach(([beatTitle, textVal]) => {
+                if (textVal && String(textVal).trim() !== '') {
+                  const alreadyExists = compiledCards.some(
+                    (c) => c.title === beatTitle && c.descricao === textVal
+                  );
+                  if (!alreadyExists) {
+                    compiledCards.push({
+                      id: `${key}-${beatTitle}`,
+                      title: beatTitle,
+                      descricao: textVal,
+                      framework: name
+                    });
+                  }
                 }
-              }
-            });
-          }
-        });
+              });
+            }
+          });
+        }
 
         setData({
           identity: unwrap(resIdentity),
           essencia: unwrap(resEssencia),
           engenharia: unwrap(resEngenharia),
-          structureFrameworks: selectedFrameworks,
+          structureFrameworks: Array.isArray(selectedFrameworks) ? selectedFrameworks : [],
           structureCards: compiledCards,
           timelineEvents: unwrap(resTimeline),
           world: Array.isArray(resWorld.data) ? resWorld.data : [],
@@ -440,7 +441,8 @@ export default function StoryBible({ projectId, currentUser }) {
 
   function getCharacterName(charId) {
     if (!charId) return 'Desconhecido';
-    const found = data.characters.find((c) => String(c.id) === String(charId));
+    const chars = data.characters || [];
+    const found = chars.find((c) => String(c.id) === String(charId));
     if (found) {
       return found.name || found.nome || found.title || (found.details && found.details.nome) || `Personagem #${charId}`;
     }
@@ -457,7 +459,8 @@ export default function StoryBible({ projectId, currentUser }) {
       sceneOrId = sceneOrId.sceneId;
     }
 
-    const found = data.scenes.find((s) => String(s.id) === String(sceneOrId));
+    const scenes = data.scenes || [];
+    const found = scenes.find((s) => String(s.id) === String(sceneOrId));
     if (found) {
       return found.title || found.titulo || found.name || 'Cena sem título';
     }
@@ -479,7 +482,7 @@ export default function StoryBible({ projectId, currentUser }) {
   const handleStartExport = async () => {
     setConfirmModalOpen(false);
 
-    const title = data.identity['Título'] || data.identity['title'] || 'StoryBible';
+    const title = data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible';
     const dateStr = new Date().toLocaleDateString('pt-BR');
 
     try {
@@ -532,7 +535,8 @@ export default function StoryBible({ projectId, currentUser }) {
     URL.revokeObjectURL(url);
   };
 
-  const filteredStructureCards = data.structureCards.filter((card) => {
+  const filteredStructureCards = (data.structureCards || []).filter((card) => {
+    if (!card) return false;
     if (!data.structureFrameworks || data.structureFrameworks.length === 0) return true;
     const cardFw = String(card.framework || card.type || '').toLowerCase();
     return data.structureFrameworks.some((selectedFw) => {
@@ -542,7 +546,7 @@ export default function StoryBible({ projectId, currentUser }) {
   });
 
   const milestonesList = NARRATIVE_ORDER.map((name) => {
-    const events = data.timelineEvents[name] || [];
+    const events = (data.timelineEvents && data.timelineEvents[name]) || [];
     const active = Array.isArray(events) && events.length > 0;
     const theme = MILESTONE_THEMES[name] || { color: 'bg-purple-600', text: 'text-purple-400' };
 
@@ -553,7 +557,7 @@ export default function StoryBible({ projectId, currentUser }) {
     return { name, label: displayLabel, active, events, activeColor: theme.color, textClass: theme.text };
   });
 
-  const checklistDoneCount = Object.values(data.checklist).filter(Boolean).length;
+  const checklistDoneCount = Object.values(data.checklist || {}).filter(Boolean).length;
 
   if (loading) {
     return <div className="text-center py-20 text-purple-400 font-medium">Gerando e compilando a StoryBible...</div>;
@@ -561,7 +565,6 @@ export default function StoryBible({ projectId, currentUser }) {
 
   return (
     <main className="story-bible-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
-      {/* RESET TOTAL DE IMPRESSÃO */}
       <style>{`
         @media print {
           @page {
@@ -701,9 +704,9 @@ export default function StoryBible({ projectId, currentUser }) {
             📖 DOCUMENTO MESTRE NARRATIVO
           </span>
           <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
-            {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
+            {data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible'}
           </h1>
-          {data.identity['Subtítulo'] && (
+          {data.identity?.['Subtítulo'] && (
             <h2 className="text-lg text-purple-300 font-medium">{data.identity['Subtítulo']}</h2>
           )}
         </div>
@@ -736,10 +739,10 @@ export default function StoryBible({ projectId, currentUser }) {
 
         <div className="space-y-3 pt-1">
           <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight leading-none">
-            {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
+            {data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible'}
           </h1>
 
-          {data.identity['Subtítulo'] && (
+          {data.identity?.['Subtítulo'] && (
             <h2 className="text-base font-semibold text-gray-600 italic border-l-2 border-gray-400 pl-3 mt-2">
               {data.identity['Subtítulo']}
             </h2>
@@ -764,7 +767,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div>
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Identidade da Obra</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
-                {Object.entries(data.identity).map(([key, val]) => (
+                {Object.entries(data.identity || {}).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
                     <p className="text-sm text-gray-200 leading-relaxed">{val || 'Não preenchido.'}</p>
@@ -776,7 +779,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Essência da História</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
-                {Object.entries(data.essencia).map(([key, val]) => (
+                {Object.entries(data.essencia || {}).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
                     <p className="text-sm text-gray-200 leading-relaxed">{val || 'Não preenchido.'}</p>
@@ -788,7 +791,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Engenharia Narrativa</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
-                {Object.entries(data.engenharia).map(([key, val]) => (
+                {Object.entries(data.engenharia || {}).map(([key, val]) => (
                   <div key={key} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80">
                     <span className="text-xs font-semibold text-gray-400 block mb-1">{key}</span>
                     <p className="text-sm text-gray-200 leading-relaxed">{val || 'Não preenchido.'}</p>
@@ -855,7 +858,7 @@ export default function StoryBible({ projectId, currentUser }) {
 
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
-                Frameworks Selecionados: {data.structureFrameworks.join(', ') || 'Nenhum selecionado'}
+                Frameworks Selecionados: {(data.structureFrameworks || []).join(', ') || 'Nenhum selecionado'}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
                 {filteredStructureCards.map((card) => (
@@ -890,7 +893,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div>
               <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3">Elementos do Mundo</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid-cols-1">
-                {data.world.map((w) => (
+                {(data.world || []).map((w) => (
                   <div key={w.id || Math.random()} className="p-4 bg-[#171724] rounded-xl border border-gray-800/80 space-y-2">
                     <strong className="text-white font-bold text-sm block">{w.name || w.nome || w.title}</strong>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40 inline-block">
@@ -905,7 +908,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Personagens</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
-                {data.characters.map((char) => {
+                {(data.characters || []).map((char) => {
                   const typeKey = String(char.type || char.papel || char.role || 'protagonista').toLowerCase();
                   const typeStyle = CHARACTER_TYPES_CONFIG[typeKey] || CHARACTER_TYPES_CONFIG.protagonista;
                   const charName = char.name || char.nome || char.title || (char.details && char.details.nome) || 'Novo Personagem';
@@ -947,7 +950,7 @@ export default function StoryBible({ projectId, currentUser }) {
 
         {openSections.relacoes && (
           <div className="p-6 print:p-0">
-            {data.relations.length === 0 ? (
+            {(!data.relations || data.relations.length === 0) ? (
               <p className="text-xs text-gray-500 italic">Nenhuma relação cadastrada.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-1">
@@ -1002,7 +1005,7 @@ export default function StoryBible({ projectId, currentUser }) {
           <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             <div>
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Cenas Narrativas</h3>
-              {data.scenes.length === 0 ? (
+              {(!data.scenes || data.scenes.length === 0) ? (
                 <p className="text-xs text-gray-500 italic">Nenhuma cena cadastrada.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-1">
@@ -1050,7 +1053,7 @@ export default function StoryBible({ projectId, currentUser }) {
 
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Diálogos Destacados & Subtexto</h3>
-              {data.dialogues.length === 0 ? (
+              {(!data.dialogues || data.dialogues.length === 0) ? (
                 <p className="text-xs text-gray-500 italic">Nenhum diálogo registrado.</p>
               ) : (
                 <div className="space-y-4">
@@ -1058,6 +1061,11 @@ export default function StoryBible({ projectId, currentUser }) {
                     const sceneTitle = getSceneTitle(d);
                     const charA = d.charAName || getCharacterName(d.charAId);
                     const charB = d.charBName || getCharacterName(d.charBId);
+
+                    let parsedLines = d.lines;
+                    if (typeof parsedLines === 'string') {
+                      try { parsedLines = JSON.parse(parsedLines); } catch (e) { parsedLines = []; }
+                    }
 
                     return (
                       <div key={d.id || Math.random()} className="p-5 bg-[#171724] rounded-xl border border-gray-800/80 space-y-3">
@@ -1068,9 +1076,9 @@ export default function StoryBible({ projectId, currentUser }) {
                           </span>
                         </div>
 
-                        {d.lines && Array.isArray(d.lines) && (
+                        {parsedLines && Array.isArray(parsedLines) && parsedLines.length > 0 && (
                           <div className="space-y-2 bg-[#12121a] p-3 rounded-lg border border-gray-800/50 font-serif text-xs leading-relaxed text-gray-300 print:bg-transparent print:p-0">
-                            {d.lines.map((line, lIdx) => (
+                            {parsedLines.map((line, lIdx) => (
                               <p key={lIdx}>
                                 — {line.text}
                                 {line.action && <span className="font-sans text-[11px] italic text-gray-400"> — {line.action}.</span>}
@@ -1103,7 +1111,7 @@ export default function StoryBible({ projectId, currentUser }) {
             <div className="pt-4 border-t border-gray-800/60 grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-1 print:pt-2">
               <div>
                 <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Mistérios & Pistas</h3>
-                {data.mysteries.length === 0 ? (
+                {(!data.mysteries || data.mysteries.length === 0) ? (
                   <p className="text-xs text-gray-500 italic">Nenhum mistério registrado.</p>
                 ) : (
                   <div className="space-y-3">
@@ -1125,7 +1133,7 @@ export default function StoryBible({ projectId, currentUser }) {
 
               <div>
                 <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-3">Plot Twists & Viradas</h3>
-                {data.twists.length === 0 ? (
+                {(!data.twists || data.twists.length === 0) ? (
                   <p className="text-xs text-gray-500 italic">Nenhum plot twist registrado.</p>
                 ) : (
                   <div className="space-y-3">
@@ -1160,11 +1168,12 @@ export default function StoryBible({ projectId, currentUser }) {
 
         {openSections.mapaEmocional && (
           <div className="p-6 print:p-0">
-            {data.emotionalPoints.length === 0 ? (
+            {(!data.emotionalPoints || data.emotionalPoints.length === 0) ? (
               <p className="text-xs text-gray-500 italic">Nenhum ponto registrado no mapa emocional.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-1">
                 {data.emotionalPoints.map((pt, idx) => {
+                  if (!pt) return null;
                   const ptTitle = pt.name || pt.title || pt.titulo || pt.nome || `Ponto #${idx + 1}`;
 
                   return (
@@ -1178,7 +1187,7 @@ export default function StoryBible({ projectId, currentUser }) {
                           return (
                             <span
                               key={e.key}
-                              className="px-2 py-0.5 text-[11px] font-bold"
+                              className="px-2 py-0.5 text-[11px] font-bold rounded border bg-purple-950/80 text-purple-300 border-purple-700/60"
                             >
                               {e.label}: {val}/10
                             </span>
@@ -1209,7 +1218,7 @@ export default function StoryBible({ projectId, currentUser }) {
         {openSections.checklist && (
           <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             {CHECKLIST_CATEGORIES_ORDER.map((catGroup) => {
-              const catDoneItems = catGroup.items.filter((itemText) => !!data.checklist[itemText]);
+              const catDoneItems = catGroup.items.filter((itemText) => !!(data.checklist && data.checklist[itemText]));
               if (catDoneItems.length === 0) return null;
 
               return (
@@ -1245,7 +1254,7 @@ export default function StoryBible({ projectId, currentUser }) {
         )}
       </section>
 
-      {/* 8. ESCRITA & MANUSCRITO (CORRIGIDO E FORMATADO) */}
+      {/* 8. ESCRITA & MANUSCRITO */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
@@ -1257,10 +1266,11 @@ export default function StoryBible({ projectId, currentUser }) {
 
         {openSections.manuscrito && (
           <div className="p-6 space-y-6 print:p-0 print:space-y-4">
-            {data.chapters.length === 0 ? (
+            {(!data.chapters || data.chapters.length === 0) ? (
               <p className="text-xs text-gray-500 italic">Nenhum capítulo escrito até o momento.</p>
             ) : (
               data.chapters.map((ch, index) => {
+                if (!ch) return null;
                 const rawContent = ch.content || ch.texto || ch.text || '';
                 const paragraphs = cleanAndFormatText(rawContent);
 
@@ -1298,7 +1308,7 @@ export default function StoryBible({ projectId, currentUser }) {
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-white">Confirmar Exportação</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Deseja exportar a StoryBible completa de <b>"{data.identity['Título'] || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
+              Deseja exportar a StoryBible completa de <b>"{data.identity?.['Título'] || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
             </p>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={handleStartExport} className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer">

@@ -1,4 +1,4 @@
-// Home.jsx
+// src/pages/Home.jsx
 // Página inicial do StoryForge, exibindo a lista de projetos do usuário, opções de busca, criação e importação de projetos, além de modais para suporte e configurações.
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -106,7 +106,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         const selectedFrameworks = Array.isArray(dataObj.selectedFrameworks) ? dataObj.selectedFrameworks : [];
         if (selectedFrameworks.length === 0) return 0;
         const values = dataObj.values || {};
-        const countFilled = (obj) => Object.values(obj).filter((val) => typeof val === 'string' && val.trim() !== '').length;
+        const countFilled = (obj) => Object.values(obj || {}).filter((val) => typeof val === 'string' && val.trim() !== '').length;
 
         let selectedFieldCount = 0;
         let completedFieldCount = 0;
@@ -188,6 +188,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         format: newProject.format,
         status: 'Desenvolvimento',
         progress: 0,
+        writerName: currentUser?.writerName || currentUser?.fullName || currentUser?.name || 'Autor StoryForge',
       });
 
       const created = res.data;
@@ -204,6 +205,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
 
   const handleLogout = () => {
     localStorage.removeItem('storyforge_token');
+    localStorage.removeItem('user');
     window.location.reload();
   };
 
@@ -224,10 +226,12 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setPendingFile(file);
-    processImport(file);
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      processImport(file);
+    }
+    if (e.target) e.target.value = '';
   };
 
   const processImport = async (file) => {
@@ -253,9 +257,9 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         const meta = importedJson.exportMeta || {};
         const pData = importedJson.projectData;
 
-        const rawTitle = pData.identity?.['Título'] || pData.title || 'Projeto Importado';
+        const rawTitle = pData.identity?.['Título'] || pData.identity?.['title'] || pData.title || 'Projeto Importado';
         const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
-        const exportAuthor = meta.exportedBy || 'Autor StoryForge';
+        const exportAuthor = meta.exportedBy || pData.identity?.['Autor'] || 'Autor Desconhecido';
         const exportDate = meta.exportedAt ? new Date(meta.exportedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
         const projectPayload = {
@@ -562,9 +566,9 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               const rawTitle = project.title || project.name || 'Sem Título';
               const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
 
-              const isImported = project.isImported || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
+              const isImported = Boolean(project.isImported) || Boolean(project.exportedBy) || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
               
-              const authorName = project.author || project.writerName || currentUser?.writerName || 'Autor StoryForge';
+              const authorName = project.exportedBy || project.writerName || project.author || currentUser?.writerName || currentUser?.fullName || currentUser?.name || 'Autor StoryForge';
               const importDate = project.exportedAt || new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR');
 
               return (
@@ -628,7 +632,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         )}
       </div>
 
-      {/* POP-UP / MODAL DE CONFIGURAÇÕES - REUTILIZA O COMPONENTE CONFIGURACOES.JSX */}
+      {/* POP-UP / MODAL DE CONFIGURAÇÕES */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] overflow-y-auto">

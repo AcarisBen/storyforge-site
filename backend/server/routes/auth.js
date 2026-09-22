@@ -1,11 +1,11 @@
 // backend/server/routes/auth.js
 // Rota de autenticação e gerenciamento de usuários
 
-
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import { getConfirmationEmailHTML } from './utils/emailTemplate.js';
+import prisma from '../config/prisma.js';
+import { getConfirmationEmailHTML } from '../utils/emailTemplate.js';
 
 const router = express.Router();
 
@@ -156,7 +156,6 @@ router.get('/me', async (req, res) => {
   return res.status(200).json({ user: userClean });
 });
 
-// PUT /auth/profile - Atualiza o perfil do usuário autenticado
 // PUT /api/auth/profile - Atualiza o pseudônimo e dados do perfil
 router.put('/profile', async (req, res) => {
   try {
@@ -165,31 +164,50 @@ router.put('/profile', async (req, res) => {
 
     const token = authHeader.split(' ')[1];
     const userId = token?.replace('token_seguro_', '');
-    const { writerName, name, email, currentPassword, newPassword } = req.body;
+    const { name } = req.body;
 
-    const user = users.find((u) => u.id === userId);
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-
-    // Atualiza o pseudônimo principal (writerName)
-    if (writerName) user.writerName = writerName.trim();
-    if (name) user.fullName = name.trim();
-    if (email) user.email = email.trim().toLowerCase();
-
-    // Troca de senha segura
-    if (newPassword) {
-      if (!currentPassword || currentPassword !== user.password) {
-        return res.status(400).json({ error: 'Senha atual incorreta.' });
-      }
-      user.password = newPassword;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'O nome/pseudônimo é obrigatório.' });
     }
 
-    const { password: _, ...userClean } = user;
-    return res.json({ 
-      user: userClean, 
-      message: 'Perfil atualizado com sucesso!' 
-    });
+    const cleanName = name.trim();
+
+    // 1. Atualiza no array em memória
+    const memoryUser = users.find((u) => u.id === userId);
+    if (memoryUser) {
+      memoryUser.writerName = cleanName;
+      memoryUser.fullName = memoryUser.fullName || cleanName;
+    }
+
+    // 2. Atualiza ou registra no PostgreSQL via Prisma
+    let updatedUser;
+    try {
+      updatedUser = await prisma.user.upsert({
+        where: { id: userId },
+        update: { name: cleanName },
+        create: {
+          id: userId,
+          email: memoryUser?.email || `${userId}@storyforge.local`,
+          name: cleanName,
+          password: 'hash_placeholder',
+        },
+      });
+    } catch (uErr) {
+      console.log('Aviso (User em memória/Prisma):', uErr.message);
+    }
+
+    const responseUser = {
+      id: userId,
+      name: cleanName,
+      writerName: cleanName,
+      fullName: memoryUser?.fullName || updatedUser?.name || cleanName,
+      email: memoryUser?.email || updatedUser?.email || `${userId}@storyforge.local`,
+    };
+
+    return res.json({ user: responseUser });
   } catch (err) {
-    return res.status(500).json({ error: 'Erro interno ao atualizar perfil' });
+    console.error('Erro ao atualizar perfil:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar perfil' });
   }
 });
 

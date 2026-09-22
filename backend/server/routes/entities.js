@@ -1,4 +1,5 @@
 // backend/server/routes/entities.js
+// Rotas para gerenciar entidades do projeto (Identidade, Essência, Engenharia, Estrutura Dramática, Ritmo & Timeline, Personagens, Mundo, Cenas, Mistérios, etc.)
 
 import express from 'express';
 import prisma from '../config/prisma.js';
@@ -20,7 +21,6 @@ function generatePhoneticVariants(word) {
   const variants = new Set();
   const lower = word.toLowerCase();
 
-  // Troca ç por s, ss, c, lh e vice-versa
   if (lower.includes('çe')) variants.add(lower.replace(/çe/g, 'se')).add(lower.replace(/çe/g, 'she'));
   if (lower.includes('ço')) {
     variants.add(lower.replace(/ço/g, 'so'));
@@ -34,7 +34,9 @@ function generatePhoneticVariants(word) {
   return Array.from(variants);
 }
 
-// ROTA PROXY ATUALIZADA
+// ==========================================
+// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
+// ==========================================
 router.post('/grammar-check', async (req, res) => {
   try {
     const { text } = req.body;
@@ -64,7 +66,6 @@ router.post('/grammar-check', async (req, res) => {
         .map((r) => r.value)
         .filter(Boolean);
 
-      // Se o LanguageTool entregar apenas 1 opção, injeta as variações fonéticas automáticas
       if (replacements.length === 1) {
         const extraOptions = generatePhoneticVariants(original);
         replacements = Array.from(new Set([...replacements, ...extraOptions])).slice(0, 4);
@@ -74,65 +75,6 @@ router.post('/grammar-check', async (req, res) => {
         id: `lt-${idx}-${match.offset}`,
         label: match.rule?.category?.name || 'Ortografia/Gramática',
         original,
-        replacements, // Agora envia múltipla escolha garantida
-        message: match.message,
-        badgeStyle: match.rule?.issueType === 'misspelling' 
-          ? 'bg-red-950/80 text-red-300 border-red-700/60' 
-          : 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-      };
-    });
-
-    return res.json(suggestions);
-  } catch (err) {
-    console.error('Erro na checagem gramatical:', err.message);
-    return res.json([]);
-  }
-});
-
-// ==========================================
-// PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
-// ==========================================
-router.post('/grammar-check', async (req, res) => {
-  try {
-    const { text } = req.body;
-    if (!text || text.trim().length < 3) return res.json([]);
-
-    // Remove tags HTML para enviar texto puro ao LanguageTool sem alterar os offsets
-    const cleanText = text.replace(/<[^>]*>/g, ' ');
-
-    const params = new URLSearchParams({
-      text: cleanText,
-      language: 'pt-BR',
-      level: 'picky', // Modo rigoroso/minucioso
-      enabledOnly: 'false',
-      // Força a ativação de todas as categorias normativas da língua portuguesa
-      enableCategories: 'GRAMMAR,TYPOS,CASING,PUNCTUATION,STYLE,SEMANTICS,AGREEMENT,CONFUSED_WORDS',
-    });
-
-    const response = await fetch('http://localhost:8010/v2/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params,
-    });
-
-    if (!response.ok) throw new Error('Servidor LanguageTool offline');
-
-    const data = await response.json();
-
-    const suggestions = (data.matches || []).map((match, idx) => {
-      const original = cleanText.substring(match.offset, match.offset + match.length);
-
-      const replacements = (match.replacements || [])
-        .map((r) => r.value)
-        .filter(Boolean)
-        .slice(0, 5);
-
-      return {
-        id: `lt-${idx}-${match.offset}`,
-        label: match.rule?.category?.name || 'Ortografia/Gramática',
-        original,
-        offset: match.offset,
-        length: match.length,
         replacements,
         replacement: replacements[0] || '',
         message: match.message,
@@ -158,7 +100,6 @@ const getUserIdFromReq = (req) => {
   return token.replace('token_seguro_', '');
 };
 
-// Middleware utilitário de proteção de rota
 const requireAuth = (req, res, next) => {
   const userId = getUserIdFromReq(req);
   if (!userId) {
@@ -203,7 +144,7 @@ const createProjectHandler = async (req, res) => {
     const userId = getUserIdFromReq(req);
 
     if (!userId) {
-      return res.status(401).json({ error: 'Você precisa estar logado para criar ou importar um projeto.' });
+      return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
 
     const cleanTitle = (title || 'Novo Projeto').replace(/\s*\(Importado\)\s*/gi, '').trim();
@@ -211,7 +152,7 @@ const createProjectHandler = async (req, res) => {
     const authorName = exportedBy || writerName || 'Autor StoryForge';
     const importDate = exportedAt || new Date().toLocaleDateString('pt-BR');
 
-    // Garantia de registro do usuário no banco
+    // Garantia de registro/atualização do usuário no banco
     try {
       await prisma.user.upsert({
         where: { id: userId },
@@ -230,7 +171,9 @@ const createProjectHandler = async (req, res) => {
     const newProject = await prisma.project.create({
       data: {
         title: cleanTitle,
-        description: isImportProcess ? `Projeto importado em ${importDate} por ${authorName}` : '',
+        description: isImportProcess 
+          ? `Projeto importado em ${importDate} por ${authorName}` 
+          : `Criado em ${new Date().toLocaleDateString('pt-BR')}`,
         userId: userId,
         isImported: isImportProcess,
         exportedAt: isImportProcess ? importDate : null,
@@ -259,7 +202,6 @@ const deleteProjectHandler = async (req, res) => {
 
     const { id } = req.params;
 
-    // Proteção de Dados: Deleta apenas se o projeto pertencer ao userId autenticado
     const deleted = await prisma.project.deleteMany({
       where: {
         id: id,

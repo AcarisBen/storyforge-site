@@ -20,7 +20,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
-  // Carrega prioritariamente o pseudônimo (writerName) vindo do cadastro
+  // Carrega prioritariamente o pseudônimo (writerName/name) vindo do cadastro ou API
   useEffect(() => {
     if (currentUser) {
       setDisplayName(currentUser.writerName || currentUser.fullName || currentUser.name || '');
@@ -38,22 +38,41 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     }
   }, [currentUser]);
 
-  // Salva o pseudônimo no backend e atualiza o estado global no App
+  // Salva o pseudônimo no backend, atualiza o estado React e o localStorage
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!displayName.trim()) {
+    const cleanName = displayName.trim();
+
+    if (!cleanName) {
       alert('O pseudônimo não pode ficar em branco.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const res = await apiClient.put('/auth/profile', { writerName: displayName.trim() });
-      alert('Pseudônimo atualizado com sucesso!');
-      
-      if (setCurrentUser && res.data?.user) {
-        setCurrentUser(res.data.user);
+      const res = await apiClient.put('/auth/profile', { name: cleanName });
+      const updatedUser = res.data?.user || {};
+
+      // 1. Atualiza o estado global no React
+      if (setCurrentUser) {
+        setCurrentUser((prev) => ({
+          ...prev,
+          ...updatedUser,
+          name: cleanName,
+          writerName: cleanName,
+          fullName: cleanName,
+        }));
       }
+
+      // 2. Atualiza a memória local para manter ao recarregar a página (F5)
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...storedUser, name: cleanName, writerName: cleanName }));
+      } catch (storageErr) {
+        console.error('Aviso no localStorage:', storageErr);
+      }
+
+      alert('Pseudônimo atualizado com sucesso!');
     } catch (err) {
       console.error('Erro ao salvar pseudônimo:', err);
       alert(err.response?.data?.error || err.data?.error || 'Erro ao atualizar o perfil.');
@@ -83,6 +102,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const handleLogout = () => {
     if (confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
       localStorage.removeItem('storyforge_token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
   };
