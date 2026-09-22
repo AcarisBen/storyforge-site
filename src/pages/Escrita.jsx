@@ -336,7 +336,7 @@ export default function Escrita({ projectId, onNavigate }) {
     }
   }, [selectedId]);
 
-  // ANÁLISE GRAMATICAL EM SEGUNDO PLANO
+  // ANÁLISE GRAMATICAL EM SEGUNDO PLANO (COM FILTRO DE ESPAÇO EM BRANCO)
   useEffect(() => {
     const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
 
@@ -354,7 +354,15 @@ export default function Escrita({ projectId, onNavigate }) {
 
       try {
         const response = await apiClient.post('/entities/grammar-check', { text: rawText });
-        ltSuggestions = response.data || [];
+        const rawLt = response.data || [];
+
+        // Filtra regras de espaço em branco para não dar falso positivo ao usar formatação
+        ltSuggestions = rawLt.filter((s) => {
+          const isWhitespaceRule =
+            s.rule?.id === 'WHITESPACE_RULE' ||
+            (s.message && s.message.toLowerCase().includes('espaço em branco'));
+          return !isWhitespaceRule;
+        });
       } catch (err) {
         console.warn('LanguageTool indisponível:', err.message);
       }
@@ -433,27 +441,79 @@ export default function Escrita({ projectId, onNavigate }) {
     checkActiveFormats();
   };
 
-  // INSERE RECUO DE PRIMEIRA LINHA (TAB DE PARÁGRAFO)
+  // RECUO DE PRIMEIRA LINHA VIA CSS (SEM CARACTERES DE ESPAÇO)
   const insertFirstLineIndent = () => {
+    if (!editorRef.current) return;
+
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) return;
 
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
+    let node = sel.anchorNode;
+    if (!node) return;
 
-    // Insere 4 espaços inquebráveis equivalentes a um Tab de livro
-    const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0');
-    range.insertNode(tabNode);
+    let block = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
 
-    // Reposiciona o cursor para logo após os espaços inseridos
-    range.setStartAfter(tabNode);
-    range.setEndAfter(tabNode);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    while (
+      block &&
+      block !== editorRef.current &&
+      !['P', 'DIV', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'LI'].includes(block.tagName)
+    ) {
+      block = block.parentElement;
+    }
 
-    if (editorRef.current) {
+    if (!block || block === editorRef.current) {
+      document.execCommand('formatBlock', false, 'p');
+      const newSel = window.getSelection();
+      if (newSel && newSel.anchorNode) {
+        block =
+          newSel.anchorNode.nodeType === Node.ELEMENT_NODE
+            ? newSel.anchorNode
+            : newSel.anchorNode.parentElement;
+        while (block && block !== editorRef.current && !['P', 'DIV'].includes(block.tagName)) {
+          block = block.parentElement;
+        }
+      }
+    }
+
+    if (block && block !== editorRef.current) {
+      const hasIndent = block.style.textIndent && block.style.textIndent !== '0px';
+      block.style.textIndent = hasIndent ? '0px' : '2.5em';
       updateSelectedChapter('content', editorRef.current.innerHTML);
     }
+  };
+
+  // ROLA APENAS A CAIXA DO EDITOR (SEM MOVER O SCROLL DA PÁGINA INTEIRA)
+  const handleCardClick = (e, sug) => {
+    if (
+      e.target.closest('button') ||
+      e.target.closest('select') ||
+      e.target.closest('option')
+    ) {
+      return;
+    }
+
+    highlightCorrectionInEditor(sug);
+
+    setTimeout(() => {
+      const mark = editorRef.current?.querySelector('#active-correction-mark');
+      const editor = editorRef.current;
+
+      if (mark && editor) {
+        const editorRect = editor.getBoundingClientRect();
+        const markRect = mark.getBoundingClientRect();
+
+        // Posição relativa da marca em relação ao topo visível do editor
+        const offsetTop = markRect.top - editorRect.top;
+
+        // Calcula a nova posição para centralizar o texto dentro da caixa do editor
+        const targetScrollTop = editor.scrollTop + offsetTop - (editor.clientHeight / 2) + (markRect.height / 2);
+
+        editor.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth',
+        });
+      }
+    }, 50);
   };
 
   const handleEditorInput = () => {
@@ -1014,10 +1074,10 @@ export default function Escrita({ projectId, onNavigate }) {
                   </div>
                 </div>
 
-                {/* BARRA DE FERRAMENTAS COM OS NOVOS TAMANHOS DE FONTE */}
+                {/* BARRA DE FERRAMENTAS COM OS TAMANHOS A PARTIR DE 10pt */}
                 <div className="bg-[#191926] border border-gray-800 rounded-lg p-2 flex flex-wrap items-center gap-3 text-xs text-gray-300 select-none">
                   
-                  {/* FONTE E TAMANHOS (9pt a 36pt) */}
+                  {/* FONTE E TAMANHOS (10pt a 36pt) */}
                   <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
                     <select
                       onChange={(e) => executeCmd('fontName', e.target.value)}
@@ -1032,7 +1092,6 @@ export default function Escrita({ projectId, onNavigate }) {
                       <option value="Courier New">Courier New</option>
                     </select>
 
-                    {/* SELECTOR COM TAMANHOS 10pt, 11pt, 12pt, 14pt, 18pt, 24pt, 36pt */}
                     <select
                       onChange={(e) => executeCmd('fontSize', e.target.value)}
                       className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
@@ -1042,8 +1101,8 @@ export default function Escrita({ projectId, onNavigate }) {
                       <option value="3">12pt</option>
                       <option value="4">14pt</option>
                       <option value="5">18pt</option>
-                      {/*<option value="6">24pt</option>
-                      <option value="7">36pt</option>*/}                    
+                      <option value="6">24pt</option>
+                      <option value="7">36pt</option>
                     </select>
                   </div>
 
@@ -1157,7 +1216,7 @@ export default function Escrita({ projectId, onNavigate }) {
                     </button>
                   </div>
 
-                  {/* LISTAS E RECUO */}
+                  {/* LISTAS E RECUOS */}
                   <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
                     <button
                       type="button"
@@ -1175,6 +1234,17 @@ export default function Escrita({ projectId, onNavigate }) {
                     >
                       1.
                     </button>
+
+                    {/* BOTÃO: RECUO DE PRIMEIRA LINHA VIA CSS */}
+                    <button
+                      type="button"
+                      onClick={insertFirstLineIndent}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer font-bold text-xs"
+                      title="Recuo de Primeira Linha / Parágrafo (Tab)"
+                    >
+                      ⇥₁
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => executeCmd('outdent')}
@@ -1191,17 +1261,6 @@ export default function Escrita({ projectId, onNavigate }) {
                     >
                       ⇥
                     </button>
-
-                        {/* NOVO BOTÃO: RECUO DE PRIMEIRA LINHA (PARÁGRAFO) */}
-                      <button
-                        type="button"
-                        onClick={insertFirstLineIndent}
-                        className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer font-bold text-xs"
-                        title="Recuo de Primeira Linha / Parágrafo (Tab)"
-                      >
-                        ⇥₁
-                      </button>
-
                   </div>
 
                   {/* LIMPAR FORMATAÇÃO */}
@@ -1231,7 +1290,7 @@ export default function Escrita({ projectId, onNavigate }) {
                 />
               </div>
 
-              {/* Assistente de Revisão (Lista de Cards de Correção) */}
+              {/* ASSISTENTE DE REVISÃO (ROLAGEM DENTRO DO EDITOR SEM MOVER A PÁGINA) */}
               {showCorrectionsPanel && textSuggestions.length > 0 && (
                 <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 shadow-xl">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
@@ -1243,9 +1302,12 @@ export default function Escrita({ projectId, onNavigate }) {
 
                   <div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
                     {textSuggestions.map((sug) => {
-                      const options = sug.replacements && sug.replacements.length > 0 
-                        ? sug.replacements 
-                        : (sug.replacement ? [sug.replacement] : []);
+                      const options =
+                        sug.replacements && sug.replacements.length > 0
+                          ? sug.replacements
+                          : sug.replacement
+                          ? [sug.replacement]
+                          : [];
 
                       const visibleOptions = options.slice(0, 4);
                       const extraOptions = options.slice(4);
@@ -1255,7 +1317,9 @@ export default function Escrita({ projectId, onNavigate }) {
                           key={sug.id}
                           onMouseEnter={() => highlightCorrectionInEditor(sug)}
                           onMouseLeave={removeHighlightFromEditor}
-                          className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80"
+                          onClick={(e) => handleCardClick(e, sug)}
+                          className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80 cursor-pointer group"
+                          title="Clique no card para ir até a localização no texto"
                         >
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -1269,7 +1333,10 @@ export default function Escrita({ projectId, onNavigate }) {
 
                             <div className="flex items-center gap-1.5">
                               <p
-                                onClick={() => setActiveModalSuggestion(sug)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveModalSuggestion(sug);
+                                }}
                                 className="text-gray-300 text-xs truncate cursor-pointer hover:text-purple-300 transition-colors"
                                 title="Clique para ver a explicação completa"
                               >
@@ -1279,7 +1346,10 @@ export default function Escrita({ projectId, onNavigate }) {
                               {sug.message && sug.message.length > 55 && (
                                 <button
                                   type="button"
-                                  onClick={() => setActiveModalSuggestion(sug)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveModalSuggestion(sug);
+                                  }}
                                   className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline shrink-0 cursor-pointer"
                                 >
                                   [ver mais]
@@ -1288,12 +1358,16 @@ export default function Escrita({ projectId, onNavigate }) {
                             </div>
                           </div>
 
+                          {/* AÇÕES (ISOLADAS DE PROPAGAÇÃO DE CLIQUE) */}
                           <div className="flex items-center gap-1.5 shrink-0">
                             {visibleOptions.map((option, oIdx) => (
                               <button
                                 key={oIdx}
                                 type="button"
-                                onClick={() => handleApplyCorrection(sug, option)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApplyCorrection(sug, option);
+                                }}
                                 className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
                               >
                                 {option}
@@ -1304,7 +1378,9 @@ export default function Escrita({ projectId, onNavigate }) {
                               <div className="relative">
                                 <select
                                   defaultValue=""
+                                  onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => {
+                                    e.stopPropagation();
                                     if (e.target.value) {
                                       handleApplyCorrection(sug, e.target.value);
                                       e.target.value = '';
@@ -1329,7 +1405,10 @@ export default function Escrita({ projectId, onNavigate }) {
 
                             <button
                               type="button"
-                              onClick={() => handleDismissSuggestion(sug)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDismissSuggestion(sug);
+                              }}
                               className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
                               title="Ignorar esta correção por 30 minutos"
                             >

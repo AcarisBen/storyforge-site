@@ -1,13 +1,36 @@
 // src/lib/writing/customGrammarRules.js
 
 /**
- * BASE DE REGRAS GRAMATICAIS E ORTOGRÁFICAS COMPLEMENTARES
- * Utilizada como fallback/complemento quando o LanguageTool não identifica o problema.
+ * BASE DE REGRAS GRAMATICAIS E ORTOGRÁFICAS COMPLEMENTARES (GENERALIZADAS)
  */
 export const customRulesDatabase = [
   // ==========================================
-  // 1. PONTUAÇÃO E MAIÚSCULAS INDEVIDAS
+  // 1. CORREÇÃO DE BUGS E FLEXÕES INADEQUADAS
   // ==========================================
+  {
+    id: 'rule-fix-vai-infinitive-a',
+    category: 'Sintaxe / Flexão Incorreta',
+    pattern: /\b(vai|vão|ia|iam)\s+([a-zA-Záàâãéèêíóòôõúç]+r)a\b/gi,
+    replacementFn: (match, aux, verb) => `${aux} ${verb}`,
+    message: 'Construção verbal incorreta. O verbo principal deve permanecer no infinitivo (ex: "vai limpar", "vai resolver").',
+    badgeStyle: 'bg-red-950/80 text-red-300 border-red-700/60',
+  },
+
+  // ==========================================
+  // 2. PONTUAÇÃO, CAPITALIZAÇÃO E PARÔNIMOS
+  // ==========================================
+  {
+    id: 'rule-artigo-dia-semana',
+    category: 'Concordância Nominal / Gênero',
+    pattern: /\b(um|este|o|naquele)\s+(segunda|terça|quarta|quinta|sexta)-feira\b/gi,
+    replacementFn: (match, art, dia) => {
+      const map = { um: 'uma', este: 'esta', o: 'a', naquele: 'naquela' };
+      const newArt = map[art.toLowerCase()] || art;
+      return `${newArt} ${dia}-feira`;
+    },
+    message: 'Os dias da semana terminados em "-feira" são substantivos femininos ("uma terça-feira").',
+    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+  },
   {
     id: 'rule-virgula-sujeito-verbo',
     category: 'Pontuação / Sintaxe',
@@ -17,24 +40,16 @@ export const customRulesDatabase = [
     badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
   },
   {
-    id: 'rule-virgula-preposicao-substantivo',
-    category: 'Pontuação / Sintaxe',
-    pattern: /\b(a\s+um|a\s+uma|de\s+um|de\s+uma|em\s+um|em\s+uma)\s*,\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\b/gi,
-    replacementFn: (match, prep, subst) => `${prep} ${subst}`,
-    message: 'Não use vírgula separando a preposição/artigo do substantivo.',
+    id: 'rule-paronimo-sessao',
+    category: 'Parônimos / Ortografia',
+    pattern: /\b(seção|secção)\s+(bem\s+)?(interessante|legal|chata|longa|curta|de\s+cinema|do\s+cinema|de\s+filme|de\s+teatro|de\s+fotos|de\s+terapia|de\s+palestra|de\s+reunião)\b/gi,
+    replacementFn: (match, sec, bem, comp) => `sessão ${bem || ''}${comp}`,
+    message: 'Para eventos, reuniões, exibições ou intervalos de tempo, utilize "sessão" (com SS).',
     badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
-  },
-  {
-    id: 'rule-maiuscula-indevida-meio-frase',
-    category: 'Ortografia / Capitalização',
-    pattern: /\b([a-zà-úç]{2,})\s+(Saía|Saí|Havia|Fazia|Ia|Estava|Comprei)\b/g,
-    replacementFn: (match, p1, p2) => `${p1} ${p2.toLowerCase()}`,
-    message: 'Palavra grafada com inicial maiúscula inadequada no meio da frase.',
-    badgeStyle: 'bg-red-950/80 text-red-300 border-red-700/60',
   },
 
   // ==========================================
-  // 2. REGÊNCIA VERBAL E PREPOSIÇÕES
+  // 3. REGÊNCIA VERBAL E PREPOSIÇÕES
   // ==========================================
   {
     id: 'rule-regencia-preferir-do-que',
@@ -47,123 +62,170 @@ export const customRulesDatabase = [
   {
     id: 'rule-regencia-chegar-em',
     category: 'Regência Verbal',
-    pattern: /\bchega(r|ndo|do|m|u|ram)?\s+em\s+(casa|escola|praia|cidade|trabalho|loja)\b/gi,
-    replacementFn: (match, flex, local) => match.replace(/\bem\b/i, 'a'),
-    message: 'Verbos de movimento como "chegar" exigem a preposição "a" na norma culta ("chegar a casa").',
+    pattern: /\bchega(r|ndo|do|m|u|ram|mos)?\s+(em|na|no|nas|nos)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\b/gi,
+    replacementFn: (match, flex, prep, local) => {
+      const prepFix = prep === 'na' ? 'à' : prep === 'no' ? 'ao' : prep === 'nas' ? 'às' : prep === 'nos' ? 'aos' : 'a';
+      return `chega${flex || ''} ${prepFix} ${local}`;
+    },
+    message: 'Verbos de movimento como "chegar" exigem a preposição "a" ou "ao/à" na norma culta ("chegar ao escritório").',
     badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
   {
-    id: 'rule-regencia-ir-no',
+    id: 'rule-regencia-ir-no-na',
     category: 'Regência Verbal',
-    pattern: /\b(foi|fomos|ir|irão|vai|fui)\s+no\s+(shopping|cinema|teatro|mercado|parque|estádio)\b/gi,
-    replacementFn: (match) => match.replace(/\bno\b/i, 'ao'),
-    message: 'Verbos de movimento pedem a preposição "a" na norma-padrão ("ir ao shopping").',
-    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-  },
-  {
-    id: 'rule-regencia-ir-na',
-    category: 'Regência Verbal',
-    pattern: /\b(foi|fomos|ir|irão|vai|fui)\s+na\s+(loja|escola|praia|farmácia|padaria|cidade|feira|estação)\b/gi,
-    replacementFn: (match) => match.replace(/\bna\b/i, 'à'),
-    message: 'Verbos de movimento pedem a preposição "a" na norma-padrão ("fui à loja").',
+    pattern: /\b(foi|fomos|ir|irão|vai|fui)\s+(no|na)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\b/gi,
+    replacementFn: (match, verbo, prep, local) => {
+      const novaprep = prep.toLowerCase() === 'no' ? 'ao' : 'à';
+      return `${verbo} ${novaprep} ${local}`;
+    },
+    message: 'Verbos de movimento pedem a preposição "a" na norma-padrão ("ir ao shopping", "ir à praia").',
     badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
   {
     id: 'rule-regencia-assisti-um',
     category: 'Regência Verbal',
-    pattern: /\b(assisti|assistimos|assistiram|assistiu)\s+um\b/gi,
-    replacementFn: (match) => match.replace(/\bum\b/i, 'a um'),
+    pattern: /\b(assisti|assistimos|assistiram|assistiu)\s+(um|uma)\b/gi,
+    replacementFn: (match, verbo, art) => `${verbo} a ${art}`,
     message: 'No sentido de ver/presenciar, o verbo "assistir" exige a preposição "a" ("assistir a um").',
     badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
 
   // ==========================================
-  // 3. CONCORDÂNCIA VERBAL, NOMINAL E NÚCLEO
+  // 4. CONCORDÂNCIA VERBAL, NOMINAL E NÚCLEO
   // ==========================================
   {
-    id: 'rule-concordancia-nucleo-singular',
-    category: 'Concordância Verbal',
-    pattern: /\b(o|a)\s+(barulho|som|causa|motivo|origem|grupo|lista)\s+do(s)?|da(s)?\s+([a-zA-Záàâãéèêíóòôõúç]+s)\s+(também\s+)?(ajudavam|faziam|causavam|eram|estavam)\b/gi,
-    replacementFn: (match) => {
-      return match
-        .replace(/\bajudavam\b/i, 'ajudava')
-        .replace(/\bfaziam\b/i, 'fazia')
-        .replace(/\bcausavam\b/i, 'causava')
-        .replace(/\beram\b/i, 'era')
-        .replace(/\bestavam\b/i, 'estava');
-    },
-    message: 'O núcleo do sujeito está no singular, o verbo deve concordar no singular.',
-    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+    id: 'rule-ter-sentido-haver',
+    category: 'Impessoalidade Verbal / Uso de Ter',
+    pattern: /\b(tinha|tinham)\s+(muit[oa]s?|vári[oa]s|algun[s]|algumas|pouc[oa]s?|[0-9]+)\b/gi,
+    replacementFn: (match, verbo, quant) => `havia ${quant}`,
+    message: 'Na norma-padrão, utilize o verbo "haver" (no singular) para indicar existência ou presença ("Havia pessoas").',
+    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
   {
-    id: 'rule-concordancia-anexo-mensagem',
-    category: 'Concordância Nominal',
-    pattern: /\banexo\s+a\s+esta\s+(mensagem|carta|encomenda|pasta|folha)\b/gi,
-    replacementFn: (match, subst) => `Anexa a esta ${subst}`,
-    message: 'A palavra "anexo" funciona como adjetivo e deve concordar em gênero com o substantivo ("Anexa a esta mensagem").',
-    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
-  },
-  {
-    id: 'rule-fazer-impessoal-faziam',
-    category: 'Impessoalidade Verbal',
-    pattern: /\bfaziam\s+(anos|meses|dias|horas|semanas|décadas|séculos)\b/gi,
-    replacementFn: (match, tempo) => `fazia ${tempo}`,
-    message: 'O verbo "fazer" indicando tempo decorrido é impessoal e permanece no singular ("fazia anos").',
-    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
-  },
-  {
-    id: 'rule-pessoas-nao-tinha',
-    category: 'Concordância Verbal',
-    pattern: /\b(os|as|eles|elas|pessoas)\s+(não\s+)?tinha\b/gi,
-    replacementFn: (match) => match.replace(/tinha/i, 'tinham'),
-    message: 'O sujeito no plural exige o verbo flexionado no plural ("tinham").',
-    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
-  },
-  {
-    id: 'rule-chegaram-a-vez',
-    category: 'Concordância Verbal',
-    pattern: /\bchegaram\s+(a|o)\s+(minha|sua|nossa|tua)\s+(vez|hora)\b/gi,
-    replacementFn: (match, art, poss, subst) => `chegou ${art} ${poss} ${subst}`,
-    message: 'O sujeito ("a minha vez") está no singular, logo o verbo deve concordar no singular ("chegou").',
-    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
-  },
-  {
-    id: 'rule-a-gente-comprarmos',
+    id: 'rule-a-gente-infinitivo-flexionado',
     category: 'Concordância de Pessoa',
-    pattern: /\ba\s+gente\s+([a-zA-Záàâãéèêíóòôõúç]+)\s+para\s+([a-zA-Záàâãéèêíóòôõúç]+)mos\b/gi,
-    replacementFn: (match, v1, v2) => `a gente ${v1} para ${v2}`,
-    message: 'A expressão "a gente" exige a 3ª pessoa do singular ("a gente foi para comprar").',
+    pattern: /\ba\s+gente\b([^.!?]*?)\b([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)mos\b/gi,
+    replacementFn: (match, meio, verboFlex) => {
+      const verboInfinitivo = verboFlex.toLowerCase().replace(/mos$/, '');
+      return `a gente${meio}${verboInfinitivo}`;
+    },
+    message: 'A expressão "a gente" exige o verbo na 3ª pessoa do singular ("a gente foi para comprar", e não "comprarmos").',
     badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
   },
   {
-    id: 'rule-bastante-plural',
+    id: 'rule-um-ou-outro-singular',
+    category: 'Concordância Verbal',
+    pattern: /\bum\s+ou\s+outro\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)(am|em)\b/gi,
+    replacementFn: (match, subst, verbo, suf) => {
+      const verboSingular = suf.toLowerCase() === 'am' ? `${verbo}a` : `${verbo}e`;
+      return `um ou outro ${subst} ${verboSingular}`;
+    },
+    message: 'A expressão "um ou outro" acompanhada de substantivo exige o verbo no singular ("um ou outro funcionário demonstrava").',
+    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+  },
+  {
+    id: 'rule-concordancia-nucleo-singular-geral',
+    category: 'Concordância Verbal',
+    pattern: /\b(o|a)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\s+(dos|das|de)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+s)\s+(também\s+)?(ajudavam|faziam|causavam|eram|estavam|demonstravam|atrapalhavam|afetavam)\b/gi,
+    replacementFn: (match, art, nucleo, prep, adj, tambem, verboPlural) => {
+      const mapSingular = {
+        ajudavam: 'ajudava',
+        faziam: 'fazia',
+        causavam: 'causava',
+        eram: 'era',
+        estavam: 'estava',
+        demonstravam: 'demonstrava',
+        atrapalhavam: 'atrapalhava',
+        afetavam: 'afetava',
+      };
+      const verboSingular = mapSingular[verboPlural.toLowerCase()] || verboPlural.replace(/m$/, '');
+      const tambemText = tambem ? tambem : '';
+      return `${art} ${nucleo} ${prep} ${adj} ${tambemText}${verboSingular}`;
+    },
+    message: 'O núcleo do sujeito está no singular, portanto o verbo deve concordar no singular.',
+    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+  },
+  {
+    id: 'rule-fazerem-anos-impessoal',
+    category: 'Impessoalidade Verbal',
+    pattern: /\bfazerem\s+(anos|meses|dias|horas|semanas|décadas|séculos)\b/gi,
+    replacementFn: (match, tempo) => `fazer ${tempo}`,
+    message: 'O verbo "fazer" indicando tempo decorrido é impessoal e não flexiona para o plural ("fazer anos").',
+    badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
+  },
+  {
+    id: 'rule-concordancia-anexo-genero',
     category: 'Concordância Nominal',
-    pattern: /\bbastante\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+s)\b/gi,
-    replacementFn: (match, group1) => `bastantes ${group1}`,
-    message: 'Quando acompanha um substantivo no plural, "bastante" flexiona para "bastantes".',
+    pattern: /\b(anexo|anexa)\s+a\s+(esta|esta|este)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)\b/gi,
+    replacementFn: (match, palavra, demonstrativo, subst) => {
+      const isFem = subst.endsWith('ão') || subst.endsWith('a') || subst.endsWith('ade');
+      const correctAnexo = isFem ? 'Anexa' : 'Anexo';
+      const correctDemo = isFem ? 'esta' : 'este';
+      return `${correctAnexo} a ${correctDemo} ${subst}`;
+    },
+    message: 'A palavra "anexo" concorda em gênero com o substantivo a que se refere ("Anexa a esta mensagem" / "Anexo a este e-mail").',
     badgeStyle: 'bg-blue-950/80 text-blue-300 border-blue-700/60',
   },
 
   // ==========================================
-  // 4. SINTAXE, CORRELAÇÃO VERBAL E GERUNDISMO
+  // 5. SINTAXE, REDUNDÂNCIA E RELATIVOS
   // ==========================================
   {
-    id: 'rule-correlacao-subjuntivo-indicativo',
-    category: 'Correlação Verbal',
-    pattern: /\bse\s+eu\s+(previsse|soubesse|visse|pudesse)\b([^,.!?]+?)\beu\s+(fiquei|fui|fiz|comprei)\b/gi,
-    replacementFn: (match, vSubj, meio, vInd) => {
-      const fix = vInd === 'fiquei' ? 'teria ficado' : vInd === 'fui' ? 'teria ido' : 'teria feito';
-      return `se eu ${vSubj}${meio}eu ${fix}`;
+    id: 'rule-redundancia-iam-irem',
+    category: 'Redundância Verbal / Pleonasmo',
+    pattern: /\b(iam|vão|vai|ia)\s+(irem|ir)\b/gi,
+    replacementFn: (match, aux) => {
+      const auxLower = aux.toLowerCase();
+      if (auxLower === 'iam' || auxLower === 'ia') return 'iriam';
+      return 'irão';
     },
-    message: 'Incorrelação verbal: O pretérito imperfeito do subjuntivo ("se eu previsse") exige futuro do pretérito ("eu teria ficado").',
+    message: 'Evite a redundância da locução "ir + ir". Dê preferência a "iriam" ou "irão".',
+    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+  },
+  {
+    id: 'rule-relativo-redundante-preposicionado',
+    category: 'Sintaxe / Regência do Relativo',
+    pattern: /\bque\s+([^,.!?]+?)\s+(fala|falou|falara|falavam|falaram|falado)\s+(dele|dela|deles|delas)\b/gi,
+    replacementFn: (match, meio, verbo) => `de que ${meio} ${verbo}`,
+    message: 'Em orações relativas, a preposição deve anteceder o pronome "que" (ex: "de que meu amigo falou"), evitando "dele/dela" no final.',
+    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+  },
+  {
+    id: 'rule-pleonasmo-relativo-ele-ela',
+    category: 'Sintaxe / Pleonasmo',
+    pattern: /\bque\s+([^,.!?]+?)\s+(deu|trouxe|entregou|mostrou|enviou|indicou)\s+(ele|ela|eles|elas)\b/gi,
+    replacementFn: (match, meio, verbo) => `que ${meio} ${verbo}`,
+    message: 'Evite o pronome redundante ao final da oração relativa ("que ele me deu" em vez de "que ele me deu ele").',
     badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
   {
     id: 'rule-sintaxe-respondi-fazer-anos',
     category: 'Sintaxe / Conjunção',
-    pattern: /\b(respondi|respondeu|disse|falou)\s+fazer\s+(anos|meses|dias)\b/gi,
+    pattern: /\b(respondi|respondeu|disse|falou|repliquei)\s+fazer\s+(anos|meses|dias)\b/gi,
     replacementFn: (match, verb, tempo) => `${verb} que fazia ${tempo}`,
     message: 'Construção sintática incompleta. O correto na norma culta é "respondi que fazia anos".',
+    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+  },
+
+  // ==========================================
+  // 6. CORRELAÇÃO VERBAL E GERUNDISMO
+  // ==========================================
+  {
+    id: 'rule-quando-cheguemos',
+    category: 'Inadequação Verbal',
+    pattern: /\bquando\s+cheguemos\b/gi,
+    replacementFn: () => 'quando chegamos',
+    message: 'Inadequação verbal: Use "quando chegamos" (pretérito/presente) ou "quando chegarmos" (futuro do subjuntivo).',
+    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+  },
+  {
+    id: 'rule-correlacao-subjuntivo-havia-participio',
+    category: 'Correlação Verbal',
+    pattern: /\bse\s+([^,.!?]+?)\s+([a-zA-Záàâãéèêíóòôõúç]+sse)\b([^,.!?]+?)\b(eu|ele|ela|nós|você|eles|elas)\s+(havia|tinha)\s+([a-zA-Záàâãéèêíóòôõúç]+[dt]o)\b/gi,
+    replacementFn: (match, p1, vSubj, p2, pron, vAux, part) => {
+      return `se ${p1} ${vSubj}${p2}${pron} teria ${part}`;
+    },
+    message: 'O pretérito imperfeito do subjuntivo ("se eu previsse") exige o futuro do pretérito ("teria ficado"), e não "havia ficado".',
     badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
   },
   {
@@ -171,46 +233,27 @@ export const customRulesDatabase = [
     category: 'Vício de Linguagem / Gerundismo',
     pattern: /\b(ia|vai|vão|iam)\s+estar\s+([a-zA-Záàâãéèêíóòôõúç]+ndo)\b/gi,
     replacementFn: (match, aux, gerundio) => {
-      const verboBase = gerundio.replace(/ndo$/, 'ra');
-      return `vai ${verboBase}`;
+      const infinitivo = gerundio.replace(/ndo$/i, 'r');
+      const auxLower = aux.toLowerCase();
+
+      if (auxLower === 'ia' || auxLower === 'iam') {
+        return [`${infinitivo}ia`, `${auxLower} ${infinitivo}`];
+      }
+      return [`vai ${infinitivo}`];
     },
-    message: 'Evite o gerundismo ("ia estar limpando"). Dê preferência a formas mais diretas ("limparia" ou "vai limpar").',
+    message: 'Evite o gerundismo. Dê preferência a formas mais diretas e elegantes (ex: "vai limpar" em vez de "vai estar limpando").',
     badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
   },
   {
-    id: 'rule-sujeito-pronome-redundante',
-    category: 'Sintaxe / Pleonasmo',
-    pattern: /\b(meu|minha|seu|sua|nosso|nossa)\s+([a-zA-Záàâãéèêíóòôõúç]+)\s+(ele|ela)\b/gi,
-    replacementFn: (match, poss, subst) => `${poss} ${subst}`,
-    message: 'Evite o uso do pronome redundante ("ele/ela") imediatamente após o sujeito.',
-    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-  },
-  {
-    id: 'rule-proclise-apos-virgula',
-    category: 'Colocação Pronominal',
-    pattern: /(,\s+)(me|te|se|nos|lhe|lhes)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)/gi,
-    replacementFn: (match, virg, pron, palavra) => {
-      // Palavras que indicam que "se" é conjunção ou que não são verbos
-      const naoVerbos = [
-        'eu', 'tu', 'ele', 'ela', 'nós', 'vós', 'eles', 'elas',
-        'você', 'vocês', 'o', 'a', 'os', 'as', 'alguém', 'ninguém',
-        'tudo', 'nada', 'isso', 'isto', 'aquilo', 'este', 'esta', 'um', 'uma'
-      ];
-
-      // Se for a conjunção "se" seguida de pronome/substantivo, mantém o original (não altera)
-      if (naoVerbos.includes(palavra.toLowerCase())) {
-        return match;
-      }
-
-      return `${virg}${palavra}-${pron}`;
+    id: 'rule-confusao-absorveu-sujeira',
+    category: 'Confusão Lexical / Impropriedade Vocabular',
+    pattern: /\b(absorveu|absorveram|absorvia)\s+([^,.!?]+?)\s+com\s+(lama|poeira|areia|sujeira|graxa|tinta)\b/gi,
+    replacementFn: (match, verbo, objeto, elemento) => {
+      return `impregnou ${objeto} com ${elemento}`;
     },
-    message: 'Evite o uso de pronome oblíquo átono (próclise) imediatamente após vírgula.',
-    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
+    message: 'A palavra "absorver" significa aspirar/sorver. Para indicar contaminação ou sujeira, prefira "impregnou", "cobriu" ou "sujou".',
+    badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
   },
-
-  // ==========================================
-  // 5. PARÔNIMOS, ESTILO E ACENTUAÇÃO
-  // ==========================================
   {
     id: 'rule-de-mau-a-pior',
     category: 'Parônimos / Ortografia',
@@ -222,41 +265,13 @@ export const customRulesDatabase = [
   {
     id: 'rule-excecoes-excesso',
     category: 'Confusão Lexical',
-    pattern: /\b(exceção|exceções)\s+de\s+(problemas|falhas|erros|atrasos|gastos|confusões)\b/gi,
-    replacementFn: (match, p1, p2) => `excesso de ${p2}`,
+    pattern: /\b(exceção|exceções)\s+de\s+([a-zA-Záàâãéèêíóòôõúç]+)\b/gi,
+    replacementFn: (match, exc, termo) => `excesso de ${termo}`,
     message: 'Para indicar grande quantidade ou demasia, utilize "excesso" (e não "exceção").',
     badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
   },
-  {
-    id: 'rule-misto-quente-hifen',
-    category: 'Novo Acordo / Hífen',
-    pattern: /\bmisto-quente\b/gi,
-    replacementFn: () => 'misto quente',
-    message: 'Segundo o Novo Acordo Ortográfico, a composição "misto quente" não possui hífen.',
-    badgeStyle: 'bg-amber-950/80 text-amber-300 border-amber-700/60',
-  },
-  {
-    id: 'rule-aonde-estatico',
-    category: 'Uso de Onde / Aonde',
-    pattern: /\baonde\s+(deixei|moro|mora|estava|estou|fica|ficava|encontrei|deixou)\b/gi,
-    replacementFn: (match, verbo) => `onde ${verbo}`,
-    message: 'Para indicar permanência ou localização fixa, utilize "onde" em vez de "aonde".',
-    badgeStyle: 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-  },
-  {
-    id: 'rule-sai-sem-acento',
-    category: 'Acentuação Ortográfica',
-    pattern: /\b(eu\s+)?sai\s+(correndo|de\s+casa|daqui|rápido|cedo|tarde)\b/gi,
-    replacementFn: (match, eu, comp) => `${eu || ''}saí ${comp}`,
-    message: 'No pretérito perfeito do indicativo (1ª pessoa do singular), a grafia correta é "saí" (com acento).',
-    badgeStyle: 'bg-red-950/80 text-red-300 border-red-700/60',
-  },
 ];
 
-/**
- * Executa a análise das regras locais apenas nos trechos que NÃO possuem
- * sobreposição com erros já encontrados pelo LanguageTool.
- */
 export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
   if (!text || text.trim().length < 3) return [];
 
@@ -286,11 +301,13 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
         continue;
       }
 
-      const replacement = rule.replacementFn
-        ? rule.replacementFn(match[0], match[1], match[2], match[3])
+      const repResult = rule.replacementFn
+        ? rule.replacementFn(match[0], match[1], match[2], match[3], match[4], match[5], match[6])
         : match[0];
 
-      // TRAVA DE SEGURANÇA: Se a substituição for idêntica ao original, ignora (evita falso positivo)
+      const replacements = Array.isArray(repResult) ? repResult : [repResult];
+      const replacement = replacements[0];
+
       if (replacement === match[0]) {
         continue;
       }
@@ -302,7 +319,7 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
         offset: matchStart,
         length: matchLength,
         replacement: replacement,
-        replacements: [replacement],
+        replacements: replacements,
         message: rule.message,
         badgeStyle: rule.badgeStyle,
       });
