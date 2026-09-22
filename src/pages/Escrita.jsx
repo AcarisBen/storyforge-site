@@ -1,3 +1,5 @@
+// src/pages/Escrita.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
@@ -115,6 +117,20 @@ function getFrameworkBadgeStyle(type = '') {
   return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
 }
 
+function getCharacterBadgeStyle(type = '') {
+  const normalized = String(type).toLowerCase().trim();
+  if (normalized.includes('protagonista')) {
+    return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  }
+  if (normalized.includes('antagonista')) {
+    return 'bg-red-900/60 text-red-300 border-red-500/50';
+  }
+  if (normalized.includes('secundario') || normalized.includes('secundário')) {
+    return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+  }
+  return 'bg-gray-800 text-gray-300 border-gray-700';
+}
+
 function EscritaGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
@@ -167,165 +183,6 @@ function EscritaGuide() {
   );
 }
 
-function getCharacterBadgeStyle(type = '') {
-  const normalized = String(type).toLowerCase().trim();
-  if (normalized.includes('protagonista')) {
-    return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
-  }
-  if (normalized.includes('antagonista')) {
-    return 'bg-red-900/60 text-red-300 border-red-500/50';
-  }
-  if (normalized.includes('secundario') || normalized.includes('secundário')) {
-    return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
-  }
-  return 'bg-gray-800 text-gray-300 border-gray-700';
-}
-
-// MOTOR GRAMATICAL LOCAL
-function analyzePortugueseText(text) {
-  if (!text || text.trim().length < 3) return [];
-  const suggestions = [];
-
-  const addSug = (id, type, label, original, replacement, replacements, offset, message, badgeStyle) => {
-    suggestions.push({
-      id,
-      type,
-      label,
-      original,
-      replacement,
-      replacements: replacements || [replacement],
-      offset,
-      length: original.length,
-      message,
-      badgeStyle: badgeStyle || 'bg-purple-950/80 text-purple-300 border-purple-700/60',
-    });
-  };
-
-  let match;
-
-  const pluralSingularRegex = /\b(os|as|dos|das|nos|nas|uns|umas)\s+([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]{3,}[aeiou])\b/gi;
-  while ((match = pluralSingularRegex.exec(text)) !== null) {
-    const art = match[1];
-    const noun = match[2];
-    if (!noun.toLowerCase().endsWith('s') && !noun.toLowerCase().endsWith('z') && !noun.toLowerCase().endsWith('x')) {
-      const repl = `${art} ${noun}s`;
-      addSug(
-        `concordance-${match.index}`,
-        'concordancia',
-        'Concordância Nominal',
-        match[0],
-        repl,
-        [repl],
-        match.index,
-        `Falta de concordância no plural entre o artigo "${art}" e o substantivo "${noun}".`,
-        'bg-blue-950/80 text-blue-300 border-blue-700/60'
-      );
-    }
-  }
-
-  const numeralPluralRegex = /\b(duas|três|quatro|cinco|seis|sete|oito|nove|dez|duzentas|trezentas)\s+([a-zA-Záàâãéèêíóòôõúç]{3,}[aeiou])\b/gi;
-  while ((match = numeralPluralRegex.exec(text)) !== null) {
-    const num = match[1];
-    const noun = match[2];
-    if (!noun.toLowerCase().endsWith('s') && !noun.toLowerCase().endsWith('z')) {
-      const repl = `${num} ${noun}s`;
-      addSug(
-        `numeral-${match.index}`,
-        'concordancia',
-        'Concordância de Plural',
-        match[0],
-        repl,
-        [repl],
-        match.index,
-        `Falta de concordância no plural após o numeral "${num}".`,
-        'bg-blue-950/80 text-blue-300 border-blue-700/60'
-      );
-    }
-  }
-
-  const locucaoHifenRegex = /\b([a-zA-Záàâãéèêíóòôõúç]{2,})-(de|da|do|das|dos|em|a)-([a-zA-Záàâãéèêíóòôõúç]{2,})\b/gi;
-  while ((match = locucaoHifenRegex.exec(text)) !== null) {
-    const w1 = match[1];
-    const prep = match[2];
-    const w2 = match[3];
-    const repl = `${w1} ${prep} ${w2}`;
-    addSug(
-      `hifen-${match.index}`,
-      'hifenizacao',
-      'Novo Acordo / Hífen',
-      match[0],
-      repl,
-      [repl],
-      match.index,
-      `Locuções substantivas perderam o hífen no Novo Acordo Ortográfico ("${repl}").`,
-      'bg-amber-950/80 text-amber-300 border-amber-700/60'
-    );
-  }
-
-  const atStartRegex = /@([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)/g;
-  while ((match = atStartRegex.exec(text)) !== null) {
-    const word = match[1];
-    addSug(
-      `atstart-${match.index}`,
-      'simbolo',
-      'Símbolo Inadequado',
-      match[0],
-      word,
-      [word],
-      match.index,
-      `Remova o caractere "@" antes da palavra "${word}".`,
-      'bg-zinc-800 text-zinc-300 border-zinc-700'
-    );
-  }
-
-  const atEndRegex = /([a-zA-ZáàâãéèêíóòôõúçÁÀÂÃÉÈÊÍÓÒÔÕÚÇ]+)@/g;
-  while ((match = atEndRegex.exec(text)) !== null) {
-    const word = match[1];
-    addSug(
-      `atend-${match.index}`,
-      'simbolo',
-      'Símbolo Inadequado',
-      match[0],
-      word,
-      [word],
-      match.index,
-      `Remova o caractere "@" do final de "${word}".`,
-      'bg-zinc-800 text-zinc-300 border-zinc-700'
-    );
-  }
-
-  const symbolRules = [
-    { regex: /d#/gi, repl: 'do', label: 'Símbolo em Preposição', msg: 'Substitua "d#" pela preposição "do".' },
-    { regex: /d@/gi, repl: 'da', label: 'Símbolo em Preposição', msg: 'Substitua "d@" pela preposição "da".' },
-    { regex: /\bsuper mercado\b/gi, repl: 'supermercado', label: 'Junta de Prefixo', msg: 'Escreve-se tudo junto: "supermercado".' },
-    { regex: /\bindi guinado\b/gi, repl: 'indignado', label: 'Palavra Fragmentada', msg: 'A palavra correta é "indignado".' },
-    { regex: /\bmaças\b/gi, repl: 'maçãs', label: 'Acentuação / Diacrítico', msg: 'Para a fruta, utilize o til: "maçãs".' },
-    { regex: /\bguarda-ropa\b/gi, repl: 'guarda-roupa', label: 'Ortografia', msg: 'A grafia correta é "guarda-roupa".' },
-    { regex: / > /g, repl: '. ', label: 'Caractere Estranho', msg: 'Substitua o operador ">" por ponto final.' },
-    { regex: /\btava\b/gi, repl: 'estava', label: 'Coloquialismo', msg: 'Substitua "tava" pela forma culta "estava".' },
-    { regex: /\btavam\b/gi, repl: 'estavam', label: 'Coloquialismo', msg: 'Substitua "tavam" pela forma culta "estavam".' },
-    { regex: /sem \$/gi, repl: 'sem dinheiro', label: 'Símbolo no Texto', msg: 'Substitua o símbolo "$" por "dinheiro".' },
-  ];
-
-  symbolRules.forEach(({ regex, repl, label, msg }) => {
-    while ((match = regex.exec(text)) !== null) {
-      addSug(
-        `sym-${match.index}`,
-        'simbolo',
-        label,
-        match[0],
-        repl,
-        [repl],
-        match.index,
-        msg,
-        'bg-zinc-800 text-zinc-300 border-zinc-700'
-      );
-    }
-  });
-
-  return suggestions;
-}
-
 export default function Escrita({ projectId, onNavigate }) {
   const [chapters, setChapters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -337,11 +194,15 @@ export default function Escrita({ projectId, onNavigate }) {
   const [copied, setCopied] = useState(false);
   const [showCorrectionsPanel, setShowCorrectionsPanel] = useState(true);
   const [activeModalSuggestion, setActiveModalSuggestion] = useState(null);
+  
   const ignoredSuggestionsRef = useRef(new Map());
+  const editorRef = useRef(null);
+  const grammarTimeoutRef = useRef(null);
+  const updateTimeoutRef = useRef({});
+
   const getSugKey = (sug) => `${sug.original}_${sug.offset}_${sug.label}`;
 
-
-  // ESTADO DOS BOTOES DA BARRA DE FERRAMENTAS
+  // ESTADO DOS BOTÕES DA BARRA DE FERRAMENTAS
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -369,11 +230,9 @@ export default function Escrita({ projectId, onNavigate }) {
     twists: [],
   });
 
-  const editorRef = useRef(null);
   const [textSuggestions, setTextSuggestions] = useState([]);
-  const grammarTimeoutRef = useRef(null);
-  const updateTimeoutRef = useRef({});
 
+  // BUSCA DADOS DO PROJETO
   useEffect(() => {
     if (!projectId) return;
 
@@ -468,51 +327,58 @@ export default function Escrita({ projectId, onNavigate }) {
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
+  // SINCRONIZA O CONTEÚDO DO CAPÍTULO SELECIONADO NO EDITOR DE TEXTO
   useEffect(() => {
-  const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
+    if (editorRef.current && selectedChapter) {
+      if (editorRef.current.innerHTML !== selectedChapter.content) {
+        editorRef.current.innerHTML = selectedChapter.content || '';
+      }
+    }
+  }, [selectedId]);
 
-  if (!rawText || rawText.trim().length < 3) {
-    setTextSuggestions([]);
-    return;
-  }
+  // ANÁLISE GRAMATICAL EM SEGUNDO PLANO
+  useEffect(() => {
+    const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
 
-  if (grammarTimeoutRef.current) {
-    clearTimeout(grammarTimeoutRef.current);
-  }
-
-  grammarTimeoutRef.current = setTimeout(async () => {
-    let ltSuggestions = [];
-
-    // 1. Consulta o LanguageTool
-    try {
-      const response = await apiClient.post('/entities/grammar-check', { text: rawText });
-      ltSuggestions = response.data || [];
-    } catch (err) {
-      console.warn('LanguageTool indisponível:', err.message);
+    if (!rawText || rawText.trim().length < 3) {
+      setTextSuggestions([]);
+      return;
     }
 
-    // 2. Consulta nosso banco de regras locais
-    const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
-    const allSuggestions = [...ltSuggestions, ...customSuggestions];
+    if (grammarTimeoutRef.current) {
+      clearTimeout(grammarTimeoutRef.current);
+    }
 
-    // 3. FILTRA APENAS SUGESTÕES QUE NÃO ESTÃO NO PERÍODO DE COOLDOWN (30 min)
-    const now = Date.now();
-    const validSuggestions = allSuggestions.filter((sug) => {
-      const key = getSugKey(sug);
-      const expireTime = ignoredSuggestionsRef.current.get(key);
-      if (expireTime && now < expireTime) {
-        return false; // Ignorado temporariamente
+    grammarTimeoutRef.current = setTimeout(async () => {
+      let ltSuggestions = [];
+
+      try {
+        const response = await apiClient.post('/entities/grammar-check', { text: rawText });
+        ltSuggestions = response.data || [];
+      } catch (err) {
+        console.warn('LanguageTool indisponível:', err.message);
       }
-      return true;
-    });
 
-    setTextSuggestions(validSuggestions);
-  }, 500);
+      const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
+      const allSuggestions = [...ltSuggestions, ...customSuggestions];
 
-  return () => {
-    if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
-  };
-}, [selectedChapter?.content]);
+      const now = Date.now();
+      const validSuggestions = allSuggestions.filter((sug) => {
+        const key = getSugKey(sug);
+        const expireTime = ignoredSuggestionsRef.current.get(key);
+        if (expireTime && now < expireTime) {
+          return false;
+        }
+        return true;
+      });
+
+      setTextSuggestions(validSuggestions);
+    }, 500);
+
+    return () => {
+      if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
+    };
+  }, [selectedChapter?.content]);
 
   // VERIFICA E ATUALIZA ESTADO ATIVO DOS BOTÕES DE FORMATAÇÃO
   const checkActiveFormats = () => {
@@ -533,7 +399,7 @@ export default function Escrita({ projectId, onNavigate }) {
         insertOrderedList: document.queryCommandState('insertOrderedList'),
       });
     } catch (e) {
-      // Ignora exceções em instâncias sem seleção
+      // Ignora exceções em seleções nulas
     }
   };
 
@@ -545,7 +411,6 @@ export default function Escrita({ projectId, onNavigate }) {
     checkActiveFormats();
   };
 
-  // TOGGLES ESPECÍFICOS PARA SOBSCRITO E SUBSCRITO
   const toggleSubscript = () => {
     if (document.queryCommandState('superscript')) {
       document.execCommand('superscript', false, null);
@@ -568,6 +433,29 @@ export default function Escrita({ projectId, onNavigate }) {
     checkActiveFormats();
   };
 
+  // INSERE RECUO DE PRIMEIRA LINHA (TAB DE PARÁGRAFO)
+  const insertFirstLineIndent = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+
+    // Insere 4 espaços inquebráveis equivalentes a um Tab de livro
+    const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0');
+    range.insertNode(tabNode);
+
+    // Reposiciona o cursor para logo após os espaços inseridos
+    range.setStartAfter(tabNode);
+    range.setEndAfter(tabNode);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+  };
+
   const handleEditorInput = () => {
     if (editorRef.current) {
       updateSelectedChapter('content', editorRef.current.innerHTML);
@@ -575,220 +463,203 @@ export default function Escrita({ projectId, onNavigate }) {
     checkActiveFormats();
   };
 
-  // DESTAQUE ROXO
-const highlightCorrectionInEditor = (sug) => {
-  if (!editorRef.current || !sug || !sug.original) return;
-  removeHighlightFromEditor();
+  // DESTAQUE ROXO EM TEMPO REAL
+  const highlightCorrectionInEditor = (sug) => {
+    if (!editorRef.current || !sug || !sug.original) return;
+    removeHighlightFromEditor();
 
-  // 1. Normaliza os nós de texto do editor HTML
-  editorRef.current.normalize();
+    editorRef.current.normalize();
 
-  const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
-  const targetText = sug.original;
-  if (!targetText) return;
+    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
+    const targetText = sug.original;
+    if (!targetText) return;
 
-  // 2. Encontra todas as ocorrências da palavra/frase no texto completo
-  const occurrences = [];
-  let idx = fullText.indexOf(targetText);
-  while (idx !== -1) {
-    occurrences.push(idx);
-    idx = fullText.indexOf(targetText, idx + 1);
-  }
+    const occurrences = [];
+    let idx = fullText.indexOf(targetText);
+    while (idx !== -1) {
+      occurrences.push(idx);
+      idx = fullText.indexOf(targetText, idx + 1);
+    }
 
-  if (occurrences.length === 0) return;
+    if (occurrences.length === 0) return;
 
-  // 3. Escolhe a ocorrência com offset mais próximo do alerta (evita pegar a palavra no parágrafo errado)
-  let bestStartIndex = occurrences[0];
-  if (typeof sug.offset === 'number' && sug.offset >= 0) {
-    let minDiff = Infinity;
-    for (const pos of occurrences) {
-      const diff = Math.abs(pos - sug.offset);
-      if (diff < minDiff) {
-        minDiff = diff;
-        bestStartIndex = pos;
+    let bestStartIndex = occurrences[0];
+    if (typeof sug.offset === 'number' && sug.offset >= 0) {
+      let minDiff = Infinity;
+      for (const pos of occurrences) {
+        const diff = Math.abs(pos - sug.offset);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestStartIndex = pos;
+        }
       }
     }
-  }
 
-  const bestEndIndex = bestStartIndex + targetText.length;
+    const bestEndIndex = bestStartIndex + targetText.length;
 
-  // 4. Mapeia os índices de caracteres para os nós de texto do DOM real
-  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-  let charCount = 0;
-  let startNode = null;
-  let startOffsetInNode = 0;
-  let endNode = null;
-  let endOffsetInNode = 0;
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+    let startNode = null;
+    let startOffsetInNode = 0;
+    let endNode = null;
+    let endOffsetInNode = 0;
 
-  let node;
-  while ((node = walker.nextNode())) {
-    const nodeLen = node.nodeValue.length;
-    const nodeStart = charCount;
-    const nodeEnd = charCount + nodeLen;
+    let node;
+    while ((node = walker.nextNode())) {
+      const nodeLen = node.nodeValue.length;
+      const nodeStart = charCount;
+      const nodeEnd = charCount + nodeLen;
 
-    if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
-      startNode = node;
-      startOffsetInNode = bestStartIndex - nodeStart;
+      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+        startNode = node;
+        startOffsetInNode = bestStartIndex - nodeStart;
+      }
+
+      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+        endNode = node;
+        endOffsetInNode = bestEndIndex - nodeStart;
+        break;
+      }
+
+      charCount += nodeLen;
     }
 
-    if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
-      endNode = node;
-      endOffsetInNode = bestEndIndex - nodeStart;
-      break;
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, startOffsetInNode);
+        range.setEnd(endNode, endOffsetInNode);
+
+        const mark = document.createElement('mark');
+        mark.id = 'active-correction-mark';
+        mark.style.cssText =
+          'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);';
+
+        const extracted = range.extractContents();
+        mark.appendChild(extracted);
+        range.insertNode(mark);
+      } catch (e) {
+        console.error('Erro ao grifar elemento no DOM:', e);
+      }
     }
+  };
 
-    charCount += nodeLen;
-  }
-
-  // 5. Aplica a marcação roxa com inserção segura no DOM (não falha em nós formatados)
-  if (startNode && endNode) {
-    try {
-      const range = document.createRange();
-      range.setStart(startNode, startOffsetInNode);
-      range.setEnd(endNode, endOffsetInNode);
-
-      const mark = document.createElement('mark');
-      mark.id = 'active-correction-mark';
-      mark.style.cssText =
-        'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);';
-
-      const extracted = range.extractContents();
-      mark.appendChild(extracted);
-      range.insertNode(mark);
-    } catch (e) {
-      console.error('Erro ao grifar elemento no DOM:', e);
+  const removeHighlightFromEditor = () => {
+    if (!editorRef.current) return;
+    const mark = editorRef.current.querySelector('#active-correction-mark');
+    if (mark) {
+      const parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+      parent.normalize();
     }
-  }
-};
+  };
 
-const removeHighlightFromEditor = () => {
-  if (!editorRef.current) return;
-  const mark = editorRef.current.querySelector('#active-correction-mark');
-  if (mark) {
-    const parent = mark.parentNode;
-    while (mark.firstChild) {
-      parent.insertBefore(mark.firstChild, mark);
-    }
-    parent.removeChild(mark);
-    parent.normalize();
-  }
-};
-  // APLICA CORREÇÃO SEM DESTRUIR A FORMATAÇÃO HTML
+  // APLICA CORREÇÃO NO LOCAL EXATO DO TEXTO
   function handleApplyCorrection(suggestion, chosenReplacement) {
-  if (!selectedChapter || !editorRef.current) return;
+    if (!selectedChapter || !editorRef.current) return;
 
-  // 1. Limpa qualquer marcação de fundo roxo ativa e normaliza o DOM
-  removeHighlightFromEditor();
-  editorRef.current.normalize();
+    removeHighlightFromEditor();
+    editorRef.current.normalize();
 
-  const replacementToUse = chosenReplacement || suggestion.replacement;
-  if (!replacementToUse || !suggestion.original) return;
+    const replacementToUse = chosenReplacement || suggestion.replacement;
+    if (!replacementToUse || !suggestion.original) return;
 
-  const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
-  const targetText = suggestion.original;
+    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
+    const targetText = suggestion.original;
 
-  // 2. Mapeia todas as ocorrências da palavra no texto
-  const occurrences = [];
-  let idx = fullText.indexOf(targetText);
-  while (idx !== -1) {
-    occurrences.push(idx);
-    idx = fullText.indexOf(targetText, idx + 1);
-  }
+    const occurrences = [];
+    let idx = fullText.indexOf(targetText);
+    while (idx !== -1) {
+      occurrences.push(idx);
+      idx = fullText.indexOf(targetText, idx + 1);
+    }
 
-  if (occurrences.length === 0) return;
+    if (occurrences.length === 0) return;
 
-  // 3. Escolhe a ocorrência com offset mais próximo da sugestão do alerta
-  let bestStartIndex = occurrences[0];
-  if (typeof suggestion.offset === 'number' && suggestion.offset >= 0) {
-    let minDiff = Infinity;
-    for (const pos of occurrences) {
-      const diff = Math.abs(pos - suggestion.offset);
-      if (diff < minDiff) {
-        minDiff = diff;
-        bestStartIndex = pos;
+    let bestStartIndex = occurrences[0];
+    if (typeof suggestion.offset === 'number' && suggestion.offset >= 0) {
+      let minDiff = Infinity;
+      for (const pos of occurrences) {
+        const diff = Math.abs(pos - suggestion.offset);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestStartIndex = pos;
+        }
       }
     }
-  }
 
-  const bestEndIndex = bestStartIndex + targetText.length;
+    const bestEndIndex = bestStartIndex + targetText.length;
 
-  // 4. Localiza os nós de texto no DOM correspondentes a essa posição
-  const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-  let charCount = 0;
-  let startNode = null;
-  let startOffsetInNode = 0;
-  let endNode = null;
-  let endOffsetInNode = 0;
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+    let startNode = null;
+    let startOffsetInNode = 0;
+    let endNode = null;
+    let endOffsetInNode = 0;
 
-  let node;
-  while ((node = walker.nextNode())) {
-    const nodeLen = node.nodeValue.length;
-    const nodeStart = charCount;
-    const nodeEnd = charCount + nodeLen;
+    let node;
+    while ((node = walker.nextNode())) {
+      const nodeLen = node.nodeValue.length;
+      const nodeStart = charCount;
+      const nodeEnd = charCount + nodeLen;
 
-    if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
-      startNode = node;
-      startOffsetInNode = bestStartIndex - nodeStart;
-    }
-
-    if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
-      endNode = node;
-      endOffsetInNode = bestEndIndex - nodeStart;
-      break;
-    }
-
-    charCount += nodeLen;
-  }
-
-  // 5. Executa a substituição exata no DOM
-  if (startNode && endNode) {
-    try {
-      const range = document.createRange();
-      range.setStart(startNode, startOffsetInNode);
-      range.setEnd(endNode, endOffsetInNode);
-
-      range.deleteContents();
-      const newTextNode = document.createTextNode(replacementToUse);
-      range.insertNode(newTextNode);
-    } catch (e) {
-      console.error('Erro na substituição precisa do DOM:', e);
-      // Fallback local se o nó for simples
-      if (startNode === endNode) {
-        const val = startNode.nodeValue;
-        startNode.nodeValue =
-          val.substring(0, startOffsetInNode) +
-          replacementToUse +
-          val.substring(endOffsetInNode);
+      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+        startNode = node;
+        startOffsetInNode = bestStartIndex - nodeStart;
       }
+
+      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+        endNode = node;
+        endOffsetInNode = bestEndIndex - nodeStart;
+        break;
+      }
+
+      charCount += nodeLen;
     }
-  } else {
-    // Fallback genérico caso o offset falhe
-    editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
-      targetText,
-      replacementToUse
-    );
+
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, startOffsetInNode);
+        range.setEnd(endNode, endOffsetInNode);
+
+        range.deleteContents();
+        const newTextNode = document.createTextNode(replacementToUse);
+        range.insertNode(newTextNode);
+      } catch (e) {
+        console.error('Erro na substituição do DOM:', e);
+        if (startNode === endNode) {
+          const val = startNode.nodeValue;
+          startNode.nodeValue =
+            val.substring(0, startOffsetInNode) +
+            replacementToUse +
+            val.substring(endOffsetInNode);
+        }
+      }
+    } else {
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
+        targetText,
+        replacementToUse
+      );
+    }
+
+    editorRef.current.normalize();
+    updateSelectedChapter('content', editorRef.current.innerHTML);
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
   }
-
-  // Unifica nós de texto divididos e salva
-  editorRef.current.normalize();
-  updateSelectedChapter('content', editorRef.current.innerHTML);
-
-  // Remove o alerta resolvido do painel
-  setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
-}
 
   function handleDismissSuggestion(sug) {
-  removeHighlightFromEditor();
-  const key = getSugKey(sug);
+    removeHighlightFromEditor();
+    const key = getSugKey(sug);
+    const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutos de espera
+    ignoredSuggestionsRef.current.set(key, Date.now() + COOLDOWN_MS);
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== sug.id));
+  }
 
-  // Define 30 minutos de tempo de espera antes que o mesmo erro volte a ser sugerido
-  const COOLDOWN_MS = 30 * 60 * 1000;
-  ignoredSuggestionsRef.current.set(key, Date.now() + COOLDOWN_MS);
-
-  // Remove da tela imediatamente
-  setTextSuggestions((prev) => prev.filter((s) => s.id !== sug.id));
-}
-
+  // CÁLCULO DE PROGRESSO
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
   let currentPoints = 0;
@@ -834,7 +705,7 @@ const removeHighlightFromEditor = () => {
       const created = res?.data || res;
 
       if (!created || !created.id) {
-        throw new Error('A resposta da API não retornou um capítulo válido com ID.');
+        throw new Error('Resposta inválida do servidor ao criar capítulo.');
       }
 
       setChapters((prev) => [...(Array.isArray(prev) ? prev : []), created]);
@@ -848,6 +719,7 @@ const removeHighlightFromEditor = () => {
     }
   }
 
+  // SALVAMENTO AUTOMÁTICO NO BACKEND SEM STALE CLOSURE
   function updateSelectedChapter(key, value) {
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
@@ -859,17 +731,26 @@ const removeHighlightFromEditor = () => {
       clearTimeout(updateTimeoutRef.current[selectedId]);
     }
 
-    updateTimeoutRef.current[selectedId] = setTimeout(async () => {
-      try {
-        const targetChapter = chapters.find((c) => c.id === selectedId);
-        if (!targetChapter) return;
+    updateTimeoutRef.current[selectedId] = setTimeout(() => {
+      setChapters((latestChapters) => {
+        const targetChapter = latestChapters.find((c) => c.id === selectedId);
 
-        const updatedData = { ...targetChapter, [key]: value };
-        await apiClient.put(`/entities/chapters/${selectedId}`, updatedData);
-      } catch (err) {
-        console.error('Erro ao salvar capítulo automaticamente:', err);
-      }
-    }, 1000);
+        if (targetChapter) {
+          const payload = {
+            title: targetChapter.title,
+            type: targetChapter.type,
+            content: targetChapter.content,
+          };
+
+          apiClient
+            .put(`/entities/chapters/${selectedId}`, payload)
+            .then(() => console.log('Capítulo salvo no backend com sucesso.'))
+            .catch((err) => console.error('Erro ao salvar no backend:', err));
+        }
+
+        return latestChapters;
+      });
+    }, 800);
   }
 
   async function handleDeleteChapter(id, event) {
@@ -957,7 +838,6 @@ const removeHighlightFromEditor = () => {
 
   return (
     <main className="characters-page manuscript-page">
-      {/* CSS DE COMPATIBILIDADE PARA LISTAS E FORMATAÇÃO */}
       <style>{`
         .rich-editor-content ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
         .rich-editor-content ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
@@ -986,9 +866,11 @@ const removeHighlightFromEditor = () => {
 
       <EscritaGuide />
 
+      {/* GRID COM EXPANSÃO HORIZONTAL (3 COLUNAS CAPÍTULOS / 9 COLUNAS EDITOR) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Lista de Capítulos */}
-        <div className="md:col-span-4 space-y-4">
+        
+        {/* Painel de Capítulos */}
+        <div className="md:col-span-3 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Capítulos</h2>
             <button
@@ -1076,8 +958,8 @@ const removeHighlightFromEditor = () => {
           )}
         </div>
 
-        {/* Editor Rich Text de Escrita */}
-        <div className="md:col-span-8 space-y-4">
+        {/* Editor de Escrita Ampliado */}
+        <div className="md:col-span-9 space-y-4">
           {selectedChapter ? (
             <>
               <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-5 space-y-4 shadow-lg">
@@ -1132,9 +1014,10 @@ const removeHighlightFromEditor = () => {
                   </div>
                 </div>
 
-                {/* BARRA DE FERRAMENTAS ESTILO WORD COM ESTADOS ATIVOS (ON/OFF) */}
+                {/* BARRA DE FERRAMENTAS COM OS NOVOS TAMANHOS DE FONTE */}
                 <div className="bg-[#191926] border border-gray-800 rounded-lg p-2 flex flex-wrap items-center gap-3 text-xs text-gray-300 select-none">
-                  {/* GRUPO: FONTE */}
+                  
+                  {/* FONTE E TAMANHOS (9pt a 36pt) */}
                   <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
                     <select
                       onChange={(e) => executeCmd('fontName', e.target.value)}
@@ -1149,15 +1032,18 @@ const removeHighlightFromEditor = () => {
                       <option value="Courier New">Courier New</option>
                     </select>
 
+                    {/* SELECTOR COM TAMANHOS 10pt, 11pt, 12pt, 14pt, 18pt, 24pt, 36pt */}
                     <select
                       onChange={(e) => executeCmd('fontSize', e.target.value)}
                       className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
                     >
+                      <option value="1">10pt</option>
+                      <option value="2">11pt</option>
                       <option value="3">12pt</option>
                       <option value="4">14pt</option>
                       <option value="5">18pt</option>
-                      <option value="6">24pt</option>
-                      <option value="7">36pt</option>
+                      {/*<option value="6">24pt</option>
+                      <option value="7">36pt</option>*/}                    
                     </select>
                   </div>
 
@@ -1305,9 +1191,20 @@ const removeHighlightFromEditor = () => {
                     >
                       ⇥
                     </button>
+
+                        {/* NOVO BOTÃO: RECUO DE PRIMEIRA LINHA (PARÁGRAFO) */}
+                      <button
+                        type="button"
+                        onClick={insertFirstLineIndent}
+                        className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer font-bold text-xs"
+                        title="Recuo de Primeira Linha / Parágrafo (Tab)"
+                      >
+                        ⇥₁
+                      </button>
+
                   </div>
 
-                  {/* LIMPAR FORMATAÇÃO (ISOLADO) */}
+                  {/* LIMPAR FORMATAÇÃO */}
                   <div>
                     <button
                       type="button"
@@ -1334,7 +1231,7 @@ const removeHighlightFromEditor = () => {
                 />
               </div>
 
-              {/* Assistente de Revisão */}
+              {/* Assistente de Revisão (Lista de Cards de Correção) */}
               {showCorrectionsPanel && textSuggestions.length > 0 && (
                 <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 shadow-xl">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
@@ -1361,36 +1258,35 @@ const removeHighlightFromEditor = () => {
                           className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80"
                         >
                           <div className="space-y-1 min-w-0 flex-1">
-  <div className="flex items-center gap-2">
-    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
-      {sug.label}
-    </span>
-    <span className="text-gray-400 line-through truncate font-mono">
-      "{sug.original}"
-    </span>
-  </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
+                                {sug.label}
+                              </span>
+                              <span className="text-gray-400 line-through truncate font-mono">
+                                "{sug.original}"
+                              </span>
+                            </div>
 
-  {/* MENSAGEM COM CLIQUE E BOTOÃO VER MAIS */}
-  <div className="flex items-center gap-1.5">
-    <p
-      onClick={() => setActiveModalSuggestion(sug)}
-      className="text-gray-300 text-xs truncate cursor-pointer hover:text-purple-300 transition-colors"
-      title="Clique para ver a explicação completa"
-    >
-      {sug.message}
-    </p>
+                            <div className="flex items-center gap-1.5">
+                              <p
+                                onClick={() => setActiveModalSuggestion(sug)}
+                                className="text-gray-300 text-xs truncate cursor-pointer hover:text-purple-300 transition-colors"
+                                title="Clique para ver a explicação completa"
+                              >
+                                {sug.message}
+                              </p>
 
-    {sug.message && sug.message.length > 55 && (
-      <button
-        type="button"
-        onClick={() => setActiveModalSuggestion(sug)}
-        className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline shrink-0 cursor-pointer"
-      >
-        [ver mais]
-      </button>
-    )}
-  </div>
-</div>
+                              {sug.message && sug.message.length > 55 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveModalSuggestion(sug)}
+                                  className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline shrink-0 cursor-pointer"
+                                >
+                                  [ver mais]
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
                             {visibleOptions.map((option, oIdx) => (
@@ -1431,15 +1327,14 @@ const removeHighlightFromEditor = () => {
                               </div>
                             )}
 
-                            {/* BOTÃO X ATUALIZADO PASSANDO O OBJETO 'sug' COMPLETO */}
-<button
-  type="button"
-  onClick={() => handleDismissSuggestion(sug)}
-  className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
-  title="Ignorar esta correção por agora"
->
-  ✕
-</button>
+                            <button
+                              type="button"
+                              onClick={() => handleDismissSuggestion(sug)}
+                              className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
+                              title="Ignorar esta correção por 30 minutos"
+                            >
+                              ✕
+                            </button>
                           </div>
                         </div>
                       );
@@ -1601,72 +1496,118 @@ const removeHighlightFromEditor = () => {
           </p>
         )}
       </section>
-        {/* POPUP DE EXPLICAÇÃO COMPLETA */}
-{activeModalSuggestion && (
-  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-    <div className="bg-[#181726] border border-purple-600/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
-      <div className="flex justify-between items-start pb-3 border-b border-gray-800">
-        <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${activeModalSuggestion.badgeStyle}`}>
-          {activeModalSuggestion.label}
-        </span>
-        <button
-          type="button"
-          onClick={() => setActiveModalSuggestion(null)}
-          className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer transition-colors"
-        >
-          ✕
-        </button>
-      </div>
 
-      <div className="space-y-1.5">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trecho do Texto:</h3>
-        <span className="text-red-300 font-mono bg-red-950/50 border border-red-900/60 px-3 py-1 rounded-lg text-sm inline-block line-through">
-          "{activeModalSuggestion.original}"
-        </span>
-      </div>
+      {/* POPUP DE EXPLICAÇÃO COMPLETA (MODAL) */}
+      {activeModalSuggestion && (() => {
+        const allReplacements = activeModalSuggestion.replacements || 
+          (activeModalSuggestion.replacement ? [activeModalSuggestion.replacement] : []);
+        
+        const mainReplacements = allReplacements.slice(0, 4);
+        const extraReplacements = allReplacements.slice(4);
 
-      <div className="space-y-1.5">
-        <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Explicação Detalhada:</h3>
-        <div className="bg-[#11111a] border border-gray-800/90 p-4 rounded-xl text-gray-200 text-sm leading-relaxed max-h-60 overflow-y-auto">
-          {activeModalSuggestion.message}
-        </div>
-      </div>
+        return (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-[#181726] border border-purple-600/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+              
+              {/* Cabeçalho do Modal */}
+              <div className="flex justify-between items-start pb-3 border-b border-gray-800">
+                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${activeModalSuggestion.badgeStyle}`}>
+                  {activeModalSuggestion.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModalSuggestion(null)}
+                  className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
 
-      {activeModalSuggestion.replacements && activeModalSuggestion.replacements.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-gray-800">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sugestões de Correção:</h3>
-          <div className="flex flex-wrap gap-2">
-            {activeModalSuggestion.replacements.map((rep, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  handleApplyCorrection(activeModalSuggestion, rep);
-                  setActiveModalSuggestion(null);
-                }}
-                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-xl transition-all cursor-pointer shadow-md"
-              >
-                Substituir por: "{rep}"
-              </button>
-            ))}
+              {/* Trecho Original */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trecho do Texto:</h3>
+                <span className="text-red-300 font-mono bg-red-950/50 border border-red-900/60 px-3 py-1 rounded-lg text-sm inline-block line-through">
+                  "{activeModalSuggestion.original}"
+                </span>
+              </div>
+
+              {/* Explicação Detalhada */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Explicação Detalhada:</h3>
+                <div className="bg-[#11111a] border border-gray-800/90 p-4 rounded-xl text-gray-200 text-sm leading-relaxed max-h-48 overflow-y-auto">
+                  {activeModalSuggestion.message}
+                </div>
+              </div>
+
+              {/* Sugestões de Correção (4 Principais + Dropdown para Extras) */}
+              {allReplacements.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-800">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Sugestões de Correção ({allReplacements.length}):
+                  </h3>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 4 Botões Principais */}
+                    {mainReplacements.map((rep, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          handleApplyCorrection(activeModalSuggestion, rep);
+                          setActiveModalSuggestion(null);
+                        }}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-xl transition-all cursor-pointer shadow-md"
+                      >
+                        "{rep}"
+                      </button>
+                    ))}
+
+                    {/* Menu Suspenso (Dropdown) para Opções Extras */}
+                    {extraReplacements.length > 0 && (
+                      <div className="relative inline-block">
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleApplyCorrection(activeModalSuggestion, e.target.value);
+                              setActiveModalSuggestion(null);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-xl cursor-pointer transition-colors outline-none pr-7 appearance-none"
+                        >
+                          <option value="" disabled hidden>
+                            +{extraReplacements.length} outras opções ▾
+                          </option>
+                          {extraReplacements.map((rep, idx) => (
+                            <option key={idx} value={rep} className="bg-[#1c1b2c] text-white py-1">
+                              Substituir por: "{rep}"
+                            </option>
+                          ))}
+                        </select>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
+                          ▼
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Rodapé */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModalSuggestion(null)}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="flex justify-end pt-2">
-        <button
-          type="button"
-          onClick={() => setActiveModalSuggestion(null)}
-          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-        >
-          Fechar
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-
+        );
+      })()}
     </main>
   );
 }
