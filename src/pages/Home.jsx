@@ -32,7 +32,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
 
   // Apoio
   const [copiedPix, setCopiedPix] = useState(false);
-  const PIX_KEY = 'suporte@storyforge.com.br';
+  const PIX_KEY = 'app.storyforge@gmail.com';
 
   // Importação
   const fileInputRef = useRef(null);
@@ -814,3 +814,4 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     </div>
   );
 }
+

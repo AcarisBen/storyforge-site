@@ -291,7 +291,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-400 font-bold">Suporte</span>
-                <span className="text-xs text-purple-300">suporte@storyforge.com.br</span>
+                <span className="text-xs text-purple-300">app.storyforge@gmail.com</span>
               </div>
             </div>
           </div>

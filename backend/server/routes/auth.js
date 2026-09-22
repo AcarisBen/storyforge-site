@@ -67,7 +67,7 @@ router.post('/register', async (req, res) => {
     const confirmationLink = `http://localhost:5173/?confirmToken=${confirmToken}`;
 
     const mailOptions = {
-      from: `"StoryForge" <${process.env.EMAIL_USER || 'suporte@storyforge.com.br'}>`,
+      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
       to: cleanEmail,
       subject: '🔮 Confirme seu e-mail — StoryForge',
       html: getConfirmationEmailHTML(writerName || fullName, confirmationLink),
