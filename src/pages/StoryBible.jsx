@@ -1,8 +1,38 @@
+// src/pages/StoryBible.jsx
+// Página de Story Bible do Projeto
+
 import React, { useState, useEffect } from 'react';
 import { Download, FileText, Code, FileCode, Printer, CheckCircle, RefreshCw, XCircle, AlertTriangle } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
-const CURRENT_USER_NAME = 'Usuário StoryForge';
+// Função auxiliar para remover sujeiras HTML de editores e formatar o manuscrito em parágrafos limpos
+function cleanAndFormatText(rawText) {
+  if (!rawText) return [];
+
+  // 1. Substitui tags de quebra de parágrafo/linha por quebras de linha padrão
+  let cleaned = String(rawText)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n\n');
+
+  // 2. Remove todas as demais tags HTML (como <span>, <div style="...">, etc.)
+  cleaned = cleaned.replace(/<[^>]+>/g, '');
+
+  // 3. Decodifica entidades HTML comuns
+  cleaned = cleaned
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  // 4. Divide o texto em parágrafos limpos removendo linhas em branco consecutivas
+  return cleaned
+    .split(/\n\s*\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
 
 // Estilos dinâmicos para Tipos de Personagem
 const CHARACTER_TYPES_CONFIG = {
@@ -213,7 +243,7 @@ const CHECKLIST_CATEGORIES_ORDER = [
   },
 ];
 
-export default function StoryBible({ projectId }) {
+export default function StoryBible({ projectId, currentUser }) {
   const [loading, setLoading] = useState(true);
 
   // Estados de Controle de Exportação
@@ -250,24 +280,28 @@ export default function StoryBible({ projectId }) {
     dialogues: [],
   });
 
-  // Garante que o cabeçalho nativo impresso contenha "StoryForge" ao centro e o Nome do Usuário na direita
+  // Determina dinamicamente o Pseudônimo / Nome do Autor
+  const authorName = 
+    currentUser?.writerName || 
+    currentUser?.fullName || 
+    currentUser?.name || 
+    data.identity['Autor'] || 
+    data.identity['autor'] || 
+    'Usuário StoryForge';
+
+  // Garante que o cabeçalho nativo impresso contenha "StoryForge" ao centro e o Pseudônimo do Usuário na direita
   useEffect(() => {
-  const originalTitle = document.title;
-  
-  // Pega o ano atual dinamicamente (2026)
-  const currentYear = new Date().getFullYear();
-  
-  // Nome centralizado com o ano + 'Projeto executado por' e Nome do Usuário à direita
-  const siteInfo = `StoryForge (${currentYear})`;
-  const userInfo = `Projeto executado por: ${CURRENT_USER_NAME}`;
+    const originalTitle = document.title;
+    const currentYear = new Date().getFullYear();
+    const siteInfo = `StoryForge (${currentYear})`;
+    const userInfo = `Projeto executado por: ${authorName}`;
 
-  // Usamos caracteres de espaço não-quebráveis (\u00A0) para forçar o alinhamento
-  document.title = `${siteInfo} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 ${userInfo}`;
+    document.title = `${siteInfo} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 ${userInfo}`;
 
-  return () => {
-    document.title = originalTitle;
-  };
-}, [data]);
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [data, authorName]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -450,7 +484,6 @@ export default function StoryBible({ projectId }) {
 
     try {
       if (exportFormat === 'pdf') {
-        // Expande todas as seções antes de chamar a janela de impressão
         setOpenSections({
           fundacao: true,
           estrutura: true,
@@ -462,7 +495,6 @@ export default function StoryBible({ projectId }) {
           manuscrito: true,
         });
 
-        // Delay para garantir que o DOM do React renderize todo o documento antes de capturar
         setTimeout(() => {
           window.print();
         }, 800);
@@ -470,7 +502,7 @@ export default function StoryBible({ projectId }) {
       } else if (exportFormat === 'json') {
         const jsonContent = {
           exportMeta: {
-            exportedBy: CURRENT_USER_NAME,
+            exportedBy: authorName,
             exportedAt: new Date().toISOString(),
             appVersion: '1.0',
           },
@@ -480,7 +512,7 @@ export default function StoryBible({ projectId }) {
 
       } else if (exportFormat === 'md') {
         let md = `# ${title}\n\n`;
-        md += `> **Autor:** ${CURRENT_USER_NAME} | **Data:** ${dateStr}\n\n`;
+        md += `> **Autor:** ${authorName} | **Data:** ${dateStr}\n\n`;
         downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.md`, md, 'text/markdown');
       }
     } catch (err) {
@@ -537,7 +569,6 @@ export default function StoryBible({ projectId }) {
             margin: 1.8cm;
           }
 
-          /* Oculta apenas os elementos interativos de tela */
           .print\\:hidden, .no-print, .print-hide, button, .sidebar, aside, nav, .fixed, [role="dialog"] {
             display: none !important;
             visibility: hidden !important;
@@ -559,7 +590,6 @@ export default function StoryBible({ projectId }) {
             position: static !important;
           }
 
-          /* Reset de Layout Global para fluxo contínuo */
           html, body, #root, main, section, article {
             background: #ffffff !important;
             color: #000000 !important;
@@ -582,7 +612,6 @@ export default function StoryBible({ projectId }) {
             box-shadow: none !important;
           }
 
-          /* Cabeçalho do Relatório Impresso */
           header {
             border: none !important;
             border-bottom: 2px solid #000000 !important;
@@ -604,7 +633,6 @@ export default function StoryBible({ projectId }) {
             margin-top: 2px !important;
           }
 
-          /* Seções como blocos de relatório */
           section {
             border: none !important;
             border-bottom: 1px solid #cccccc !important;
@@ -632,7 +660,6 @@ export default function StoryBible({ projectId }) {
             margin-bottom: 4px !important;
           }
 
-          /* Transforma Grid/Flex de tela em Lista Vertical Simples na Impressão */
           .grid, .flex {
             display: block !important;
             width: 100% !important;
@@ -652,12 +679,10 @@ export default function StoryBible({ projectId }) {
             background: transparent !important;
           }
 
-          /* Oculta a linha do tempo gráfica na impressão */
           .timeline-interactive {
             display: none !important;
           }
 
-          /* Exibe a linha do tempo textual na impressão */
           .timeline-printable {
             display: block !important;
           }
@@ -673,7 +698,7 @@ export default function StoryBible({ projectId }) {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500" />
         <div>
           <span className="text-xs uppercase tracking-widest text-purple-400 font-bold">
-             📖 DOCUMENTO MESTRE NARRATIVO
+            📖 DOCUMENTO MESTRE NARRATIVO
           </span>
           <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
             {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
@@ -703,22 +728,17 @@ export default function StoryBible({ projectId }) {
 
       {/* CABEÇALHO EXCLUSIVO PARA O PDF / IMPRESSÃO */}
       <header className="hidden print:block mb-8 pb-4 mt-0">
-        
-        {/* 1. TERMO LEGAL (POSICIONADO BEM NO TOPO E SEPARADO POR UMA LINHA DISCRETA) */}
         <div className="border-b border-gray-300 pb-3 mb-5">
           <p className="text-[8pt] text-gray-600 italic leading-snug">
-            Este projeto é de autoria de <strong>{CURRENT_USER_NAME}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
+            Este projeto é de autoria de <strong>{authorName}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
           </p>
         </div>
 
-        {/* 2. BLOCO DO TÍTULO E SUBTÍTULO (AMPLIADOS E COM SEPARAÇÃO VISUAL CLARA) */}
         <div className="space-y-3 pt-1">
-          {/* Título Principal Ampliado */}
           <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight leading-none">
             {data.identity['Título'] || data.identity['title'] || 'StoryBible'}
           </h1>
 
-          {/* Subtítulo Separado com Borda Lateral e Recuo */}
           {data.identity['Subtítulo'] && (
             <h2 className="text-base font-semibold text-gray-600 italic border-l-2 border-gray-400 pl-3 mt-2">
               {data.identity['Subtítulo']}
@@ -726,7 +746,6 @@ export default function StoryBible({ projectId }) {
           )}
         </div>
 
-        {/* 3. LINHA DIVISÓRIA PRINCIPAL PARA O CONTEÚDO NARRATIVO */}
         <div className="w-full h-[2px] bg-black mt-5" />
       </header>
 
@@ -795,8 +814,6 @@ export default function StoryBible({ projectId }) {
           <div className="p-6 space-y-8 print:p-0 print:space-y-4">
             <div>
               <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-4">LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)</h3>
-              
-              {/* VERSÃO TELA DA LINHA DO TEMPO (INTERATIVA) */}
               <div className="timeline-interactive p-6 bg-[#171724] border border-gray-800/80 rounded-2xl">
                 <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
                   <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
@@ -813,7 +830,6 @@ export default function StoryBible({ projectId }) {
                 </div>
               </div>
 
-              {/* VERSÃO DE IMPRESSÃO DA LINHA DO TEMPO (TEXTUAL, ORDENADA E DETALHADA) */}
               <div className="timeline-printable space-y-3">
                 {milestonesList.map((m, idx) => {
                   const eventCount = Array.isArray(m.events) ? m.events.length : 0;
@@ -984,7 +1000,6 @@ export default function StoryBible({ projectId }) {
 
         {openSections.cenas && (
           <div className="p-6 space-y-8 print:p-0 print:space-y-4">
-            {/* CENAS NARRATIVAS */}
             <div>
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Cenas Narrativas</h3>
               {data.scenes.length === 0 ? (
@@ -1033,7 +1048,6 @@ export default function StoryBible({ projectId }) {
               )}
             </div>
 
-            {/* DIÁLOGOS DESTACADOS */}
             <div className="pt-4 border-t border-gray-800/60 print:pt-2">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Diálogos Destacados & Subtexto</h3>
               {data.dialogues.length === 0 ? (
@@ -1086,7 +1100,6 @@ export default function StoryBible({ projectId }) {
               )}
             </div>
 
-            {/* MISTÉRIOS & PLOT TWISTS */}
             <div className="pt-4 border-t border-gray-800/60 grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-1 print:pt-2">
               <div>
                 <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Mistérios & Pistas</h3>
@@ -1181,7 +1194,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 7. CHECKLIST COM CORES E ESTADOS VISUAIS MANTIDOS NA TELA */}
+      {/* 7. CHECKLIST */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button type="button" onClick={() => toggleSection('checklist')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
@@ -1232,7 +1245,7 @@ export default function StoryBible({ projectId }) {
         )}
       </section>
 
-      {/* 8. ESCRITA & MANUSCRITO */}
+      {/* 8. ESCRITA & MANUSCRITO (CORRIGIDO E FORMATADO) */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
@@ -1245,21 +1258,35 @@ export default function StoryBible({ projectId }) {
         {openSections.manuscrito && (
           <div className="p-6 space-y-6 print:p-0 print:space-y-4">
             {data.chapters.length === 0 ? (
-              <p className="text-xs text-gray-500 italic">Nenum capítulo escrito até o momento.</p>
+              <p className="text-xs text-gray-500 italic">Nenhum capítulo escrito até o momento.</p>
             ) : (
-              data.chapters.map((ch, index) => (
-                <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-3 print:p-0">
-                  <div className="border-b border-gray-800 pb-2 print:border-none">
-                    <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">
-                      Capítulo {ch.number || ch.numero || index + 1}
-                    </span>
-                    <h3 className="text-lg font-bold text-white">{ch.title || ch.titulo || 'Sem Título'}</h3>
+              data.chapters.map((ch, index) => {
+                const rawContent = ch.content || ch.texto || ch.text || '';
+                const paragraphs = cleanAndFormatText(rawContent);
+
+                return (
+                  <div key={ch.id || index} className="p-6 bg-[#171724] border border-gray-800/80 rounded-2xl space-y-4 print:p-0">
+                    <div className="border-b border-gray-800 pb-3 print:border-none">
+                      <span className="text-xs font-bold text-purple-400 uppercase tracking-widest block mb-1">
+                        Capítulo {ch.number || ch.numero || index + 1}
+                      </span>
+                      <h3 className="text-xl font-bold text-white tracking-tight">{ch.title || ch.titulo || 'Sem Título'}</h3>
+                    </div>
+
+                    <div className="space-y-4 text-sm text-gray-300 leading-relaxed font-sans print:text-black">
+                      {paragraphs.length > 0 ? (
+                        paragraphs.map((para, pIdx) => (
+                          <p key={pIdx} className="leading-relaxed">
+                            {para}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="italic text-gray-500">Capítulo em branco.</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-serif">
-                    {ch.content || ch.texto || ch.text || 'Capítulo em branco.'}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

@@ -1,4 +1,6 @@
 // backend/server/routes/auth.js
+// Rota de autenticação e gerenciamento de usuários
+
 
 import express from 'express';
 import crypto from 'crypto';
@@ -34,7 +36,7 @@ router.post('/register', async (req, res) => {
 
     // 1. SE O USUÁRIO JÁ EXISTE E JÁ FOI VERIFICADO
     if (existingUser && existingUser.isVerified) {
-      return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login.' });
+      return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login com outro email.' });
     }
 
     // 2. SE O USUÁRIO JÁ EXISTE MAS NÃO FOI VERIFICADO (OU É NOVO)
@@ -155,6 +157,7 @@ router.get('/me', async (req, res) => {
 });
 
 // PUT /auth/profile - Atualiza o perfil do usuário autenticado
+// PUT /api/auth/profile - Atualiza o pseudônimo e dados do perfil
 router.put('/profile', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -162,21 +165,29 @@ router.put('/profile', async (req, res) => {
 
     const token = authHeader.split(' ')[1];
     const userId = token?.replace('token_seguro_', '');
-    const { name, email, currentPassword, newPassword } = req.body;
+    const { writerName, name, email, currentPassword, newPassword } = req.body;
 
     const user = users.find((u) => u.id === userId);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    if (name) user.fullName = name;
-    if (email) user.email = email;
+    // Atualiza o pseudônimo principal (writerName)
+    if (writerName) user.writerName = writerName.trim();
+    if (name) user.fullName = name.trim();
+    if (email) user.email = email.trim().toLowerCase();
+
+    // Troca de senha segura
     if (newPassword) {
-      if (currentPassword !== user.password) {
+      if (!currentPassword || currentPassword !== user.password) {
         return res.status(400).json({ error: 'Senha atual incorreta.' });
       }
       user.password = newPassword;
     }
 
-    return res.json({ user: { id: user.id, name: user.fullName, email: user.email } });
+    const { password: _, ...userClean } = user;
+    return res.json({ 
+      user: userClean, 
+      message: 'Perfil atualizado com sucesso!' 
+    });
   } catch (err) {
     return res.status(500).json({ error: 'Erro interno ao atualizar perfil' });
   }

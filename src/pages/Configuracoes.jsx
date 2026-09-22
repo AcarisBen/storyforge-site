@@ -1,3 +1,6 @@
+// src/pages/Configuracoes.jsx
+// Página de Configurações do Usuário
+
 import React, { useState, useEffect } from 'react';
 import { 
   User, Shield, LogOut, Trash2, AlertTriangle, 
@@ -8,59 +11,57 @@ import apiClient from '../api/apiClient';
 export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('perfil');
 
-  // Inicializa os estados com os dados do usuário logado
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modais de Exclusão
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
-  // Carrega os dados reais do usuário logado
+  // Carrega prioritariamente o pseudônimo (writerName) vindo do cadastro
   useEffect(() => {
     if (currentUser) {
-      setDisplayName(currentUser.name || currentUser.nome || '');
+      setDisplayName(currentUser.writerName || currentUser.fullName || currentUser.name || '');
       setEmail(currentUser.email || '');
     } else {
-      // Fallback caso não venha via props: busca direto da API /auth/me
       apiClient.get('/auth/me')
         .then((res) => {
           if (res.data?.user) {
-            setDisplayName(res.data.user.name || res.data.user.nome || '');
-            setEmail(res.data.user.email || '');
+            const u = res.data.user;
+            setDisplayName(u.writerName || u.fullName || u.name || '');
+            setEmail(u.email || '');
           }
         })
         .catch((err) => console.error('Erro ao carregar usuário:', err));
     }
   }, [currentUser]);
 
-  // Salvar Nome / Perfil no Backend
+  // Salva o pseudônimo no backend e atualiza o estado global no App
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!displayName.trim()) {
-      alert('O nome de exibição não pode ficar em branco.');
+      alert('O pseudônimo não pode ficar em branco.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const res = await apiClient.put('/auth/profile', { name: displayName });
-      alert('Nome de exibição salvo com sucesso!');
+      const res = await apiClient.put('/auth/profile', { writerName: displayName.trim() });
+      alert('Pseudônimo atualizado com sucesso!');
+      
       if (setCurrentUser && res.data?.user) {
         setCurrentUser(res.data.user);
       }
     } catch (err) {
-      console.error('Erro ao salvar nome:', err);
-      alert(err.response?.data?.error || 'Erro ao atualizar o perfil.');
+      console.error('Erro ao salvar pseudônimo:', err);
+      alert(err.response?.data?.error || err.data?.error || 'Erro ao atualizar o perfil.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Alterar Senha no Backend
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) {
@@ -75,7 +76,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       setNewPassword('');
     } catch (err) {
       console.error('Erro ao alterar senha:', err);
-      alert(err.response?.data?.error || 'Erro ao alterar a senha.');
+      alert(err.response?.data?.error || err.data?.error || 'Erro ao alterar a senha.');
     }
   };
 
@@ -87,7 +88,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20 text-gray-200 font-sans">
+    <div className="max-w-4xl mx-auto space-y-8 pb-10 text-gray-200 font-sans">
       
       {/* CABEÇALHO */}
       <div>
@@ -98,7 +99,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       </div>
 
       {/* ABAS DE NAVEGAÇÃO */}
-      <div className="flex border-b border-gray-800 gap-2 pb-1">
+      <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
         {[
           { id: 'perfil', label: 'Perfil do Autor', icon: User },
           { id: 'seguranca', label: 'E-mail & Segurança', icon: Key },
@@ -142,7 +143,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                   className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
                   placeholder="Seu nome oficial ou pseudônimo"
                 />
-                <p className="text-[11px] text-gray-500">Este nome é utilizado nos relatórios e StoryBible exportada.</p>
+                <p className="text-[11px] text-gray-500">Este pseudônimo é exibido como o autor responsável pelos projetos, relatórios e StoryBible exportada.</p>
               </div>
             </div>
 
@@ -152,7 +153,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 disabled={isSaving}
                 className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all"
               >
-                {isSaving ? 'Salvando...' : 'Salvar Nome'}
+                {isSaving ? 'Salvando...' : 'Salvar Pseudônimo'}
               </button>
             </div>
           </form>
@@ -279,7 +280,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
             {!deleteEmailSent ? (
               <>

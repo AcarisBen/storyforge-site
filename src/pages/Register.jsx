@@ -1,3 +1,7 @@
+// src/pages/Register.jsx
+
+// Página de Registro de Usuário
+
 import React, { useState } from 'react';
 import { 
   User, Sparkles, Mail, Lock, UserPlus, 

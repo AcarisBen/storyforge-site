@@ -1,3 +1,6 @@
+// src/App.jsx
+// Componente principal da aplicação StoryForge
+
 import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -86,7 +89,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* CABEÇALHO COM LOGO E BOTÃO DE MENU */}
       <div className="brand">
         <div className="brand-left">
           {!isCollapsed && <strong>StoryForge</strong>}
@@ -101,34 +103,29 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         </button>
       </div>
       
-      {/* BOTÃO MEUS PROJETOS */}
       <button 
-  className={`projects-link flex items-center gap-2 ${isCollapsed ? 'justify-center w-full mx-0 px-0' : ''}`}
-  type="button" 
-  onClick={onBackToProjects} 
-  title="Meus Projetos"
->
-  <FolderKanban size={20} className="text-purple-400 shrink-0" />
-  {!isCollapsed && <span>Meus Projetos</span>}
-</button>
-
-      {/* RESUMO DO PROJETO */}
-      <div className="project-summary">
-  {!isCollapsed && (
-    <div>
-      <strong 
-        style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', display: 'block', marginBottom: '2px' }}
+        className={`projects-link flex items-center gap-2 ${isCollapsed ? 'justify-center w-full mx-0 px-0' : ''}`}
+        type="button" 
+        onClick={onBackToProjects} 
+        title="Meus Projetos"
       >
-        {currentProject?.title || 'Projeto'}
-      </strong>
-      <span className="text-xs text-gray-400">
-        {currentProject?.format || 'Romance / Livro'}
-      </span>
-    </div>
-  )}
-</div>
+        <FolderKanban size={20} className="text-purple-400 shrink-0" />
+        {!isCollapsed && <span>Meus Projetos</span>}
+      </button>
 
-      {/* NAVEGAÇÃO DOS MÓDULOS */}
+      <div className="project-summary">
+        {!isCollapsed && (
+          <div>
+            <strong style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', display: 'block', marginBottom: '2px' }}>
+              {currentProject?.title || 'Projeto'}
+            </strong>
+            <span className="text-xs text-gray-400">
+              {currentProject?.format || 'Romance / Livro'}
+            </span>
+          </div>
+        )}
+      </div>
+
       <nav className="sidebar-nav" aria-label="Navegação do projeto">
         {navigation.map((section) => (
           <div className="nav-section" key={section.title}>
@@ -255,7 +252,13 @@ export default function App() {
   }
 
   if (!currentProject) {
-    return <Home onSelectProject={handleSelectProject} />;
+    return (
+      <Home 
+        onSelectProject={handleSelectProject} 
+        currentUser={currentUser}
+        setCurrentUser={setCurrentUser}
+      />
+    );
   }
 
   const renderPage = () => {
@@ -269,7 +272,7 @@ export default function App() {
           />
         );
       case 'identidade':
-        return <Identidade projectId={currentProject.id} />;
+        return <Identidade projectId={currentProject.id} currentUser={currentUser} />;
       case 'essencia':
         return <Essencia projectId={currentProject.id} />;
       case 'engenharia':
@@ -299,7 +302,7 @@ export default function App() {
       case 'checklist':
         return <Checklist projectId={currentProject.id} />;
       case 'story-bible':
-        return <StoryBible projectId={currentProject.id} />;
+        return <StoryBible projectId={currentProject.id} currentUser={currentUser} />;
       case 'escrita':
         return <Escrita projectId={currentProject.id} onNavigate={setActivePage} />;
       default:

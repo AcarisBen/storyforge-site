@@ -1,4 +1,5 @@
 // src/pages/Escrita.jsx
+// Página de Escrita do Projeto
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
