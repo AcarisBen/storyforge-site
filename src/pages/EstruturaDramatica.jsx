@@ -1,3 +1,6 @@
+// src/pages/EstruturaDramatica.jsx
+// Página de Estrutura Dramática do StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -236,7 +239,7 @@ export default function EstruturaDramatica({ projectId }) {
           },
         };
         await apiClient.post(`/entities/projects/${projectId}/estrutura-dramatica`, payload);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro no Auto-save da Estrutura:', err);
         setSavingStatus('Erro ao salvar');

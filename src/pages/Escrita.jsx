@@ -232,6 +232,7 @@ export default function Escrita({ projectId, onNavigate }) {
   });
 
   const [textSuggestions, setTextSuggestions] = useState([]);
+const [savingStatus, setSavingStatus] = useState('Salvo');
 
   // BUSCA DADOS DO PROJETO
   useEffect(() => {
@@ -898,7 +899,7 @@ export default function Escrita({ projectId, onNavigate }) {
     }`;
 
   return (
-    <main className="characters-page manuscript-page">
+    <main className="module-page w-full manuscript-page">
       <style>{`
         .rich-editor-content ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
         .rich-editor-content ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
@@ -907,23 +908,25 @@ export default function Escrita({ projectId, onNavigate }) {
         .rich-editor-content sup { vertical-align: super !important; font-size: 0.75em !important; }
       `}</style>
 
-      <header className="characters-header flex justify-between items-start mb-2">
-        <div>
-          <h1>Escrita & Manuscrito</h1>
-          <p>Escreva capítulos e consulte seus elementos criados em tempo real.</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
-          <span className="w-4 h-4 rounded-full border-2 border-purple-500 inline-block" />
-          <span>{progressPercentage}%</span>
-        </div>
-      </header>
-
-      <div className="w-full h-1 bg-gray-800 rounded-full mb-6 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-purple-600 to-amber-500 transition-all duration-300"
-          style={{ width: `${progressPercentage}%` }}
-        />
+      <header className="module-header flex justify-between items-center">
+    <div>
+      <h1>Escrita & Manuscrito</h1>
+      <p>Escreva capítulos e consulte seus elementos criados em tempo real.</p>
+    </div>
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+        {savingStatus}
+      </span>
+      <div className="module-progress">
+        <span aria-hidden="true" />
+        {progressPercentage}%
       </div>
+    </div>
+  </header>
+
+      <div className="module-progress-track">
+    <div style={{ width: `${progressPercentage}%` }} />
+  </div>
 
       <EscritaGuide />
 
@@ -1298,7 +1301,6 @@ export default function Escrita({ projectId, onNavigate }) {
                     <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
                       🪄 Assistente de Revisão ({textSuggestions.length} Alertas)
                     </span>
-                    <span className="text-[11px] text-gray-400">Análise 100% privada e local</span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">

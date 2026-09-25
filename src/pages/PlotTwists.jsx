@@ -1,3 +1,6 @@
+// src/pages/PlotTwists.jsx
+// Página de Planejamento de Plot Twists do StoryForge.
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -59,7 +62,7 @@ function TwistGuide() {
 export function ForeshadowingGuide() {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <section className="module-guide foreshadowing-guide">
+    <section className="module-guide foreshadowing-guide mt-3">
       <button
         className="guide-toggle cursor-pointer"
         type="button"
@@ -99,15 +102,16 @@ export function ForeshadowingGuide() {
 // Formulário simples para criação de um novo Plot Twist
 function TwistCreateForm({ twist, onChange, onSave, onCancel }) {
   return (
-    <div className="twist-form">
+    <div className="twist-form bg-[#1c1c28] p-4 rounded-xl border border-purple-900/50 mb-6 space-y-3">
       {fields.map(([key, label, type, placeholder]) => (
-        <label key={key}>
-          <span>{label}</span>
+        <label key={key} className="block text-xs font-semibold text-gray-300">
+          <span className="mb-1 block">{label}</span>
           {type === 'textarea' ? (
             <textarea
               placeholder={placeholder}
               value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+              className="w-full bg-[#12121a] border border-gray-800 rounded-lg p-2 text-xs text-gray-200 outline-none focus:border-purple-500"
             />
           ) : (
             <input
@@ -115,15 +119,16 @@ function TwistCreateForm({ twist, onChange, onSave, onCancel }) {
               placeholder={placeholder}
               value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+              className="w-full bg-[#12121a] border border-gray-800 rounded-lg p-2 text-xs text-gray-200 outline-none focus:border-purple-500"
             />
           )}
         </label>
       ))}
-      <div className="twist-form-actions">
-        <button className="event-save cursor-pointer" type="button" onClick={onSave}>
+      <div className="twist-form-actions flex gap-2 pt-2">
+        <button className="event-save cursor-pointer bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-white font-medium text-xs transition-all" type="button" onClick={onSave}>
           Criar Plot Twist
         </button>
-        <button className="event-cancel cursor-pointer" type="button" onClick={onCancel}>
+        <button className="event-cancel cursor-pointer bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-gray-300 font-medium text-xs transition-all" type="button" onClick={onCancel}>
           Cancelar
         </button>
       </div>
@@ -134,21 +139,23 @@ function TwistCreateForm({ twist, onChange, onSave, onCancel }) {
 // Formulário Inline para edição direta (Auto-save) ao expandir
 function TwistInlineForm({ twist, onChange }) {
   return (
-    <div className="twist-form">
+    <div className="twist-form space-y-3 p-4 bg-[#161622] border-t border-gray-800">
       {fields.map(([key, label, type, placeholder]) => (
-        <label key={key}>
-          <span>{label}</span>
+        <label key={key} className="block text-xs font-semibold text-gray-300">
+          <span className="mb-1 block">{label}</span>
           {type === 'textarea' ? (
             <textarea
               placeholder={placeholder}
               value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+              className="w-full bg-[#12121a] border border-gray-800 rounded-lg p-2 text-xs text-gray-200 outline-none focus:border-purple-500"
             />
           ) : (
             <input
               placeholder={placeholder}
               value={twist[key] || ''}
               onChange={(event) => onChange({ ...twist, [key]: event.target.value })}
+              className="w-full bg-[#12121a] border border-gray-800 rounded-lg p-2 text-xs text-gray-200 outline-none focus:border-purple-500"
             />
           )}
         </label>
@@ -163,6 +170,7 @@ export default function PlotTwists({ projectId }) {
   const [draft, setDraft] = useState(blankTwist());
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState('Salvo');
 
   // Carregar Plot Twists do banco
   useEffect(() => {
@@ -207,6 +215,7 @@ export default function PlotTwists({ projectId }) {
   // Salvar novo Plot Twist no PostgreSQL
   async function saveTwist() {
     if (!draft.title.trim() || !projectId) return;
+    setSavingStatus('Salvando...');
 
     try {
       const res = await apiClient.post(`/entities/projects/${projectId}/twists`, draft);
@@ -214,8 +223,10 @@ export default function PlotTwists({ projectId }) {
       setExpandedId(res.data.id);
       setIsCreating(false);
       setDraft(blankTwist());
+      setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao criar plot twist:', err);
+      setSavingStatus('Erro ao salvar');
       alert('Não foi possível criar o plot twist.');
     }
   }
@@ -224,6 +235,7 @@ export default function PlotTwists({ projectId }) {
   const updateTimeoutRef = useRef({});
 
   function updateTwist(id, changes) {
+    setSavingStatus('Salvando...');
     setTwists((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...changes } : t))
     );
@@ -237,8 +249,10 @@ export default function PlotTwists({ projectId }) {
         const currentTwist = twists.find((t) => t.id === id);
         const updatedData = { ...currentTwist, ...changes };
         await apiClient.put(`/entities/twists/${id}`, updatedData);
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro ao salvar plot twist automaticamente:', err);
+        setSavingStatus('Erro ao salvar');
       }
     }, 1000);
   }
@@ -246,50 +260,54 @@ export default function PlotTwists({ projectId }) {
   // Deletar Plot Twist no banco
   async function deleteTwist(id) {
     if (!window.confirm('Tem certeza que deseja excluir este plot twist?')) return;
+    setSavingStatus('Salvando...');
 
     try {
       await apiClient.delete(`/entities/twists/${id}`);
       setTwists((prev) => prev.filter((t) => t.id !== id));
       if (expandedId === id) setExpandedId(null);
+      setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao excluir plot twist:', err);
+      setSavingStatus('Erro ao salvar');
       alert('Erro ao excluir o plot twist.');
     }
   }
 
   return (
-    <main className="characters-page plot-twists-page">
-      <header className="characters-header">
+    <main className="module-page w-full plot-twists-page">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA PLOT TWISTS */}
+      <header className="module-header flex justify-between items-center">
         <div>
           <h1>Plot Twists</h1>
           <p>Planejamento de reviravoltas com foreshadowing e consequências.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progressPercentage}%
+          </div>
+        </div>
       </header>
 
-      {/* Barra de Progresso Dinâmica no topo */}
-      <section className="bg-[#181822] p-4 rounded-xl border border-gray-800 mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
-            Progresso Geral dos Plot Twists
-          </span>
-          <span className="text-sm font-bold text-purple-400">
-            {progressPercentage}% ({filledTopicsCount}/{totalPossibleTopics} tópicos)
-          </span>
-        </div>
-        <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-300 rounded-full"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-      </section>
+      {/* BARRA DE PROGRESSO PADRÃO */}
+      <div className="module-progress-track">
+        <div style={{ width: `${progressPercentage}%` }} />
+      </div>
 
       <TwistGuide />
       <ForeshadowingGuide />
 
-      <div className="mystery-toolbar">
-        <span>{twists.length} plot twist(s)</span>
-        <button className="new-character-button" type="button" onClick={openCreate}>
+      <div className="mystery-toolbar flex justify-between items-center my-6">
+        <span className="text-gray-400 text-sm font-medium">{twists.length} plot twist(s)</span>
+        <button
+          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all"
+          type="button"
+          onClick={openCreate}
+        >
           ＋ Novo Plot Twist
         </button>
       </div>
@@ -311,37 +329,36 @@ export default function PlotTwists({ projectId }) {
           <p>Nenhum plot twist planejado ainda.</p>
         </div>
       ) : (
-        <div className="twists-list">
+        <div className="twists-list space-y-4">
           {twists.map((twist) => (
-            <article className="twist-card" key={twist.id}>
-              <header className="twist-card-header flex items-center justify-between">
-                {/* O título agora funciona como botão estendido para expansão */}
+            <article className="twist-card bg-[#181822] border border-gray-800 rounded-xl overflow-hidden" key={twist.id}>
+              <header className="twist-card-header flex items-center justify-between p-4 bg-[#1e1e2c]">
                 <h2
-                  className="cursor-pointer flex-1 flex items-center gap-2 select-none"
+                  className="cursor-pointer flex-1 flex items-center gap-2 select-none font-semibold text-gray-200 text-sm"
                   onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
                 >
-                  <span aria-hidden="true">ϟ</span>
+                  <span aria-hidden="true" className="text-purple-400">ϟ</span>
                   {twist.title || 'Plot Twist sem título'}
                 </h2>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="cursor-pointer"
+                    className="text-gray-400 hover:text-white cursor-pointer px-2 text-sm"
                     onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
                   >
                     {expandedId === twist.id ? '⌃' : '⌄'}
                   </button>
                   <button
                     type="button"
-                    className="cursor-pointer"
+                    className="text-red-400 hover:text-red-300 cursor-pointer p-1 rounded hover:bg-red-950/30 text-xs font-bold transition-all"
                     aria-label={`Excluir ${twist.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteTwist(twist.id);
                     }}
                   >
-                    ♜
+                    Excluir
                   </button>
                 </div>
               </header>
@@ -353,24 +370,24 @@ export default function PlotTwists({ projectId }) {
                 />
               ) : (
                 <div
-                  className="twist-summary cursor-pointer"
+                  className="twist-summary p-4 bg-[#14141f] space-y-2 text-xs cursor-pointer"
                   onClick={() => setExpandedId(twist.id)}
                 >
-                  <div>
-                    <span>Planejamento</span>
-                    <p>{twist.planning || 'Não informado.'}</p>
+                  <div className="border-b border-gray-800/60 pb-1">
+                    <span className="font-bold text-purple-400 block mb-0.5">Planejamento</span>
+                    <p className="text-gray-300">{twist.planning || 'Não informado.'}</p>
+                  </div>
+                  <div className="border-b border-gray-800/60 pb-1">
+                    <span className="font-bold text-purple-400 block mb-0.5">Foreshadowing</span>
+                    <p className="text-gray-300">{twist.foreshadowing || 'Não informado.'}</p>
+                  </div>
+                  <div className="border-b border-gray-800/60 pb-1">
+                    <span className="font-bold text-purple-400 block mb-0.5">Momento da Revelação</span>
+                    <p className="text-gray-300">{twist.revelationMoment || 'Não informado.'}</p>
                   </div>
                   <div>
-                    <span>Foreshadowing</span>
-                    <p>{twist.foreshadowing || 'Não informado.'}</p>
-                  </div>
-                  <div>
-                    <span>Momento da Revelação</span>
-                    <p>{twist.revelationMoment || 'Não informado.'}</p>
-                  </div>
-                  <div>
-                    <span>Consequência</span>
-                    <p>{twist.consequence || 'Não informado.'}</p>
+                    <span className="font-bold text-purple-400 block mb-0.5">Consequência</span>
+                    <p className="text-gray-300">{twist.consequence || 'Não informado.'}</p>
                   </div>
                 </div>
               )}

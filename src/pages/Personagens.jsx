@@ -1,3 +1,6 @@
+// src/pages/Personagens.jsx
+// Página de Personagens do StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -69,6 +72,7 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
   const details = localCharacter.details || {};
   const filledFields = Object.values(details).filter((v) => typeof v === 'string' && v.trim() !== '').length;
   const totalFields = Object.keys(emptyDetails()).length;
+  const progress = Math.round((filledFields / totalFields) * 100);
 
   // Auto-save do dossiê no PostgreSQL
   useEffect(() => {
@@ -87,7 +91,7 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
           details: localCharacter.details,
         };
         const res = await apiClient.put(`/entities/characters/${localCharacter.id}`, payload);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
         if (onUpdate) onUpdate(res.data);
       } catch (err) {
         console.error('Erro ao salvar personagem:', err);
@@ -112,17 +116,33 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
   }
 
   return (
-    <main className="characters-page character-detail-page">
-      <div className="flex justify-between items-center mb-4">
-        <button className="back-link cursor-pointer" type="button" onClick={onBack}>
-          ← Voltar para Personagens
-        </button>
-        <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
-          {savingStatus}
-        </span>
+    <main className="module-page w-full character-detail-page">
+      {/* CABEÇALHO PADRONIZADO DO DOSSIÊ DO PERSONAGEM */}
+      <header className="module-header flex justify-between items-center">
+        <div>
+          <button className="back-link cursor-pointer text-xs text-purple-400 hover:text-purple-300 font-bold mb-2 block" type="button" onClick={onBack}>
+            ← Voltar para Personagens
+          </button>
+          <h1>Dossiê: {localCharacter.name || 'Novo personagem'}</h1>
+          <p>Preencha as informações detalhadas para aprofundar a construção do personagem.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progress}%
+          </div>
+        </div>
+      </header>
+
+      {/* BARRA DE PROGRESSO DO DOSSIÊ */}
+      <div className="module-progress-track">
+        <div style={{ width: `${progress}%` }} />
       </div>
 
-      <header className="character-profile-header">
+      <header className="character-profile-header mt-6">
         <div className={`character-avatar large ${type.className}`}>
           {details.imageUrl && !imageError ? (
             <img
@@ -140,9 +160,6 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
             <span className={`character-type ${type.className}`}>{type.label}</span>
           </div>
           <p>{filledFields}/{totalFields} campos preenchidos</p>
-          <div className="character-detail-progress">
-            <div style={{ width: `${Math.round((filledFields / totalFields) * 100)}%` }} />
-          </div>
         </div>
         <button className="delete-character cursor-pointer" type="button" onClick={onDelete}>
           Excluir
@@ -269,8 +286,9 @@ export default function Personagens({ projectId }) {
   }
 
   return (
-    <main className="characters-page">
-      <header className="characters-header">
+    <main className="module-page w-full characters-page">
+      {/* CABEÇALHO PADRONIZADO DA LISTA (SEM BARRA/PORCENTAGEM DE PROGRESSO) */}
+      <header className="module-header flex justify-between items-center">
         <div>
           <h1>Personagens</h1>
           <p>Dossiês completos de cada personagem — protagonista, antagonista e secundários.</p>
@@ -279,7 +297,7 @@ export default function Personagens({ projectId }) {
 
       <CharacterGuide />
 
-      <div className="character-toolbar">
+      <div className="character-toolbar mt-6">
         <nav className="character-filters">
           {[
             ['todos', 'Todos'],

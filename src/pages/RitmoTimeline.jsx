@@ -91,7 +91,7 @@ export default function RitmoTimeline({ projectId }) {
     const timer = setTimeout(async () => {
       try {
         await apiClient.post(`/entities/projects/${projectId}/ritmo-timeline`, events);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro no Auto-save do Ritmo & Timeline:', err);
         setSavingStatus('Erro ao salvar');

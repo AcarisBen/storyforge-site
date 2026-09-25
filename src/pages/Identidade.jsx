@@ -1,3 +1,6 @@
+// src/pages/Identidade.jsx
+// Página de Identidade da Obra do StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -30,10 +33,9 @@ const BookOpenIcon = () => (
 
 export default function Identidade({ projectId }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(([label]) => [label, ''])));
-  const [savingStatus, setSavingStatus] = useState('Salvo'); // Status: 'Salvo', 'Salvando...', 'Erro'
+  const [savingStatus, setSavingStatus] = useState('Salvo');
   const isFirstRender = useRef(true);
 
-  // 1. Carrega as informações do banco PostgreSQL ao abrir a tela
   useEffect(() => {
     if (!projectId) return;
 
@@ -51,9 +53,7 @@ export default function Identidade({ projectId }) {
     fetchIdentity();
   }, [projectId]);
 
-  // 2. Auto-save com Debounce (Salva automaticamente 1.5 segundo após parar de digitar)
   useEffect(() => {
-    // Evita disparar o salvamento na primeira renderização ao carregar a página
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -66,7 +66,7 @@ export default function Identidade({ projectId }) {
     const timer = setTimeout(async () => {
       try {
         await apiClient.post(`/entities/projects/${projectId}/identity`, values);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro no Auto-save da Identidade:', err);
         setSavingStatus('Erro ao salvar');
@@ -85,26 +85,33 @@ export default function Identidade({ projectId }) {
   }
 
   return (
-    <main className="identity-page">
-      <header className="progress-panel" aria-label="Progresso da identidade">
-        <div className="flex justify-between items-center mb-2">
-          <div className="progress-heading">
-            <span>Progresso</span>
-            <strong className="ml-2">{progress}%</strong>
-          </div>
+    <main className="module-page w-full">
+      {/* CABEÇALHO PADRONIZADO */}
+      <header className="module-header flex justify-between items-center">
+        <div>
+          <h1>Identidade da Obra</h1>
+          <p>O DNA da sua história — defina as informações essenciais e comerciais do seu projeto.</p>
+        </div>
+        <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
             {savingStatus}
           </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progress}%
+          </div>
         </div>
-        <div className="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}>
-          <div className="progress-value" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="mt-2 text-xs text-gray-400">{completedFields} de {fields.length} campos preenchidos</p>
       </header>
 
-      <form className="identity-form" onSubmit={(e) => e.preventDefault()}>
+      {/* BARRA DE PROGRESSO PADRÃO */}
+      <div className="module-progress-track">
+        <div style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* FORMULÁRIO DE LARGURA TOTAL */}
+      <form className="identity-form mt-6 w-full space-y-6" onSubmit={(e) => e.preventDefault()}>
         {fields.map(([label, placeholder, hint, example]) => (
-          <section className="identity-card" key={label}>
+          <section className="identity-card w-full" key={label}>
             <label className="field-label" htmlFor={`identity-${label}`}>{label}</label>
             <textarea
               id={`identity-${label}`}

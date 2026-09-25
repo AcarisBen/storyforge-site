@@ -161,9 +161,9 @@ const CHECKLIST_CATEGORIES_ORDER = [
   },
   {
     title: 'Cenas & Construção Dramática',
-    badgeStyle: 'bg-indigo-950/60 text-indigo-300 border-indigo-800/40',
-    checkColor: 'bg-indigo-500 text-white',
-    boxStyle: 'bg-[#151528] border-indigo-800/40 text-indigo-200',
+    badgeStyle: 'bg-lime-950/60 text-lime-300 border-lime-800/40',
+    checkColor: 'bg-lime-500 text-gray-950',
+    boxStyle: 'bg-[#151528] border-lime-800/40 text-lime-200',
     items: [
       'Toda cena muda o estado emocional ou narrativo da história?',
       'Toda cena tem um objetivo claro para o personagem de POV?',
@@ -239,7 +239,7 @@ const CHECKLIST_CATEGORIES_ORDER = [
   },
 ];
 
-export default function StoryBible({ projectId, currentUser }) {
+export default function StoryBible({ projectId, project, currentUser }) {
   const [loading, setLoading] = useState(true);
 
   // Estados de Controle de Exportação
@@ -276,28 +276,41 @@ export default function StoryBible({ projectId, currentUser }) {
     dialogues: [],
   });
 
-  // Determina dinamicamente o Pseudônimo / Nome do Autor
-  const authorName = 
+  // Quem está logado e executando a visualização/impressão no topo
+  const executorName = 
     currentUser?.writerName || 
     currentUser?.fullName || 
     currentUser?.name || 
-    data.identity?.['Autor'] || 
-    data.identity?.['autor'] || 
     'Usuário StoryForge';
 
-  // Garante que o cabeçalho nativo impresso contenha "StoryForge" e o Pseudônimo
+  // Criador original da obra vindo do card de importação ou da Identidade
+  const creatorName = 
+    project?.exportedBy || 
+    project?.exportMeta?.exportedBy || 
+    data.identity?.['Autor'] || 
+    data.identity?.['autor'] || 
+    executorName;
+
+  // Data de exportação original do projeto ou a data atual como fallback
+  const exportDate = project?.exportedAt 
+    ? new Date(project.exportedAt).toLocaleDateString('pt-BR') 
+    : new Date().toLocaleDateString('pt-BR');
+
+  const authorName = creatorName;
+
+  // Garante que o cabeçalho impresso do navegador inclua "StoryForge" e o Usuário Executor
   useEffect(() => {
     const originalTitle = document.title;
     const currentYear = new Date().getFullYear();
     const siteInfo = `StoryForge (${currentYear})`;
-    const userInfo = `Projeto executado por: ${authorName}`;
+    const userInfo = `Projeto executado por: ${executorName}`;
 
     document.title = `${siteInfo} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 ${userInfo}`;
 
     return () => {
       document.title = originalTitle;
     };
-  }, [data, authorName]);
+  }, [data, executorName]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -482,8 +495,8 @@ export default function StoryBible({ projectId, currentUser }) {
   const handleStartExport = async () => {
     setConfirmModalOpen(false);
 
-    const title = data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible';
-    const dateStr = new Date().toLocaleDateString('pt-BR');
+    const title = data.identity?.['Título'] || data.identity?.['title'] || project?.title || 'StoryBible';
+    const dateStr = exportDate;
 
     try {
       if (exportFormat === 'pdf') {
@@ -704,7 +717,7 @@ export default function StoryBible({ projectId, currentUser }) {
             📖 DOCUMENTO MESTRE NARRATIVO
           </span>
           <h1 className="text-4xl font-extrabold text-white tracking-tight mt-1">
-            {data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible'}
+            {data.identity?.['Título'] || data.identity?.['title'] || project?.title || 'StoryBible'}
           </h1>
           {data.identity?.['Subtítulo'] && (
             <h2 className="text-lg text-purple-300 font-medium">{data.identity['Subtítulo']}</h2>
@@ -733,13 +746,13 @@ export default function StoryBible({ projectId, currentUser }) {
       <header className="hidden print:block mb-8 pb-4 mt-0">
         <div className="border-b border-gray-300 pb-3 mb-5">
           <p className="text-[8pt] text-gray-600 italic leading-snug">
-            Este projeto é de autoria de <strong>{authorName}</strong>, exportado em <strong>{new Date().toLocaleDateString('pt-BR')}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrativa, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
+            Este projeto é de autoria de <strong>{creatorName}</strong>, exportado em <strong>{exportDate}</strong>. O StoryForge atua exclusivamente como ferramenta de organização e estruturação narrative, não constituindo nem substituindo o registro oficial de direitos autorais perante órgãos competentes.
           </p>
         </div>
 
         <div className="space-y-3 pt-1">
           <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight leading-none">
-            {data.identity?.['Título'] || data.identity?.['title'] || 'StoryBible'}
+            {data.identity?.['Título'] || data.identity?.['title'] || project?.title || 'StoryBible'}
           </h1>
 
           {data.identity?.['Subtítulo'] && (
@@ -1308,7 +1321,7 @@ export default function StoryBible({ projectId, currentUser }) {
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-white">Confirmar Exportação</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Deseja exportar a StoryBible completa de <b>"{data.identity?.['Título'] || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
+              Deseja exportar a StoryBible completa de <b>"{data.identity?.['Título'] || project?.title || 'Sem Título'}"</b> no formato <b className="uppercase text-purple-400">{exportFormat}</b>?
             </p>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={handleStartExport} className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer">

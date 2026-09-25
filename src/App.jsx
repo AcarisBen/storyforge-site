@@ -1,10 +1,11 @@
 // src/App.jsx
-// Componente principal da aplicação StoryForge
-
-import { useState, useEffect } from 'react';
+// Componente principal da aplicação StoryForge com Roteamento de Segurança por E-mail
+import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ConfirmEmail from './pages/ConfirmEmail';
+import ResetPassword from './pages/ResetPassword';
+import ConfirmDelete from './pages/ConfirmDelete';
 import Home from './pages/Home';
 import apiClient from './api/apiClient';
 import Engenharia from './pages/Engenharia';
@@ -25,6 +26,7 @@ import Storyboard from './pages/Storyboard';
 import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
 import DialogEngine from './pages/DialogEngine';
+import ForgotPassword from './pages/ForgotPassword';
 
 import { 
   LayoutDashboard, Fingerprint, Sparkles, Cpu, GitBranch, 
@@ -152,9 +154,13 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); 
   const [authScreen, setAuthScreen] = useState('login');
+  
+  // Captura de Tokens de E-mail via URL Query Params
   const [confirmToken, setConfirmToken] = useState(null);
-  const [loadingSession, setLoadingSession] = useState(true);
+  const [resetToken, setResetToken] = useState(null);
+  const [deleteToken, setDeleteToken] = useState(null);
 
+  const [loadingSession, setLoadingSession] = useState(true);
   const [currentProject, setCurrentProject] = useState(null);
   const [activePage, setActivePage] = useState('dashboard');
 
@@ -179,11 +185,22 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('confirmToken');
-    if (token) {
-      setConfirmToken(token);
-    }
+    const cToken = params.get('confirmToken');
+    const rToken = params.get('resetToken');
+    const dToken = params.get('deleteToken');
+
+    if (cToken) setConfirmToken(cToken);
+    if (rToken) setResetToken(rToken);
+    if (dToken) setDeleteToken(dToken);
   }, []);
+
+  const clearUrlTokens = () => {
+    setConfirmToken(null);
+    setResetToken(null);
+    setDeleteToken(null);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setAuthScreen('login');
+  };
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
@@ -202,19 +219,40 @@ export default function App() {
     return <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center text-gray-400">Carregando StoryForge...</div>;
   }
 
+  // ROTA DE ATIVAÇÃO DE E-MAIL
   if (confirmToken) {
     return (
       <ConfirmEmail 
         token={confirmToken} 
+        onNavigateToLogin={clearUrlTokens} 
+      />
+    );
+  }
+
+  // ROTA DE REDEFINIÇÃO DE SENHA
+  if (resetToken) {
+    return (
+      <ResetPassword 
+        token={resetToken} 
+        onNavigateToLogin={clearUrlTokens} 
+      />
+    );
+  }
+
+  // ROTA DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA
+  if (deleteToken) {
+    return (
+      <ConfirmDelete 
+        token={deleteToken} 
         onNavigateToLogin={() => {
-          setConfirmToken(null);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          setAuthScreen('login');
+          setCurrentUser(null);
+          clearUrlTokens();
         }} 
       />
     );
   }
 
+  // FLUXO DE AUTENTICAÇÃO (DESLOGADO)
   if (!currentUser) {
     if (authScreen === 'register') {
       return (
@@ -226,19 +264,9 @@ export default function App() {
 
     if (authScreen === 'forgot-password') {
       return (
-        <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
-          <div className="bg-[#12121a] border border-gray-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4">
-            <h2 className="text-2xl font-bold">Recuperar Senha</h2>
-            <p className="text-xs text-gray-400">Instruções enviadas para o seu e-mail.</p>
-            <button
-              type="button"
-              onClick={() => setAuthScreen('login')}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Voltar para o Login
-            </button>
-          </div>
-        </div>
+        <ForgotPassword 
+          onNavigateToLogin={() => setAuthScreen('login')}
+        />
       );
     }
 
@@ -251,6 +279,7 @@ export default function App() {
     );
   }
 
+  // USUÁRIO LOGADO - SELEÇÃO DE PROJETO
   if (!currentProject) {
     return (
       <Home 
@@ -302,7 +331,13 @@ export default function App() {
       case 'checklist':
         return <Checklist projectId={currentProject.id} />;
       case 'story-bible':
-        return <StoryBible projectId={currentProject.id} currentUser={currentUser} />;
+        return (
+          <StoryBible 
+            projectId={currentProject.id} 
+            project={currentProject} 
+            currentUser={currentUser} 
+          />
+        );
       case 'escrita':
         return <Escrita projectId={currentProject.id} onNavigate={setActivePage} />;
       default:

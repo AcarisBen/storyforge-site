@@ -1,3 +1,6 @@
+// src/pages/Engenharia.jsx
+// Página de Engenharia Narrativa do StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -104,7 +107,7 @@ export default function Engenharia({ projectId }) {
     const timer = setTimeout(async () => {
       try {
         await apiClient.post(`/entities/projects/${projectId}/engenharia`, values);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro no Auto-save da Engenharia:', err);
         setSavingStatus('Erro ao salvar');
@@ -123,26 +126,33 @@ export default function Engenharia({ projectId }) {
   }
 
   return (
-    <main className="identity-page">
-      <header className="progress-panel" aria-label="Progresso da engenharia narrativa">
-        <div className="flex justify-between items-center mb-2">
-          <div className="progress-heading">
-            <span>Progresso</span>
-            <strong className="ml-2">{progress}%</strong>
-          </div>
+    <main className="module-page w-full">
+      {/* CABEÇALHO PADRONIZADO */}
+      <header className="module-header flex justify-between items-center">
+        <div>
+          <h1>Engenharia Narrativa</h1>
+          <p>O suporte estrutural da sua obra — alinhe personagens, conflitos, estilo e mundo em torno do tema central.</p>
+        </div>
+        <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
             {savingStatus}
           </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progress}%
+          </div>
         </div>
-        <div className="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}>
-          <div className="progress-value" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="mt-2 text-xs text-gray-400">{completedFields} de {fields.length} campos preenchidos</p>
       </header>
 
-      <form className="identity-form" onSubmit={(e) => e.preventDefault()}>
+      {/* BARRA DE PROGRESSO PADRÃO */}
+      <div className="module-progress-track">
+        <div style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* FORMULÁRIO DE LARGURA TOTAL */}
+      <form className="identity-form mt-6 w-full space-y-6" onSubmit={(e) => e.preventDefault()}>
         {fields.map(([label, placeholder, hint, example]) => (
-          <section className="identity-card" key={label}>
+          <section className="identity-card w-full" key={label}>
             <label className="field-label" htmlFor={`engineering-${label}`}>{label}</label>
             <textarea
               id={`engineering-${label}`}

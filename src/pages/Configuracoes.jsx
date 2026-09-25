@@ -20,7 +20,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
-  // Carrega prioritariamente o pseudônimo (writerName/name) vindo do cadastro ou API
+  // Carrega prioritariamente o pseudônimo vindo do cadastro ou da API
   useEffect(() => {
     if (currentUser) {
       setDisplayName(currentUser.writerName || currentUser.fullName || currentUser.name || '');
@@ -38,7 +38,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     }
   }, [currentUser]);
 
-  // Salva o pseudônimo no backend, atualiza o estado React e o localStorage
+  // 1. Salva o pseudônimo no backend, atualiza o estado React e o localStorage
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     const cleanName = displayName.trim();
@@ -53,7 +53,6 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       const res = await apiClient.put('/auth/profile', { name: cleanName });
       const updatedUser = res.data?.user || {};
 
-      // 1. Atualiza o estado global no React
       if (setCurrentUser) {
         setCurrentUser((prev) => ({
           ...prev,
@@ -64,7 +63,6 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         }));
       }
 
-      // 2. Atualiza a memória local para manter ao recarregar a página (F5)
       try {
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         localStorage.setItem('user', JSON.stringify({ ...storedUser, name: cleanName, writerName: cleanName }));
@@ -81,21 +79,64 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     }
   };
 
-  const handleResetPassword = async (e) => {
+  // Validador de Senha Forte
+  const validatePasswordStrength = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const isLongEnough = password.length >= 6;
+
+    if (!isLongEnough) return 'A senha deve ter no mínimo 8 caracteres.';
+    if (!hasUppercase) return 'A nova senha deve conter pelo menos uma letra maiúscula.';
+    if (!hasLowercase) return 'A nova senha deve conter pelo menos uma letra minúscula.';
+    if (!hasNumber) return 'A nova senha deve conter pelo menos um caractere especial (ex: @, #, $, !).';
+    return null;
+  };
+
+  // 2. ALTERAÇÃO DE SENHA (Aba E-mail & Segurança)
+  const handleChangePassword = async (e) => {
     e.preventDefault();
+
     if (!currentPassword || !newPassword) {
       alert('Preencha a senha atual e a nova senha.');
       return;
     }
 
+    const validationError = validatePasswordStrength(newPassword);
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await apiClient.put('/auth/profile', { currentPassword, newPassword });
-      alert('Senha alterada com sucesso!');
+      const response = await apiClient.put('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+
+      alert(response.data.message || 'Senha alterada com sucesso!');
       setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
       console.error('Erro ao alterar senha:', err);
-      alert(err.response?.data?.error || err.data?.error || 'Erro ao alterar a senha.');
+      alert(err.response?.data?.message || err.response?.data?.error || 'Erro ao alterar a senha.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 3. SOLICITAÇÃO DE EXCLUSÃO DE CONTA (Aba Privacidade & Conta)
+  const handleRequestAccountDelete = async () => {
+    setIsSaving(true);
+    try {
+      const response = await apiClient.post('/auth/request-delete');
+      setDeleteEmailSent(true);
+    } catch (err) {
+      console.error('Erro ao solicitar exclusão:', err);
+      alert(err.response?.data?.message || err.response?.data?.error || 'Erro ao solicitar e-mail de exclusão.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -196,7 +237,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            <form onSubmit={handleResetPassword} className="pt-4 border-t border-gray-800 space-y-4">
+            <form onSubmit={handleChangePassword} className="pt-4 border-t border-gray-800 space-y-4">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Alteração de Senha</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -223,9 +264,10 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
+                disabled={isSaving}
+                className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer disabled:bg-gray-800"
               >
-                Atualizar Senha
+                {isSaving ? 'Atualizando...' : 'Atualizar Senha'}
               </button>
             </form>
           </div>
@@ -313,10 +355,11 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setDeleteEmailSent(true)}
-                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+                    disabled={isSaving}
+                    onClick={handleRequestAccountDelete}
+                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 text-white font-bold text-xs rounded-xl cursor-pointer"
                   >
-                    Enviar E-mail de Confirmação
+                    {isSaving ? 'Enviando E-mail...' : 'Enviar E-mail de Confirmação'}
                   </button>
                   <button
                     type="button"

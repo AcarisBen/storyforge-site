@@ -1,3 +1,6 @@
+// src/pages/Checklist.jsx
+// Página de Checklist do Projeto StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -79,8 +82,8 @@ const checklistCategories = [
   },
   {
     title: 'Cenas & Construção Dramática',
-    badgeStyle: 'bg-indigo-950/50 text-indigo-300 border-indigo-700/50',
-    checkColor: 'bg-indigo-500 border-indigo-400 text-white',
+    badgeStyle: 'bg-lime-950/50 text-lime-300 border-lime-700/50',
+    checkColor: 'bg-lime-500 border-lime-300 text-gray-950',
     items: [
       'Toda cena muda o estado emocional ou narrativo da história?',
       'Toda cena tem um objetivo claro para o personagem de POV?',
@@ -195,7 +198,7 @@ export default function Checklist({ projectId }) {
     const timer = setTimeout(async () => {
       try {
         await apiClient.post(`/entities/projects/${projectId}/checklist`, checkedItems);
-        setSavingStatus('Salvo no banco');
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro ao salvar Checklist:', err);
         setSavingStatus('Erro ao salvar');
@@ -213,21 +216,23 @@ export default function Checklist({ projectId }) {
   }
 
   return (
-    <main className="module-page checklist-page space-y-10 max-w-5xl mx-auto pb-24">
-      <header className="module-header flex justify-between items-start">
+    <main className="module-page w-full checklist-page space-y-8 pb-24 font-sans text-gray-200">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA CHECKLIST */}
+      <header className="module-header flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Checklist de Desenvolvimento</h1>
-          <p className="text-base text-gray-400 mt-1">
-            Centenas de verificações automáticas para garantir a qualidade narrativa.
-          </p>
+          <h1>Checklist de Desenvolvimento</h1>
+          <p>Centenas de verificações automáticas para garantir a qualidade narrativa.</p>
         </div>
-        <span className="text-sm text-gray-400 font-medium bg-[#1c1c26] px-4 py-1.5 rounded-full border border-gray-800">
-          {savingStatus}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+        </div>
       </header>
 
-      <div className="bg-[#111118] border border-gray-800/80 p-8 rounded-2xl flex items-center gap-8 shadow-2xl">
-        <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+      {/* CARD DE PROGRESSO PRINCIPAL (TAMANHO INTERMEDIÁRIO) */}
+      <div className="bg-[#111118] border border-gray-800/80 p-6 rounded-xl flex items-center gap-6 shadow-xl">
+        <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 68 68">
             <defs>
               <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -257,37 +262,38 @@ export default function Checklist({ projectId }) {
               className="transition-all duration-500 ease-out"
             />
           </svg>
-          <span className="absolute text-base font-bold text-white">
+          <span className="absolute text-sm font-bold text-white">
             {progressPercentage}%
           </span>
         </div>
 
         <div>
-          <h3 className="text-white font-bold text-xl leading-snug">
+          <h3 className="text-white font-bold text-lg leading-snug">
             {completedCount} de {totalItems} verificações concluídas
           </h3>
-          <p className="text-sm text-gray-400 mt-1.5 max-w-xl leading-relaxed">
+          <p className="text-xs text-gray-400 mt-1 max-w-xl leading-relaxed">
             Use o checklist como guia de qualidade narrativa. Adapte às necessidades da sua história.
           </p>
         </div>
       </div>
 
-      <div className="space-y-12">
+      {/* CATEGORIAS E CARDS DE VERIFICAÇÃO (PROPORÇÃO INTERMEDIÁRIA) */}
+      <div className="space-y-8">
         {checklistCategories.map((category) => {
           const categoryCompleted = category.items.filter((item) => checkedItems[item]).length;
 
           return (
-            <section key={category.title} className="space-y-5">
+            <section key={category.title} className="space-y-3">
               <div className="flex justify-between items-center px-1">
-                <h2 className="text-xl font-bold text-white tracking-wide">
+                <h2 className="text-base font-bold text-white tracking-wide">
                   {category.title}
                 </h2>
-                <span className={`text-xs font-bold px-3.5 py-1 rounded-full border ${category.badgeStyle}`}>
+                <span className={`text-xs font-bold px-3 py-0.5 rounded-full border ${category.badgeStyle}`}>
                   {categoryCompleted}/{category.items.length}
                 </span>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {category.items.map((item) => {
                   const isChecked = !!checkedItems[item];
 
@@ -295,14 +301,14 @@ export default function Checklist({ projectId }) {
                     <label
                       key={item}
                       onClick={() => toggleCheck(item)}
-                      className={`flex items-center gap-6 px-7 py-6 rounded-2xl border cursor-pointer transition-all duration-200 min-h-[72px] ${
+                      className={`flex items-center gap-4 px-5 py-4 rounded-xl border cursor-pointer transition-all duration-200 ${
                         isChecked
                           ? 'bg-[#12141d] border-gray-700/80 text-gray-200'
                           : 'bg-[#111118] border-gray-800/80 text-gray-300 hover:border-gray-700 hover:bg-[#151520]'
                       }`}
                     >
                       <span
-                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-base font-bold shrink-0 transition-all ${
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
                           isChecked
                             ? category.checkColor
                             : 'border-gray-700 bg-transparent text-transparent hover:border-gray-500'
@@ -311,7 +317,7 @@ export default function Checklist({ projectId }) {
                         ✓
                       </span>
 
-                      <span className={`text-lg font-medium leading-relaxed ${isChecked ? 'line-through opacity-60 text-gray-400' : ''}`}>
+                      <span className={`text-sm font-medium leading-relaxed ${isChecked ? 'line-through opacity-60 text-gray-400' : ''}`}>
                         {item}
                       </span>
                     </label>
