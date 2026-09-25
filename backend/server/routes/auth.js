@@ -1,28 +1,62 @@
 // backend/server/routes/auth.js
-// Rota de autenticação e gerenciamento de usuários
+// Rotas de Autenticação, Validação MX e Disparo de E-mails
 
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import prisma from '../config/prisma.js';
-import { getConfirmationEmailHTML } from '../utils/emailTemplate.js';
+import { 
+  getConfirmationEmailHTML, 
+  getResetPasswordEmailHTML, 
+  getDeleteAccountEmailHTML 
+} from './utils/emailTemplate.js';
 
 const router = express.Router();
+const dnsPromises = dns.promises;
 
-const users = [];
-const verificationTokens = new Map();
-
+// Transporter do Nodemailer
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: process.env.EMAIL_PORT || 587,
+  port: Number(process.env.EMAIL_PORT) || 587,
   secure: false,
   auth: {
-    user: process.env.EMAIL_USER || 'seuemail@gmail.com',
+    user: process.env.EMAIL_USER || 'app.storyforge@gmail.com',
     pass: process.env.EMAIL_PASS || 'suasenhadeaplicativo',
   },
 });
 
-// POST /api/auth/register (Cadastro / Reenvio de Ativação)
+// Helper: Validação de Senha Forte
+function isStrongPassword(password) {
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password); // Verifica caracteres especiais
+  const isLongEnough = password && password.length >= 8;
+
+  return isLongEnough && hasUppercase && hasLowercase && hasSpecialChar;
+}
+
+// Helper: Validação de Domínio MX
+async function validateEmailAddress(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { valid: false, reason: 'Formato de e-mail inválido.' };
+  }
+
+  const domain = email.split('@')[1];
+  try {
+    const mxRecords = await dnsPromises.resolveMx(domain);
+    if (!mxRecords || mxRecords.length === 0) {
+      return { valid: false, reason: `O domínio "${domain}" não possui servidor de e-mail ativo.` };
+    }
+  } catch (err) {
+    return { valid: false, reason: `O domínio de e-mail "${domain}" é inválido ou inacessível.` };
+  }
+
+  return { valid: true };
+}
+
+// 1. POST /api/auth/register (Cadastro & Envio de Confirmação)
 router.post('/register', async (req, res) => {
   try {
     const { fullName, writerName, email, password } = req.body;
@@ -31,96 +65,118 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
 
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: 'A senha deve conter no mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas e pelo menos um caractere especial.',
+      });
+    }
+
     const cleanEmail = email.toLowerCase().trim();
-    const existingUser = users.find((u) => u.email === cleanEmail);
 
-    // 1. SE O USUÁRIO JÁ EXISTE E JÁ FOI VERIFICADO
-    if (existingUser && existingUser.isVerified) {
-      return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login com outro email.' });
+    const emailValidation = await validateEmailAddress(cleanEmail);
+    if (!emailValidation.valid) {
+      return res.status(400).json({ message: emailValidation.reason });
     }
 
-    // 2. SE O USUÁRIO JÁ EXISTE MAS NÃO FOI VERIFICADO (OU É NOVO)
-    let userToProcess = existingUser;
+    let user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    if (!userToProcess) {
-      userToProcess = {
-        id: Date.now().toString(),
-        fullName,
-        writerName,
-        email: cleanEmail,
-        password,
-        isVerified: false,
-        createdAt: new Date(),
-      };
-      users.push(userToProcess);
-    } else {
-      // Atualiza os dados/senha caso o usuário tente se cadastrar novamente
-      userToProcess.fullName = fullName;
-      userToProcess.writerName = writerName;
-      userToProcess.password = password;
+    if (user && user.isVerified) {
+      return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login.' });
     }
 
-    // 3. GERA UM NOVO TOKEN E VINCULA AO E-MAIL
     const confirmToken = crypto.randomBytes(32).toString('hex');
-    verificationTokens.set(confirmToken, cleanEmail);
+    const tokenExp = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const confirmationLink = `http://localhost:5173/?confirmToken=${confirmToken}`;
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          fullName,
+          writerName,
+          name: writerName,
+          password,
+          isVerified: false,
+          verificationToken: confirmToken,
+          verificationTokenExp: tokenExp,
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          fullName,
+          writerName,
+          name: writerName,
+          password,
+          verificationToken: confirmToken,
+          verificationTokenExp: tokenExp,
+        },
+      });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const confirmationLink = `${frontendUrl}/?confirmToken=${confirmToken}`;
 
     const mailOptions = {
       from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
       to: cleanEmail,
-      subject: '🔮 Confirme seu e-mail — StoryForge',
+      subject: '🔨 Confirme seu e-mail — StoryForge',
       html: getConfirmationEmailHTML(writerName || fullName, confirmationLink),
     };
 
-    try {
-      await transporter.sendMail(mailOptions);
-    } catch (mailError) {
-      console.log(`\n📧 [FALLBACK DEV] Novo link de ativação: ${confirmationLink}\n`);
-    }
+    await transporter.sendMail(mailOptions);
 
     return res.status(200).json({
-      message: 'Link de confirmação gerado! Verifique seu e-mail ou o terminal para ativar.',
+      message: 'Link de confirmação enviado! Verifique sua caixa de entrada para ativar a conta.',
     });
   } catch (err) {
-    return res.status(500).json({ message: 'Erro interno ao cadastrar.' });
+    console.error('Erro no registro:', err);
+    return res.status(500).json({ message: 'Erro interno ao cadastrar usuário.' });
   }
 });
 
-// POST /api/auth/confirm-email (Ativa a conta 1 única vez)
+// 2. POST /api/auth/confirm-email (Ativação de Conta)
 router.post('/confirm-email', async (req, res) => {
   try {
     const { token } = req.body;
 
-    if (!token || !verificationTokens.has(token)) {
-      return res.status(400).json({ message: 'Link de verificação inválido ou expirado.' });
-    }
+    if (!token) return res.status(400).json({ message: 'Token de verificação ausente.' });
 
-    const email = verificationTokens.get(token);
-    const user = users.find((u) => u.email === email);
+    const user = await prisma.user.findFirst({
+      where: { verificationToken: token },
+    });
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuário não encontrado.' });
+      return res.status(400).json({ message: 'Link de verificação inválido ou já utilizado.' });
     }
 
-    user.isVerified = true;
-    verificationTokens.delete(token);
+    if (user.verificationTokenExp && user.verificationTokenExp < new Date()) {
+      return res.status(400).json({ message: 'O link de verificação expirou. Faça o cadastro novamente.' });
+    }
 
-    return res.status(200).json({
-      message: 'E-mail verificado com sucesso! Sua conta está ativa.',
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        verificationToken: null,
+        verificationTokenExp: null,
+      },
     });
+
+    return res.status(200).json({ message: 'E-mail verificado com sucesso! Sua conta está ativa.' });
   } catch (err) {
+    console.error('Erro na verificação de e-mail:', err);
     return res.status(500).json({ message: 'Erro ao validar e-mail.' });
   }
 });
 
-// POST /api/auth/login
+// 3. POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const cleanEmail = email?.toLowerCase().trim();
 
-    const user = users.find((u) => u.email === cleanEmail);
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
     if (!user || user.password !== password) {
       return res.status(401).json({ message: 'E-mail ou senha incorretos.' });
@@ -133,30 +189,225 @@ router.post('/login', async (req, res) => {
     }
 
     const token = `token_seguro_${user.id}`;
-    const { password: _, ...userClean } = user;
+    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
 
     return res.status(200).json({ token, user: userClean });
   } catch (err) {
+    console.error('Erro no login:', err);
     return res.status(500).json({ message: 'Erro interno no login.' });
   }
 });
 
-// GET /api/auth/me (Restaura a sessão automaticamente ao atualizar a página)
+// 4. GET /api/auth/me (Sessão)
 router.get('/me', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ message: 'Não autorizado' });
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'Não autorizado' });
 
-  const token = authHeader.split(' ')[1];
-  const userId = token?.replace('token_seguro_', '');
-  const user = users.find((u) => u.id === userId);
+    const token = authHeader.split(' ')[1];
+    const userId = token?.replace('token_seguro_', '');
 
-  if (!user) return res.status(401).json({ message: 'Sessão inválida' });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(401).json({ message: 'Sessão inválida' });
 
-  const { password: _, ...userClean } = user;
-  return res.status(200).json({ user: userClean });
+    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
+    return res.status(200).json({ user: userClean });
+  } catch (err) {
+    return res.status(401).json({ message: 'Erro ao obter sessão' });
+  }
 });
 
-// PUT /api/auth/profile - Atualiza o pseudônimo e dados do perfil
+// 5. POST /api/auth/forgot-password (Solicitação de Redefinição)
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Informe o seu e-mail.' });
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
+
+    if (!user) {
+      return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, enviamos o link de redefinição.' });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExp = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken, resetTokenExp },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/?resetToken=${resetToken}`;
+
+    const mailOptions = {
+      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
+      to: cleanEmail,
+      subject: '🔨Redefinição de Senha — StoryForge',
+      html: getResetPasswordEmailHTML(user.writerName || user.fullName || user.name, resetLink),
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, enviamos o link de redefinição.' });
+  } catch (err) {
+    console.error('Erro no forgot-password:', err);
+    return res.status(500).json({ message: 'Erro ao processar solicitação de redefinição.' });
+  }
+});
+
+// 6. POST /api/auth/reset-password (Confirmação da Nova Senha - Deslogado)
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token e nova senha são obrigatórios.' });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        message: 'A senha deve conter no mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas e pelo menos um caractere especial.',
+      });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { resetToken: token },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Link de redefinição inválido ou expirado.' });
+    }
+
+    if (user.resetTokenExp && user.resetTokenExp < new Date()) {
+      return res.status(400).json({ message: 'Este link de redefinição expirou. Solicite um novo.' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: newPassword,
+        resetToken: null,
+        resetTokenExp: null,
+      },
+    });
+
+    return res.status(200).json({ message: 'Senha alterada com sucesso! Você já pode fazer login.' });
+  } catch (err) {
+    console.error('Erro no reset-password:', err);
+    return res.status(500).json({ message: 'Erro ao atualizar a senha.' });
+  }
+});
+
+// 7. PUT /api/auth/change-password (Alteração de Senha - Logado em Configurações)
+router.put('/change-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'Não autorizado.' });
+
+    const token = authHeader.split(' ')[1];
+    const userId = token?.replace('token_seguro_', '');
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Informe a senha atual e a nova senha.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ message: 'A senha atual está incorreta.' });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        message: 'A senha deve conter no mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas e pelo menos um caractere especial.',
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: newPassword },
+    });
+
+    return res.status(200).json({ message: 'Senha alterada com sucesso!' });
+  } catch (err) {
+    console.error('Erro no change-password:', err);
+    return res.status(500).json({ message: 'Erro ao alterar a senha.' });
+  }
+});
+
+// 8. POST /api/auth/request-delete (Solicitação de Exclusão)
+router.post('/request-delete', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'Não autorizado.' });
+
+    const token = authHeader.split(' ')[1];
+    const userId = token?.replace('token_seguro_', '');
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    const deleteToken = crypto.randomBytes(32).toString('hex');
+    const deleteTokenExp = new Date(Date.now() + 60 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deleteToken, deleteTokenExp },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const deleteLink = `${frontendUrl}/?deleteToken=${deleteToken}`;
+
+    const mailOptions = {
+      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
+      to: user.email,
+      subject: '🔨 Confirmação de Exclusão de Conta — StoryForge',
+      html: getDeleteAccountEmailHTML(user.writerName || user.fullName || user.name, deleteLink),
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ message: 'E-mail de confirmação de exclusão enviado com sucesso!' });
+  } catch (err) {
+    console.error('Erro no request-delete:', err);
+    return res.status(500).json({ message: 'Erro ao solicitar exclusão de conta.' });
+  }
+});
+
+// 9. POST /api/auth/confirm-delete (Exclusão Definitiva)
+router.post('/confirm-delete', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) return res.status(400).json({ message: 'Token de exclusão ausente.' });
+
+    const user = await prisma.user.findFirst({
+      where: { deleteToken: token },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Link de exclusão inválido ou já utilizado.' });
+    }
+
+    if (user.deleteTokenExp && user.deleteTokenExp < new Date()) {
+      return res.status(400).json({ message: 'Este link de exclusão expirou.' });
+    }
+
+    await prisma.user.delete({ where: { id: user.id } });
+
+    return res.status(200).json({ message: 'Sua conta e todos os seus projetos foram excluídos permanentemente.' });
+  } catch (err) {
+    console.error('Erro no confirm-delete:', err);
+    return res.status(500).json({ message: 'Erro ao excluir a conta.' });
+  }
+});
+
+// 10. PUT /api/auth/profile (Atualização do Pseudônimo)
 router.put('/profile', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -167,47 +418,24 @@ router.put('/profile', async (req, res) => {
     const { name } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'O nome/pseudônimo é obrigatório.' });
+      return res.status(400).json({ error: 'O pseudônimo é obrigatório.' });
     }
 
     const cleanName = name.trim();
 
-    // 1. Atualiza no array em memória
-    const memoryUser = users.find((u) => u.id === userId);
-    if (memoryUser) {
-      memoryUser.writerName = cleanName;
-      memoryUser.fullName = memoryUser.fullName || cleanName;
-    }
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        writerName: cleanName,
+        name: cleanName,
+      },
+    });
 
-    // 2. Atualiza ou registra no PostgreSQL via Prisma
-    let updatedUser;
-    try {
-      updatedUser = await prisma.user.upsert({
-        where: { id: userId },
-        update: { name: cleanName },
-        create: {
-          id: userId,
-          email: memoryUser?.email || `${userId}@storyforge.local`,
-          name: cleanName,
-          password: 'hash_placeholder',
-        },
-      });
-    } catch (uErr) {
-      console.log('Aviso (User em memória/Prisma):', uErr.message);
-    }
-
-    const responseUser = {
-      id: userId,
-      name: cleanName,
-      writerName: cleanName,
-      fullName: memoryUser?.fullName || updatedUser?.name || cleanName,
-      email: memoryUser?.email || updatedUser?.email || `${userId}@storyforge.local`,
-    };
-
-    return res.json({ user: responseUser });
+    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = updatedUser;
+    return res.json({ user: userClean });
   } catch (err) {
     console.error('Erro ao atualizar perfil:', err);
-    return res.status(500).json({ error: 'Erro ao atualizar perfil' });
+    return res.status(500).json({ error: 'Erro ao atualizar perfil.' });
   }
 });
 

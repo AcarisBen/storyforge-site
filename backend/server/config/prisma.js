@@ -1,3 +1,6 @@
+// backend/server/config/prisma.js
+// Configuração Singleton do Prisma Client para o StoryForge
+
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis;
