@@ -1,5 +1,6 @@
 // src/App.jsx
 // Componente principal da aplicação StoryForge com Roteamento de Segurança por E-mail
+
 import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -35,7 +36,23 @@ import {
   CheckSquare, BookOpen, Menu, FolderKanban 
 } from 'lucide-react';
 
-const navigation = [
+// ==========================================
+// MOCK DATA PARA MODO DESENVOLVIMENTO / TESTES
+// ==========================================
+const MOCK_USER = {
+  id: 'dev-user-123',
+  name: 'Desenvolvedor',
+  writerName: 'Autor Teste',
+  email: 'dev@storyforge.com',
+};
+
+const MOCK_PROJECT = {
+  id: 'projeto-teste-123',
+  title: 'Projeto de Teste',
+  format: 'Romance / Livro'
+};
+
+const NAVIGATION_ITEMS = [
   { title: 'Visão geral', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
   { 
     title: 'Fundação', 
@@ -129,7 +146,7 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
       </div>
 
       <nav className="sidebar-nav" aria-label="Navegação do projeto">
-        {navigation.map((section) => (
+        {NAVIGATION_ITEMS.map((section) => (
           <div className="nav-section" key={section.title}>
             {!isCollapsed && <p>{section.title}</p>}
             {section.items.map(([label, id, Icon]) => (
@@ -152,7 +169,11 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null); 
+  // Inicializado com dados fictícios para permitir testes rápidos sem login/seleção de projeto
+  const [currentUser, setCurrentUser] = useState(MOCK_USER); 
+  const [currentProject, setCurrentProject] = useState(MOCK_PROJECT);
+  const [activePage, setActivePage] = useState('escrita'); // Página inicial padrão para testes
+
   const [authScreen, setAuthScreen] = useState('login');
   
   // Captura de Tokens de E-mail via URL Query Params
@@ -161,8 +182,6 @@ export default function App() {
   const [deleteToken, setDeleteToken] = useState(null);
 
   const [loadingSession, setLoadingSession] = useState(true);
-  const [currentProject, setCurrentProject] = useState(null);
-  const [activePage, setActivePage] = useState('dashboard');
 
   useEffect(() => {
     const checkSession = async () => {
