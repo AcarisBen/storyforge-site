@@ -1,12 +1,14 @@
-// Home.jsx
+// src/pages/Home.jsx
+// Página inicial do StoryForge, exibindo a lista de projetos do usuário
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
   AlertTriangle, CheckCircle, XCircle, Trash2, Heart, 
-  Coffee, Copy, Check, X, Sparkles, User, Shield, Key, Info, Cookie, LogOut
+  Coffee, Copy, Check, X, Sparkles, User, Shield, Key, Info, LogOut, Cookie
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../context/ToastContext';
 
 const ESSENCIA_FIELDS = [
   'O que torna a história única?',
@@ -17,24 +19,29 @@ const ESSENCIA_FIELDS = [
   'Promessa ao público'
 ];
 
-export default function Home({ onSelectProject }) {
+export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
+  const { showToast } = useToast();
+
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', format: 'Romance / Livro' });
   const [loading, setLoading] = useState(true);
 
-  // Estados dos Modais
+  // Estados dos Modais Globais
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState('perfil');
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
-  // Estados das Configurações
-  const [displayName, setDisplayName] = useState('Usuário StoryForge');
-  const [email, setEmail] = useState('autor@storyforge.com');
+  // Estados das Configurações do Usuário
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
   // Apoio
@@ -51,9 +58,27 @@ export default function Home({ onSelectProject }) {
 
   useEffect(() => {
     fetchProjects();
+    fetchUserData();
   }, []);
 
-  // --- CÁLCULO DINÂMICO DE PROGRESSO IGUAL AO DASHBOARD ---
+  // Buscar dados reais do usuário logado
+  const fetchUserData = async () => {
+    if (currentUser) {
+      setDisplayName(currentUser.name || currentUser.nome || '');
+      setEmail(currentUser.email || '');
+    } else {
+      try {
+        const res = await apiClient.get('/auth/me');
+        if (res.data?.user) {
+          setDisplayName(res.data.user.name || res.data.user.nome || '');
+          setEmail(res.data.user.email || '');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar dados do usuário:', err);
+      }
+    }
+  };
+
   const calculateRealProjectProgress = async (projectId) => {
     try {
       const [
@@ -203,31 +228,116 @@ export default function Home({ onSelectProject }) {
       setIsModalOpen(false);
       setNewProject({ title: '', format: 'Romance / Livro' });
 
+      showToast({
+        type: 'success',
+        title: 'Projeto Criado',
+        message: 'Seu novo projeto foi criado com sucesso!',
+      });
+
       if (onSelectProject) onSelectProject(created);
     } catch (err) {
       console.error('Erro ao criar projeto:', err);
-      alert('Não foi possível conectar ao servidor para criar o projeto.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Conexão',
+        message: 'Não foi possível conectar ao servidor para criar o projeto.',
+      });
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('storyforge_token');
-    window.location.reload();
+  // Salvar Perfil do Autor na API
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!displayName.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Vazio',
+        message: 'O nome de exibição não pode ficar em branco.',
+      });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const res = await apiClient.put('/auth/profile', { name: displayName });
+      showToast({
+        type: 'success',
+        title: 'Perfil Salvo',
+        message: 'Nome de exibição salvo com sucesso!',
+      });
+      if (setCurrentUser && res.data?.user) {
+        setCurrentUser(res.data.user);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar nome:', err);
+      showToast({
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: err.response?.data?.error || 'Erro ao atualizar o perfil.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleDeleteProject = async (e, projectId, projectTitle) => {
-    e.stopPropagation();
-
-    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${projectTitle}"? Esta ação não pode ser desfeita.`)) {
+  // Redefinir Senha na API
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) {
+      showToast({
+        type: 'warning',
+        title: 'Campos Incompletos',
+        message: 'Preencha a senha atual e a nova senha.',
+      });
       return;
     }
 
     try {
-      await apiClient.delete(`/entities/projects/${projectId}`);
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      await apiClient.put('/auth/profile', { currentPassword, newPassword });
+      showToast({
+        type: 'success',
+        title: 'Senha Alterada',
+        message: 'Sua senha foi alterada com sucesso!',
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err) {
+      console.error('Erro ao alterar senha:', err);
+      showToast({
+        type: 'error',
+        title: 'Erro ao Alterar Senha',
+        message: err.response?.data?.error || 'Erro ao alterar a senha.',
+      });
+    }
+  };
+
+  // Logout com confirmação
+  const executeLogout = () => {
+    localStorage.removeItem('storyforge_token');
+    window.location.reload();
+  };
+
+  // Confirmar Exclusão do Projeto
+  const executeDeleteProject = async () => {
+    if (!projectToDelete) return;
+
+    try {
+      await apiClient.delete(`/entities/projects/${projectToDelete.id}`);
+      setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
+      showToast({
+        type: 'success',
+        title: 'Projeto Excluído',
+        message: `O projeto "${projectToDelete.title}" foi removido com sucesso.`,
+      });
     } catch (err) {
       console.error('Erro ao excluir projeto:', err);
-      alert('Não foi possível excluir o projeto. Tente novamente.');
+      showToast({
+        type: 'error',
+        title: 'Falha ao Excluir',
+        message: 'Não foi possível excluir o projeto. Tente novamente.',
+      });
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -473,7 +583,6 @@ export default function Home({ onSelectProject }) {
           <Heart size={15} className="fill-white" /> Apoie o Projeto
         </button>
 
-        {/* COLUNA COM CONFIGURAÇÕES E BOTÃO SAIR LOGO ABAIXO */}
         <div className="flex flex-col gap-2 items-end">
           <button 
             type="button" 
@@ -485,7 +594,7 @@ export default function Home({ onSelectProject }) {
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setShowLogoutModal(true)}
             className="flex items-center gap-2 px-4 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs font-bold rounded-xl transition-all cursor-pointer w-full justify-center"
           >
             <LogOut size={13} /> Sair da Conta
@@ -493,28 +602,25 @@ export default function Home({ onSelectProject }) {
         </div>
       </div>
 
-      {/* APRESENTAÇÃO / HERO COM A LOGO OFICIAL À ESQUERDA DO TÍTULO */}
-<div className="text-center max-w-2xl mx-auto mb-16">
-  <div className="flex items-center justify-center gap-4 mb-2">
-    {/* Imagem do Logo apontando para public/StoryForgeLOGO2.png */}
-    <img 
-      src="/StoryForgeLOGO2.png" 
-      alt="StoryForge Logo" 
-      className="w-16 h-16 object-contain shrink-0"
-    />
-    
-    {/* Título com o degradê do roxo ao laranja */}
-    <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-[#9333ea] via-[#c084fc] to-[#f97316] bg-clip-text text-transparent pb-2 pt-1 leading-tight select-none font-sans">
-      StoryForge
-    </h1>
-  </div>
-  
-  <p className="text-gray-400 text-base leading-relaxed">
-    Seu estúdio profissional de desenvolvimento narrativo. Da primeira ideia à Story Bible completa.
-  </p>
-</div>
+      {/* APRESENTAÇÃO / HERO */}
+      <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <img 
+            src="/StoryForgeLOGO2.png" 
+            alt="StoryForge Logo" 
+            className="w-16 h-16 object-contain shrink-0"
+          />
+          <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-[#9333ea] via-[#c084fc] to-[#f97316] bg-clip-text text-transparent pb-2 pt-1 leading-tight select-none font-sans">
+            StoryForge
+          </h1>
+        </div>
+        
+        <p className="text-gray-400 text-base leading-relaxed">
+          Seu estúdio profissional de desenvolvimento narrativo. Da primeira ideia à Story Bible completa.
+        </p>
+      </div>
 
-      {/* BARRA DE BUSCA E AÇÕES DE PROJETO */}
+      {/* BARRA DE BUSCA E AÇÕES */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
         <h2 className="text-2xl font-bold">Meus Projetos</h2>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -573,9 +679,7 @@ export default function Home({ onSelectProject }) {
             {filteredProjects.map((project) => {
               const rawTitle = project.title || project.name || 'Sem Título';
               const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
-
               const isImported = project.isImported || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
-              
               const authorName = project.author || project.writerName || 'Autor StoryForge';
               const importDate = project.exportedAt || new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR');
 
@@ -602,7 +706,10 @@ export default function Home({ onSelectProject }) {
                         <button
                           type="button"
                           title="Excluir projeto"
-                          onClick={(e) => handleDeleteProject(e, project.id, cleanTitle)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProjectToDelete({ id: project.id, title: cleanTitle });
+                          }}
                           className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={16} />
@@ -620,7 +727,6 @@ export default function Home({ onSelectProject }) {
                       <span className="text-white font-bold">{project.progress || 0}%</span>
                     </div>
 
-                    {/* BARRA COM GRADIENTE IGUAL À DO DASHBOARD */}
                     <div className="w-full bg-[#181824] h-2 rounded-full overflow-hidden border border-gray-800 mb-3">
                       <div 
                         className="bg-gradient-to-r from-purple-600 via-indigo-500 to-amber-500 h-full rounded-full transition-all duration-500" 
@@ -641,7 +747,7 @@ export default function Home({ onSelectProject }) {
         )}
       </div>
 
-      {/* POP-UP / MODAL DE CONFIGURAÇÕES */}
+      {/* MODAL DE CONFIGURAÇÕES */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
@@ -652,12 +758,14 @@ export default function Home({ onSelectProject }) {
             >
               <X size={20} />
             </button>
+
             <div className="border-b border-gray-800 pb-4">
               <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                 <Settings size={22} className="text-purple-400" /> Configurações
               </h3>
-              <p className="text-xs text-gray-400 mt-1">Gerencie seu perfil, segurança e preferências</p>
+              <p className="text-xs text-gray-400 mt-1">Gerencie seu perfil, segurança e preferências no StoryForge.</p>
             </div>
+
             <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
               {[
                 { id: 'perfil', label: 'Perfil do Autor', icon: User },
@@ -672,7 +780,7 @@ export default function Home({ onSelectProject }) {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveSettingsTab(tab.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
                       active ? 'bg-purple-600 text-white shadow-lg' : 'bg-[#171724] text-gray-400 hover:text-white'
                     }`}
                   >
@@ -681,37 +789,250 @@ export default function Home({ onSelectProject }) {
                 );
               })}
             </div>
+
             <div className="space-y-4">
+              {/* ABA 1: PERFIL */}
               {activeSettingsTab === 'perfil' && (
-                <form onSubmit={(e) => { e.preventDefault(); alert('Salvo com sucesso!'); }} className="space-y-4">
+                <form onSubmit={handleSaveProfile} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-400">Nome de Exibição / Pseudônimo</label>
                     <input
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500"
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                      placeholder="Seu nome oficial ou pseudônimo"
                     />
-                    <p className="text-[11px] text-gray-500">Exibido nos relatórios e StoryBible exportada.</p>
+                    <p className="text-[11px] text-gray-500">Exibido nos relatórios e na StoryBible exportada.</p>
                   </div>
-                  <button type="submit" className="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer">
-                    Salvar
-                  </button>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all"
+                    >
+                      {isSavingProfile ? 'Salvando...' : 'Salvar Nome'}
+                    </button>
+                  </div>
                 </form>
+              )}
+
+              {/* ABA 2: SEGURANÇA */}
+              {activeSettingsTab === 'seguranca' && (
+                <div className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400">E-mail da Conta</label>
+                    <input
+                      type="email"
+                      value={email}
+                      disabled
+                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-gray-400 opacity-75 cursor-not-allowed"
+                    />
+                  </div>
+
+                  <form onSubmit={handleResetPassword} className="pt-4 border-t border-gray-800 space-y-4">
+                    <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Alterar Senha</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-400">Senha Atual</label>
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-400">Nova Senha</label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
+                    >
+                      Atualizar Senha
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* ABA 3: PRIVACIDADE */}
+              {activeSettingsTab === 'privacidade' && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-2">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      <Cookie size={16} className="text-amber-400" /> Política de Cookies e Armazenamento
+                    </h4>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      Utilizamos armazenamento local exclusivamente para manter sua sessão conectada com segurança. Nenhum dado do seu manuscrito é compartilhado com terceiros.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 space-y-3">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sessão</h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowLogoutModal(true)}
+                      className="px-4 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <LogOut size={15} /> Encerrar Sessão neste Dispositivo
+                    </button>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-800 space-y-3">
+                    <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Trash2 size={15} /> Exclusão Permanente de Conta
+                    </h4>
+                    <p className="text-xs text-gray-400">
+                      A exclusão da conta apaga todos os seus projetos sem possibilidade de recuperação.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteAccountModal(true)}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl cursor-pointer"
+                    >
+                      Excluir Minha Conta
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ABA 4: SOBRE */}
+              {activeSettingsTab === 'sobre' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-3">
+                    <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                      <span className="text-xs text-gray-400 font-bold">Versão Atual</span>
+                      <span className="text-xs font-mono font-bold text-purple-400">v1.0.0 (Beta)</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                      <span className="text-xs text-gray-400 font-bold">Ambiente</span>
+                      <span className="text-xs font-mono text-gray-300">Desenvolvimento Independente</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400 font-bold">Suporte</span>
+                      <span className="text-xs text-purple-300">suporte@storyforge.com.br</span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
-      {showDeleteModal && (
+      {/* MODAL CONFIRMAÇÃO DE LOGOUT */}
+      {showLogoutModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setShowLogoutModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-950/50 border border-red-800/50 rounded-xl text-red-400">
+                <LogOut size={22} />
+              </div>
+              <h3 className="text-base font-bold text-white">Encerrar Sessão</h3>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Deseja realmente encerrar a sessão neste dispositivo?
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={executeLogout}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Sim, Sair
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAÇÃO DE EXCLUSÃO DE PROJETO */}
+      {projectToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setProjectToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-950/50 border border-red-800/50 rounded-xl text-red-400">
+                <AlertTriangle size={22} />
+              </div>
+              <h3 className="text-base font-bold text-white">Excluir Projeto</h3>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Tem certeza que deseja excluir o projeto <b>"{projectToDelete.title}"</b>? Esta ação não poderá ser desfeita.
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={executeDeleteProject}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Sim, Excluir
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectToDelete(null)}
+                className="px-4 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EXCLUSÃO DE CONTA */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setShowDeleteAccountModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
             {!deleteEmailSent ? (
               <>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <AlertTriangle className="text-red-500" size={18} /> Confirmar Exclusão
+                  <AlertTriangle className="text-red-500" size={18} /> Confirmar Exclusão de Conta
                 </h3>
                 <p className="text-xs text-gray-300">
                   Enviaremos um e-mail de confirmação para <b>{email}</b>.
@@ -720,14 +1041,14 @@ export default function Home({ onSelectProject }) {
                   <button
                     type="button"
                     onClick={() => setDeleteEmailSent(true)}
-                    className="flex-1 py-2 bg-red-600 text-white font-bold text-xs rounded-xl cursor-pointer"
+                    className="flex-1 py-2.5 bg-red-600 text-white font-bold text-xs rounded-xl cursor-pointer"
                   >
                     Enviar E-mail
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowDeleteModal(false)}
-                    className="px-4 py-2 bg-[#171724] text-gray-400 font-bold text-xs rounded-xl cursor-pointer"
+                    onClick={() => setShowDeleteAccountModal(false)}
+                    className="px-4 py-2.5 bg-[#171724] text-gray-400 font-bold text-xs rounded-xl cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -740,7 +1061,7 @@ export default function Home({ onSelectProject }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowDeleteModal(false);
+                    setShowDeleteAccountModal(false);
                     setDeleteEmailSent(false);
                   }}
                   className="w-full py-2 bg-[#171724] text-white font-bold text-xs rounded-xl cursor-pointer"

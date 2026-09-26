@@ -1,5 +1,10 @@
+// src/pages/Cenas.jsx
+// Página de gerenciamento de cenas do projeto, incluindo criação, edição e reordenação
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../context/ToastContext';
+import { AlertTriangle, X } from 'lucide-react';
 
 const guideTabs = {
   Objetivo: <p>Estruturar cada cena como uma unidade dramática que avança a história.</p>,
@@ -90,12 +95,17 @@ function SceneInlineForm({ scene, onChange }) {
 }
 
 export default function Cenas({ projectId }) {
+  const { showToast } = useToast();
+
   const [scenes, setScenes] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [expandedScene, setExpandedScene] = useState(null);
   const [draggedScene, setDraggedScene] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Estado para modal de exclusão (substitui o window.confirm)
+  const [sceneToDelete, setSceneToDelete] = useState(null);
 
   // Carregar cenas do PostgreSQL ao abrir a página
   useEffect(() => {
@@ -146,9 +156,19 @@ export default function Cenas({ projectId }) {
       setExpandedScene(created.id);
       setIsCreating(false);
       setNewTitle('');
+
+      showToast({
+        type: 'success',
+        title: 'Cena Criada',
+        message: 'A nova cena foi criada com sucesso!',
+      });
     } catch (err) {
       console.error('Erro ao criar cena:', err);
-      alert('Não foi possível criar a cena.');
+      showToast({
+        type: 'error',
+        title: 'Erro ao Criar',
+        message: 'Não foi possível criar a cena.',
+      });
     }
   }
 
@@ -175,17 +195,29 @@ export default function Cenas({ projectId }) {
     }, 1000);
   }
 
-  // Excluir cena
-  async function deleteScene(id, title) {
-    if (!window.confirm(`Tem certeza que deseja excluir a cena "${title || 'sem título'}"?`)) return;
+  // Executar exclusão confirmada
+  async function executeDeleteScene() {
+    if (!sceneToDelete) return;
 
     try {
-      await apiClient.delete(`/entities/scenes/${id}`);
-      setScenes((prev) => prev.filter((item) => item.id !== id));
-      if (expandedScene === id) setExpandedScene(null);
+      await apiClient.delete(`/entities/scenes/${sceneToDelete.id}`);
+      setScenes((prev) => prev.filter((item) => item.id !== sceneToDelete.id));
+      if (expandedScene === sceneToDelete.id) setExpandedScene(null);
+
+      showToast({
+        type: 'success',
+        title: 'Cena Excluída',
+        message: `A cena "${sceneToDelete.title || 'sem título'}" foi removida.`,
+      });
     } catch (err) {
       console.error('Erro ao excluir cena:', err);
-      alert('Erro ao excluir a cena.');
+      showToast({
+        type: 'error',
+        title: 'Erro ao Excluir',
+        message: 'Não foi possível excluir a cena.',
+      });
+    } finally {
+      setSceneToDelete(null);
     }
   }
 
@@ -315,18 +347,18 @@ export default function Cenas({ projectId }) {
                   {expandedScene === scene.id ? '⌃' : '⌄'}
                 </button>
 
-                {/* Botão de Excluir Direto */}
+                {/* Botão de Excluir */}
                 <button
                   className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-2 rounded-lg hover:bg-red-950/30 transition-all"
                   type="button"
                   aria-label={`Excluir ${scene.title}`}
-                  onClick={() => deleteScene(scene.id, scene.title)}
+                  onClick={() => setSceneToDelete(scene)}
                 >
                   Excluir
                 </button>
               </header>
 
-              {/* Expansão e Edição Direta sem necessidade de botões de Salvar/Cancelar */}
+              {/* Expansão e Edição Direta */}
               {expandedScene === scene.id && (
                 <div className="scene-details p-4 bg-[#161622] border-t border-gray-800">
                   <SceneInlineForm
@@ -337,6 +369,49 @@ export default function Cenas({ projectId }) {
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      {sceneToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setSceneToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-950/50 border border-red-800/50 rounded-xl text-red-400">
+                <AlertTriangle size={22} />
+              </div>
+              <h3 className="text-base font-bold text-white">Excluir Cena</h3>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Tem certeza que deseja excluir a cena <b>"{sceneToDelete.title || 'sem título'}"</b>? Esta ação não poderá ser desfeita.
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={executeDeleteScene}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Sim, Excluir
+              </button>
+              <button
+                type="button"
+                onClick={() => setSceneToDelete(null)}
+                className="px-4 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

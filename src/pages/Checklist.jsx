@@ -1,5 +1,9 @@
+// src/pages/Checklist.jsx
+// Página de Checklist de Desenvolvimento Narrativo, com categorias e itens de verificação
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../context/ToastContext';
 
 // Configuração das categorias do checklist com paleta de cores 100% exclusiva
 const checklistCategories = [
@@ -153,6 +157,8 @@ const checklistCategories = [
 ];
 
 export default function Checklist({ projectId }) {
+  const { showToast } = useToast();
+
   const [checkedItems, setCheckedItems] = useState({});
   const [savingStatus, setSavingStatus] = useState('Salvo');
   const isFirstRender = useRef(true);
@@ -176,6 +182,11 @@ export default function Checklist({ projectId }) {
         }
       } catch (err) {
         console.error('Erro ao buscar Checklist:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Carregamento',
+          message: 'Não foi possível carregar as informações do checklist.',
+        });
       }
     };
 
@@ -199,6 +210,11 @@ export default function Checklist({ projectId }) {
       } catch (err) {
         console.error('Erro ao salvar Checklist:', err);
         setSavingStatus('Erro ao salvar');
+        showToast({
+          type: 'error',
+          title: 'Erro de Salvamento',
+          message: 'Não foi possível salvar as alterações do checklist.',
+        });
       }
     }, 1200);
 

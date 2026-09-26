@@ -1,11 +1,16 @@
+// src/pages/Configuracoes.jsx
+// Página de Configurações do StoryForge, permitindo ao usuário gerenciar perfil, segurança, privacidade e conta
+
 import React, { useState, useEffect } from 'react';
 import { 
   User, Shield, LogOut, Trash2, AlertTriangle, 
-  Key, Info, CheckCircle, Cookie 
+  Key, Info, CheckCircle, Cookie, X
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../context/ToastContext';
 
 export default function Configuracoes({ currentUser, setCurrentUser }) {
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('perfil');
 
   // Inicializa os estados com os dados do usuário logado
@@ -15,9 +20,10 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [newPassword, setNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modais de Exclusão
+  // Modais de Exclusão e Logout
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Carrega os dados reais do usuário logado
   useEffect(() => {
@@ -41,20 +47,32 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!displayName.trim()) {
-      alert('O nome de exibição não pode ficar em branco.');
+      showToast({
+        type: 'warning',
+        title: 'Campo Vazio',
+        message: 'O nome de exibição não pode ficar em branco.',
+      });
       return;
     }
 
     setIsSaving(true);
     try {
       const res = await apiClient.put('/auth/profile', { name: displayName });
-      alert('Nome de exibição salvo com sucesso!');
+      showToast({
+        type: 'success',
+        title: 'Perfil Salvo',
+        message: 'Nome de exibição salvo com sucesso!',
+      });
       if (setCurrentUser && res.data?.user) {
         setCurrentUser(res.data.user);
       }
     } catch (err) {
       console.error('Erro ao salvar nome:', err);
-      alert(err.response?.data?.error || 'Erro ao atualizar o perfil.');
+      showToast({
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: err.response?.data?.error || 'Erro ao atualizar o perfil.',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -64,26 +82,37 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) {
-      alert('Preencha a senha atual e a nova senha.');
+      showToast({
+        type: 'warning',
+        title: 'Campos Incompletos',
+        message: 'Preencha a senha atual e a nova senha.',
+      });
       return;
     }
 
     try {
       await apiClient.put('/auth/profile', { currentPassword, newPassword });
-      alert('Senha alterada com sucesso!');
+      showToast({
+        type: 'success',
+        title: 'Senha Alterada',
+        message: 'Sua senha foi alterada com sucesso!',
+      });
       setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
       console.error('Erro ao alterar senha:', err);
-      alert(err.response?.data?.error || 'Erro ao alterar a senha.');
+      showToast({
+        type: 'error',
+        title: 'Erro ao Alterar Senha',
+        message: err.response?.data?.error || 'Erro ao alterar a senha.',
+      });
     }
   };
 
-  const handleLogout = () => {
-    if (confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
-      localStorage.removeItem('storyforge_token');
-      window.location.href = '/login';
-    }
+  // Executar encerramento de sessão
+  const executeLogout = () => {
+    localStorage.removeItem('storyforge_token');
+    window.location.href = '/login';
   };
 
   return (
@@ -228,7 +257,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sessão</h3>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutModal(true)}
                 className="px-4 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer"
               >
                 <LogOut size={15} /> Encerrar Sessão neste Dispositivo
@@ -277,10 +306,61 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         )}
       </div>
 
+      {/* MODAL DE CONFIRMAÇÃO DE LOGOUT */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setShowLogoutModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-950/50 border border-red-800/50 rounded-xl text-red-400">
+                <LogOut size={22} />
+              </div>
+              <h3 className="text-base font-bold text-white">Encerrar Sessão</h3>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Deseja realmente encerrar a sessão neste dispositivo?
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={executeLogout}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Sim, Sair
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
             {!deleteEmailSent ? (
               <>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">

@@ -1,4 +1,5 @@
 // src/pages/Dashboard.jsx
+// Página do Dashboard do Projeto, exibindo visão geral, progresso e estatísticas do projeto
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';

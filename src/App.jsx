@@ -1,3 +1,6 @@
+// src/App.jsx
+// Componente principal da aplicação StoryForge, gerenciando autenticação, seleção de projeto e navegação entre módulos
+
 import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';

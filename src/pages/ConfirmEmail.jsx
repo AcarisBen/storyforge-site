@@ -1,3 +1,6 @@
+// src/pages/ConfirmEmail.jsx
+// Página de confirmação de e-mail, responsável por validar o token enviado ao usuário e exibir o status da verificação
+
 import React, { useEffect, useState, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
