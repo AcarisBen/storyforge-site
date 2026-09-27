@@ -1,3 +1,6 @@
+// src/pages/Relacoes.jsx
+// Página de Relações entre Personagens do StoryForge. Como as conexões entre personagens moldam a narrativa e o conflito.
+
 import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -58,6 +61,7 @@ export default function Relacoes({ projectId }) {
   const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
   const [relations, setRelations] = useState([]);
+  const [savingStatus, setSavingStatus] = useState('Salvo');
 
   const [isGuideOpen, setIsGuideOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dicas');
@@ -171,6 +175,8 @@ export default function Relacoes({ projectId }) {
       return;
     }
 
+    setSavingStatus('Salvando...');
+
     const payload = {
       id: editingId,
       projectId,
@@ -190,39 +196,49 @@ export default function Relacoes({ projectId }) {
         setRelations((prev) => [...prev, res.data]);
       }
       setIsFormOpen(false);
+      setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao salvar relação:', err);
+      setSavingStatus('Erro ao salvar');
       alert('Não foi possível salvar a relação no banco de dados.');
     }
   };
 
   const handleDeleteRelation = async (id, e) => {
     e.stopPropagation();
+    setSavingStatus('Salvando...');
     try {
       await apiClient.delete(`/entities/relations/${id}`);
       setRelations((prev) => prev.filter((r) => r.id !== id));
+      setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao deletar relação:', err);
+      setSavingStatus('Erro ao salvar');
       alert('Erro ao excluir relação.');
     }
   };
 
   return (
-    <main className="max-w-6xl mx-auto space-y-6 pb-32 text-gray-200 font-sans p-6">
-      <header className="mb-6">
-        <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
-          Relações
-        </h1>
-        <p className="text-sm text-gray-400">
-          Grafo interativo mostrando as conexões e dinâmicas entre personagens.
-        </p>
+    <main className="module-page w-full space-y-6 pb-32 text-gray-200 font-sans">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA RELAÇÕES */}
+      <header className="module-header flex justify-between items-center">
+        <div>
+          <h1>Relações</h1>
+          <p>Grafo interativo mostrando as conexões e dinâmicas entre personagens.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+        </div>
       </header>
 
-      <section className="mb-6 bg-[#12131a] border border-gray-800/80 rounded-xl overflow-hidden shadow-lg">
+      {/* GUIA DO MÓDULO */}
+      <section className="bg-[#12131a] border border-gray-800/80 rounded-xl overflow-hidden shadow-lg">
         <button
           type="button"
           onClick={() => setIsGuideOpen(!isGuideOpen)}
-          className="w-full px-4 py-3 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#181924] transition-colors"
+          className="w-full px-4 py-3 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#181924] transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <span className="text-amber-400">💡</span>
@@ -244,7 +260,7 @@ export default function Relacoes({ projectId }) {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === tab.id
                       ? 'bg-purple-950/80 text-purple-200 border border-purple-600/60 shadow'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
@@ -289,7 +305,8 @@ export default function Relacoes({ projectId }) {
         )}
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+      {/* CONTROLES E LEGENDA DE TIPOS DE RELAÇÃO */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400 font-medium">
           {Object.entries(RELATION_TYPES).map(([key, config]) => (
             <div key={key} className="flex items-center gap-1.5">
@@ -321,8 +338,9 @@ export default function Relacoes({ projectId }) {
         </div>
       </div>
 
+      {/* FORMULÁRIO DE CRIAÇÃO / EDIÇÃO */}
       {isFormOpen && (
-        <form onSubmit={handleSaveRelation} className="mb-6 p-4 bg-[#12131a] border border-purple-900/50 rounded-2xl space-y-4 shadow-xl">
+        <form onSubmit={handleSaveRelation} className="p-4 bg-[#12131a] border border-purple-900/50 rounded-2xl space-y-4 shadow-xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Personagem A</label>
@@ -374,7 +392,7 @@ export default function Relacoes({ projectId }) {
               <select
                 value={relSceneId}
                 onChange={(e) => setRelSceneId(e.target.value)}
-                className="w-full bg-[#181824] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
               >
                 <option value="">Geral (Todas as Cenas)</option>
                 {scenes.map((s) => (
@@ -417,6 +435,7 @@ export default function Relacoes({ projectId }) {
         </form>
       )}
 
+      {/* GRAFO E LISTA DE RELAÇÕES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[#12131a] border border-gray-800/80 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[500px] relative shadow-2xl">
           {characters.length === 0 ? (

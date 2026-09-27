@@ -1,13 +1,9 @@
-//Escrita.jsx
-// 
+// src/pages/Escrita.jsx
+// Página de Escrita do Projeto
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
-import {
-  analyzeWriting,
-  applyWritingSuggestion,
-  createWritingAnalyzer,
-  removeWritingAlert,
-} from '../lib/writing/writingAnalyzer.mjs';
+import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
@@ -122,6 +118,20 @@ function getFrameworkBadgeStyle(type = '') {
   return 'bg-purple-950/80 text-purple-300 border-purple-800/40';
 }
 
+function getCharacterBadgeStyle(type = '') {
+  const normalized = String(type).toLowerCase().trim();
+  if (normalized.includes('protagonista')) {
+    return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+  }
+  if (normalized.includes('antagonista')) {
+    return 'bg-red-900/60 text-red-300 border-red-500/50';
+  }
+  if (normalized.includes('secundario') || normalized.includes('secundário')) {
+    return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
+  }
+  return 'bg-gray-800 text-gray-300 border-gray-700';
+}
+
 function EscritaGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
@@ -174,20 +184,6 @@ function EscritaGuide() {
   );
 }
 
-function getCharacterBadgeStyle(type = '') {
-  const normalized = String(type).toLowerCase().trim();
-  if (normalized.includes('protagonista')) {
-    return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
-  }
-  if (normalized.includes('antagonista')) {
-    return 'bg-red-900/60 text-red-300 border-red-500/50';
-  }
-  if (normalized.includes('secundario') || normalized.includes('secundário')) {
-    return 'bg-blue-900/60 text-blue-300 border-blue-500/50';
-  }
-  return 'bg-gray-800 text-gray-300 border-gray-700';
-}
-
 export default function Escrita({ projectId, onNavigate }) {
   const [chapters, setChapters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -197,14 +193,32 @@ export default function Escrita({ projectId, onNavigate }) {
   const [draggedId, setDraggedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [writingAlerts, setWritingAlerts] = useState([]);
-  const [writingAnalyzer, setWritingAnalyzer] = useState(() => ({
-    analyze: analyzeWriting,
-  }));
-  const [isReviewOpen, setIsReviewOpen] = useState(true);
-  const [expandedAlertId, setExpandedAlertId] = useState(null);
+  const [showCorrectionsPanel, setShowCorrectionsPanel] = useState(true);
+  const [activeModalSuggestion, setActiveModalSuggestion] = useState(null);
 
-  // Categoria ativa no Apoio Visual
+  const ignoredSuggestionsRef = useRef(new Map());
+  const editorRef = useRef(null);
+  const grammarTimeoutRef = useRef(null);
+  const updateTimeoutRef = useRef({});
+
+  const getSugKey = (sug) => `${sug.original}_${sug.offset}_${sug.label}`;
+
+  // ESTADO DOS BOTÕES DA BARRA DE FERRAMENTAS
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false,
+    subscript: false,
+    superscript: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
+    insertUnorderedList: false,
+    insertOrderedList: false,
+  });
+
   const [activeDrawer, setActiveDrawer] = useState('personagens');
   const [searchTerm, setSearchTerm] = useState('');
   const [referenceData, setReferenceData] = useState({
@@ -217,7 +231,9 @@ export default function Escrita({ projectId, onNavigate }) {
     twists: [],
   });
 
-  // Carregar Capítulos e Dados de Apoio
+  const [textSuggestions, setTextSuggestions] = useState([]);
+
+  // BUSCA DADOS DO PROJETO
   useEffect(() => {
     if (!projectId) return;
 
@@ -310,7 +326,401 @@ export default function Escrita({ projectId, onNavigate }) {
     fetchData();
   }, [projectId]);
 
-  // Progresso
+  const selectedChapter = chapters.find((c) => c.id === selectedId);
+
+  // SINCRONIZA O CONTEÚDO DO CAPÍTULO SELECIONADO NO EDITOR DE TEXTO
+  useEffect(() => {
+    if (editorRef.current && selectedChapter) {
+      if (editorRef.current.innerHTML !== selectedChapter.content) {
+        editorRef.current.innerHTML = selectedChapter.content || '';
+      }
+    }
+  }, [selectedId]);
+
+  // ANÁLISE GRAMATICAL EM SEGUNDO PLANO (COM FILTRO DE ESPAÇO EM BRANCO)
+  useEffect(() => {
+    const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
+
+    if (!rawText || rawText.trim().length < 3) {
+      setTextSuggestions([]);
+      return;
+    }
+
+    if (grammarTimeoutRef.current) {
+      clearTimeout(grammarTimeoutRef.current);
+    }
+
+    grammarTimeoutRef.current = setTimeout(async () => {
+      let ltSuggestions = [];
+
+      try {
+        const response = await apiClient.post('/entities/grammar-check', { text: rawText });
+        const rawLt = response.data || [];
+
+        // Filtra regras de espaço em branco para não dar falso positivo ao usar formatação
+        ltSuggestions = rawLt.filter((s) => {
+          const isWhitespaceRule =
+            s.rule?.id === 'WHITESPACE_RULE' ||
+            (s.message && s.message.toLowerCase().includes('espaço em branco'));
+          return !isWhitespaceRule;
+        });
+      } catch (err) {
+        console.warn('LanguageTool indisponível:', err.message);
+      }
+
+      const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
+      const allSuggestions = [...ltSuggestions, ...customSuggestions];
+
+      const now = Date.now();
+      const validSuggestions = allSuggestions.filter((sug) => {
+        const key = getSugKey(sug);
+        const expireTime = ignoredSuggestionsRef.current.get(key);
+        if (expireTime && now < expireTime) {
+          return false;
+        }
+        return true;
+      });
+
+      setTextSuggestions(validSuggestions);
+    }, 500);
+
+    return () => {
+      if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
+    };
+  }, [selectedChapter?.content]);
+
+  // VERIFICA E ATUALIZA ESTADO ATIVO DOS BOTÕES DE FORMATAÇÃO
+  const checkActiveFormats = () => {
+    if (!editorRef.current) return;
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        strikeThrough: document.queryCommandState('strikeThrough'),
+        subscript: document.queryCommandState('subscript'),
+        superscript: document.queryCommandState('superscript'),
+        justifyLeft: document.queryCommandState('justifyLeft'),
+        justifyCenter: document.queryCommandState('justifyCenter'),
+        justifyRight: document.queryCommandState('justifyRight'),
+        justifyFull: document.queryCommandState('justifyFull'),
+        insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+        insertOrderedList: document.queryCommandState('insertOrderedList'),
+      });
+    } catch (e) {
+      // Ignora exceções em seleções nulas
+    }
+  };
+
+  const executeCmd = (command, value = null) => {
+    document.execCommand(command, false, value);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  const toggleSubscript = () => {
+    if (document.queryCommandState('superscript')) {
+      document.execCommand('superscript', false, null);
+    }
+    document.execCommand('subscript', false, null);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  const toggleSuperscript = () => {
+    if (document.queryCommandState('subscript')) {
+      document.execCommand('subscript', false, null);
+    }
+    document.execCommand('superscript', false, null);
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  // RECUO DE PRIMEIRA LINHA VIA CSS (SEM CARACTERES DE ESPAÇO)
+  const insertFirstLineIndent = () => {
+    if (!editorRef.current) return;
+
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+
+    let node = sel.anchorNode;
+    if (!node) return;
+
+    let block = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+
+    while (
+      block &&
+      block !== editorRef.current &&
+      !['P', 'DIV', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'LI'].includes(block.tagName)
+    ) {
+      block = block.parentElement;
+    }
+
+    if (!block || block === editorRef.current) {
+      document.execCommand('formatBlock', false, 'p');
+      const newSel = window.getSelection();
+      if (newSel && newSel.anchorNode) {
+        block =
+          newSel.anchorNode.nodeType === Node.ELEMENT_NODE
+            ? newSel.anchorNode
+            : newSel.anchorNode.parentElement;
+        while (block && block !== editorRef.current && !['P', 'DIV'].includes(block.tagName)) {
+          block = block.parentElement;
+        }
+      }
+    }
+
+    if (block && block !== editorRef.current) {
+      const hasIndent = block.style.textIndent && block.style.textIndent !== '0px';
+      block.style.textIndent = hasIndent ? '0px' : '2.5em';
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+  };
+
+  // ROLA APENAS A CAIXA DO EDITOR (SEM MOVER O SCROLL DA PÁGINA INTEIRA)
+  const handleCardClick = (e, sug) => {
+    if (
+      e.target.closest('button') ||
+      e.target.closest('select') ||
+      e.target.closest('option')
+    ) {
+      return;
+    }
+
+    highlightCorrectionInEditor(sug);
+
+    setTimeout(() => {
+      const mark = editorRef.current?.querySelector('#active-correction-mark');
+      const editor = editorRef.current;
+
+      if (mark && editor) {
+        const editorRect = editor.getBoundingClientRect();
+        const markRect = mark.getBoundingClientRect();
+
+        // Posição relativa da marca em relação ao topo visível do editor
+        const offsetTop = markRect.top - editorRect.top;
+
+        // Calcula a nova posição para centralizar o texto dentro da caixa do editor
+        const targetScrollTop = editor.scrollTop + offsetTop - (editor.clientHeight / 2) + (markRect.height / 2);
+
+        editor.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth',
+        });
+      }
+    }, 50);
+  };
+
+  const handleEditorInput = () => {
+    if (editorRef.current) {
+      updateSelectedChapter('content', editorRef.current.innerHTML);
+    }
+    checkActiveFormats();
+  };
+
+  // DESTAQUE ROXO EM TEMPO REAL
+  const highlightCorrectionInEditor = (sug) => {
+    if (!editorRef.current || !sug || !sug.original) return;
+    removeHighlightFromEditor();
+
+    editorRef.current.normalize();
+
+    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
+    const targetText = sug.original;
+    if (!targetText) return;
+
+    const occurrences = [];
+    let idx = fullText.indexOf(targetText);
+    while (idx !== -1) {
+      occurrences.push(idx);
+      idx = fullText.indexOf(targetText, idx + 1);
+    }
+
+    if (occurrences.length === 0) return;
+
+    let bestStartIndex = occurrences[0];
+    if (typeof sug.offset === 'number' && sug.offset >= 0) {
+      let minDiff = Infinity;
+      for (const pos of occurrences) {
+        const diff = Math.abs(pos - sug.offset);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestStartIndex = pos;
+        }
+      }
+    }
+
+    const bestEndIndex = bestStartIndex + targetText.length;
+
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+    let startNode = null;
+    let startOffsetInNode = 0;
+    let endNode = null;
+    let endOffsetInNode = 0;
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const nodeLen = node.nodeValue.length;
+      const nodeStart = charCount;
+      const nodeEnd = charCount + nodeLen;
+
+      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+        startNode = node;
+        startOffsetInNode = bestStartIndex - nodeStart;
+      }
+
+      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+        endNode = node;
+        endOffsetInNode = bestEndIndex - nodeStart;
+        break;
+      }
+
+      charCount += nodeLen;
+    }
+
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, startOffsetInNode);
+        range.setEnd(endNode, endOffsetInNode);
+
+        const mark = document.createElement('mark');
+        mark.id = 'active-correction-mark';
+        mark.style.cssText =
+          'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);';
+
+        const extracted = range.extractContents();
+        mark.appendChild(extracted);
+        range.insertNode(mark);
+      } catch (e) {
+        console.error('Erro ao grifar elemento no DOM:', e);
+      }
+    }
+  };
+
+  const removeHighlightFromEditor = () => {
+    if (!editorRef.current) return;
+    const mark = editorRef.current.querySelector('#active-correction-mark');
+    if (mark) {
+      const parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+      parent.normalize();
+    }
+  };
+
+  // APLICA CORREÇÃO NO LOCAL EXATO DO TEXTO
+  function handleApplyCorrection(suggestion, chosenReplacement) {
+    if (!selectedChapter || !editorRef.current) return;
+
+    removeHighlightFromEditor();
+    editorRef.current.normalize();
+
+    const replacementToUse = chosenReplacement || suggestion.replacement;
+    if (!replacementToUse || !suggestion.original) return;
+
+    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
+    const targetText = suggestion.original;
+
+    const occurrences = [];
+    let idx = fullText.indexOf(targetText);
+    while (idx !== -1) {
+      occurrences.push(idx);
+      idx = fullText.indexOf(targetText, idx + 1);
+    }
+
+    if (occurrences.length === 0) return;
+
+    let bestStartIndex = occurrences[0];
+    if (typeof suggestion.offset === 'number' && suggestion.offset >= 0) {
+      let minDiff = Infinity;
+      for (const pos of occurrences) {
+        const diff = Math.abs(pos - suggestion.offset);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestStartIndex = pos;
+        }
+      }
+    }
+
+    const bestEndIndex = bestStartIndex + targetText.length;
+
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+    let startNode = null;
+    let startOffsetInNode = 0;
+    let endNode = null;
+    let endOffsetInNode = 0;
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const nodeLen = node.nodeValue.length;
+      const nodeStart = charCount;
+      const nodeEnd = charCount + nodeLen;
+
+      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
+        startNode = node;
+        startOffsetInNode = bestStartIndex - nodeStart;
+      }
+
+      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
+        endNode = node;
+        endOffsetInNode = bestEndIndex - nodeStart;
+        break;
+      }
+
+      charCount += nodeLen;
+    }
+
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, startOffsetInNode);
+        range.setEnd(endNode, endOffsetInNode);
+
+        range.deleteContents();
+        const newTextNode = document.createTextNode(replacementToUse);
+        range.insertNode(newTextNode);
+      } catch (e) {
+        console.error('Erro na substituição do DOM:', e);
+        if (startNode === endNode) {
+          const val = startNode.nodeValue;
+          startNode.nodeValue =
+            val.substring(0, startOffsetInNode) +
+            replacementToUse +
+            val.substring(endOffsetInNode);
+        }
+      }
+    } else {
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
+        targetText,
+        replacementToUse
+      );
+    }
+
+    editorRef.current.normalize();
+    updateSelectedChapter('content', editorRef.current.innerHTML);
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+  }
+
+  function handleDismissSuggestion(sug) {
+    removeHighlightFromEditor();
+    const key = getSugKey(sug);
+    const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutos de espera
+    ignoredSuggestionsRef.current.set(key, Date.now() + COOLDOWN_MS);
+    setTextSuggestions((prev) => prev.filter((s) => s.id !== sug.id));
+  }
+
+  // CÁLCULO DE PROGRESSO
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
   let currentPoints = 0;
@@ -320,7 +730,8 @@ export default function Escrita({ projectId, onNavigate }) {
     if (c.type) currentPoints += 1;
 
     if (c.content && c.content.trim()) {
-      const wordCount = c.content.trim().split(/\s+/).length;
+      const textOnly = c.content.replace(/<[^>]*>/g, '').trim();
+      const wordCount = textOnly ? textOnly.split(/\s+/).length : 0;
       if (wordCount > 300) currentPoints += 8;
       else if (wordCount > 100) currentPoints += 5;
       else if (wordCount > 0) currentPoints += 2;
@@ -332,49 +743,15 @@ export default function Escrita({ projectId, onNavigate }) {
       ? Math.round((currentPoints / totalPossiblePoints) * 100)
       : 0;
 
-  const selectedChapter = chapters.find((c) => c.id === selectedId);
-
-  useEffect(() => {
-    let active = true;
-
-    createWritingAnalyzer()
-      .then((analyzer) => {
-        if (active && analyzer) setWritingAnalyzer(analyzer);
-      })
-      .catch((error) => {
-        console.warn('Dataset de escrita indisponível; usando analisador local:', error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    setWritingAlerts([]);
-    setIsReviewOpen(true);
-    setExpandedAlertId(null);
-  }, [selectedId]);
-
-  useEffect(() => {
-    const content = selectedChapter?.content || '';
-    const analysisTimeout = setTimeout(() => {
-      setWritingAlerts(writingAnalyzer.analyze(content));
-    }, 350);
-
-    return () => clearTimeout(analysisTimeout);
-  }, [selectedChapter?.content, selectedId, writingAnalyzer]);
-
-  // Copiar Capítulo (Título + Conteúdo)
   const handleCopyChapter = () => {
     if (!selectedChapter) return;
-    const fullText = `${selectedChapter.title}\n\n${selectedChapter.content || ''}`;
+    const plainText = editorRef.current ? editorRef.current.innerText : selectedChapter.content;
+    const fullText = `${selectedChapter.title}\n\n${plainText || ''}`;
     navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Criar capítulo
   async function handleAddChapter() {
     if (!newTitle.trim() || !projectId) return;
 
@@ -386,14 +763,12 @@ export default function Escrita({ projectId, onNavigate }) {
       };
 
       const res = await apiClient.post(`/entities/projects/${projectId}/chapters`, payload);
-      // Trata caso a API retorne diretamente o objeto ou envolto em .data
       const created = res?.data || res;
 
       if (!created || !created.id) {
-      throw new Error('A resposta da API não retornou um capítulo válido com ID.');
-    }
+        throw new Error('Resposta inválida do servidor ao criar capítulo.');
+      }
 
-      // Atualiza o estado de forma segura
       setChapters((prev) => [...(Array.isArray(prev) ? prev : []), created]);
       setSelectedId(created.id);
       setNewTitle('');
@@ -401,13 +776,11 @@ export default function Escrita({ projectId, onNavigate }) {
       setIsCreating(false);
     } catch (err) {
       console.error('Erro ao criar capítulo:', err);
-      alert('Não foi possível criar o capítulo. Verifique o servidor backend.');
+      alert('Não foi possível criar o capítulo.');
     }
   }
 
-  // Auto-save
-  const updateTimeoutRef = useRef({});
-
+  // SALVAMENTO AUTOMÁTICO NO BACKEND SEM STALE CLOSURE
   function updateSelectedChapter(key, value) {
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
@@ -419,33 +792,28 @@ export default function Escrita({ projectId, onNavigate }) {
       clearTimeout(updateTimeoutRef.current[selectedId]);
     }
 
-    updateTimeoutRef.current[selectedId] = setTimeout(async () => {
-      try {
-        const targetChapter = chapters.find((c) => c.id === selectedId);
-        if (!targetChapter) return;
+    updateTimeoutRef.current[selectedId] = setTimeout(() => {
+      setChapters((latestChapters) => {
+        const targetChapter = latestChapters.find((c) => c.id === selectedId);
 
-        const updatedData = { ...targetChapter, [key]: value };
-        await apiClient.put(`/entities/chapters/${selectedId}`, updatedData);
-      } catch (err) {
-        console.error('Erro ao salvar capítulo automaticamente:', err);
-      }
-    }, 1000);
+        if (targetChapter) {
+          const payload = {
+            title: targetChapter.title,
+            type: targetChapter.type,
+            content: targetChapter.content,
+          };
+
+          apiClient
+            .put(`/entities/chapters/${selectedId}`, payload)
+            .then(() => console.log('Capítulo salvo no backend com sucesso.'))
+            .catch((err) => console.error('Erro ao salvar no backend:', err));
+        }
+
+        return latestChapters;
+      });
+    }, 800);
   }
 
-  function handleApplyWritingSuggestion(alert, suggestion) {
-    if (!selectedChapter) return;
-    const content = selectedChapter.content || '';
-    const nextContent = applyWritingSuggestion(content, alert, suggestion);
-    if (nextContent === content) return;
-    updateSelectedChapter('content', nextContent);
-    setWritingAlerts(analyzeWriting(nextContent));
-  }
-
-  function handleIgnoreWritingAlert(alertId) {
-    setWritingAlerts((currentAlerts) => removeWritingAlert(currentAlerts, alertId));
-  }
-
-  // Excluir capítulo
   async function handleDeleteChapter(id, event) {
     event.stopPropagation();
     if (!window.confirm('Deseja excluir este capítulo?')) return;
@@ -478,23 +846,10 @@ export default function Escrita({ projectId, onNavigate }) {
     setDraggedId(null);
   }
 
-  // Renderiza ESTRITAMENTE campos preenchidos pelo usuário
   function renderFilledFields(item) {
     const ignoredKeys = [
-      'id',
-      'name',
-      'nome',
-      'title',
-      'type',
-      'pageKey',
-      'projectId',
-      'createdAt',
-      'updatedAt',
-      'imageUrl',
-      'avatarUrl',
-      'image',
-      'beat',
-      'sceneTitle',
+      'id', 'name', 'nome', 'title', 'type', 'pageKey', 'projectId',
+      'createdAt', 'updatedAt', 'imageUrl', 'avatarUrl', 'image', 'beat', 'sceneTitle',
     ];
 
     const entries = Object.entries(item).filter(
@@ -509,36 +864,16 @@ export default function Escrita({ projectId, onNavigate }) {
     if (entries.length === 0) return null;
 
     const fieldLabels = {
-      idade: 'Idade',
-      descricao: 'Descrição',
-      description: 'Descrição',
-      trauma: 'Trauma',
-      motivacao: 'Motivação',
-      objetivos: 'Objetivos',
-      historia: 'História',
-      passado: 'Passado',
-      segredo: 'Segredo',
-      detalhes: 'Detalhes',
-      act: 'Ato',
-      beat: 'Ponto (Beat)',
-      stage: 'Estágio',
-      objective: 'Objetivo',
-      summary: 'Resumo',
-      notes: 'Notas',
-      pacing: 'Ritmo',
-      intensity: 'Intensidade',
-      time: 'Momento/Tempo',
-      duration: 'Duração',
-      impact: 'Impacto Emocional',
-      location: 'Local',
-      conflict: 'Conflito',
-      hook: 'Gancho',
-      whoKnows: 'Quem sabe',
-      clues: 'Pistas',
-      revelation: 'Revelação',
-      planning: 'Planejamento',
-      foreshadowing: 'Foreshadowing',
-      consequence: 'Consequência',
+      idade: 'Idade', descricao: 'Descrição', description: 'Descrição',
+      trauma: 'Trauma', motivacao: 'Motivação', objetivos: 'Objetivos',
+      historia: 'História', passado: 'Passado', segredo: 'Segredo',
+      detalhes: 'Detalhes', act: 'Ato', beat: 'Ponto (Beat)',
+      stage: 'Estágio', objective: 'Objetivo', summary: 'Resumo',
+      notes: 'Notas', pacing: 'Ritmo', intensity: 'Intensidade',
+      time: 'Momento/Tempo', duration: 'Duração', impact: 'Impacto Emocional',
+      location: 'Local', conflict: 'Conflito', hook: 'Gancho',
+      whoKnows: 'Quem sabe', clues: 'Pistas', revelation: 'Revelação',
+      planning: 'Planejamento', foreshadowing: 'Foreshadowing', consequence: 'Consequência',
     };
 
     return (
@@ -555,9 +890,23 @@ export default function Escrita({ projectId, onNavigate }) {
     );
   }
 
+  const getBtnStyle = (isActive) =>
+    `w-7 h-7 rounded flex items-center justify-center font-bold text-xs transition-all cursor-pointer ${
+      isActive
+        ? 'bg-purple-600 text-white border border-purple-400 shadow-sm'
+        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+    }`;
+
   return (
     <main className="characters-page manuscript-page">
-      {/* Cabeçalho */}
+      <style>{`
+        .rich-editor-content ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
+        .rich-editor-content ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 0.5rem 0 !important; }
+        .rich-editor-content li { display: list-item !important; }
+        .rich-editor-content sub { vertical-align: sub !important; font-size: 0.75em !important; }
+        .rich-editor-content sup { vertical-align: super !important; font-size: 0.75em !important; }
+      `}</style>
+
       <header className="characters-header flex justify-between items-start mb-2">
         <div>
           <h1>Escrita & Manuscrito</h1>
@@ -569,7 +918,6 @@ export default function Escrita({ projectId, onNavigate }) {
         </div>
       </header>
 
-      {/* Barra de Progresso */}
       <div className="w-full h-1 bg-gray-800 rounded-full mb-6 overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-purple-600 to-amber-500 transition-all duration-300"
@@ -579,10 +927,11 @@ export default function Escrita({ projectId, onNavigate }) {
 
       <EscritaGuide />
 
-      {/* Grid Principal */}
+      {/* GRID COM EXPANSÃO HORIZONTAL (3 COLUNAS CAPÍTULOS / 9 COLUNAS EDITOR) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Coluna Esquerda: Lista de Capítulos */}
-        <div className="md:col-span-4 space-y-4">
+
+        {/* Painel de Capítulos */}
+        <div className="md:col-span-3 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Capítulos</h2>
             <button
@@ -670,8 +1019,8 @@ export default function Escrita({ projectId, onNavigate }) {
           )}
         </div>
 
-        {/* Coluna Direita: Editor de Escrita */}
-        <div className="md:col-span-8 space-y-4">
+        {/* Editor de Escrita Ampliado */}
+        <div className="md:col-span-9 space-y-4">
           {selectedChapter ? (
             <>
               <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-5 space-y-4 shadow-lg">
@@ -682,24 +1031,20 @@ export default function Escrita({ projectId, onNavigate }) {
                     value={selectedChapter.title}
                     onChange={(e) => updateSelectedChapter('title', e.target.value)}
                   />
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setIsReviewOpen((open) => !open)}
+                      onClick={() => setShowCorrectionsPanel((prev) => !prev)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        writingAlerts.length > 0
-                          ? 'bg-amber-950/70 border-amber-600/70 text-amber-200 hover:bg-amber-900/70'
+                        textSuggestions.length > 0
+                          ? 'bg-amber-950/60 border-amber-500/80 text-amber-300'
                           : 'bg-[#1c1c28] border-gray-800 text-gray-400'
                       }`}
-                      title="Abrir revisão de escrita"
-                      aria-expanded={isReviewOpen}
+                      title="Alternar Painel de Correção Ortográfica"
                     >
-                      <span aria-hidden="true">✦</span>
-                      <span>Revisar</span>
-                      <span className="rounded-full bg-black/25 px-1.5 py-0.5">
-                        {writingAlerts.length}
-                      </span>
+                      <span>✨</span>
+                      <span>{textSuggestions.length} Alertas</span>
                     </button>
 
                     <button
@@ -730,90 +1075,353 @@ export default function Escrita({ projectId, onNavigate }) {
                   </div>
                 </div>
 
-                {/* Área do Manuscrito Livre com Texto Justificado */}
-                <textarea
-                  className="w-full h-96 bg-transparent text-gray-200 placeholder-gray-600 text-sm leading-relaxed focus:outline-none resize-y text-justify"
-                  placeholder="Escreva livremente..."
-                  value={selectedChapter.content || ''}
-                  onChange={(e) => updateSelectedChapter('content', e.target.value)}
+                {/* BARRA DE FERRAMENTAS COM OS TAMANHOS A PARTIR DE 10pt */}
+                <div className="bg-[#191926] border border-gray-800 rounded-lg p-2 flex flex-wrap items-center gap-3 text-xs text-gray-300 select-none">
+
+                  {/* FONTE E TAMANHOS (10pt a 36pt) */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <select
+                      onChange={(e) => executeCmd('fontName', e.target.value)}
+                      className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Calibri">Calibri</option>
+                      <option value="Georgia">Georgia</option>
+                      <option value="Garamond">Garamond</option>
+                      <option value="Inter">Inter</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+
+                    <select
+                      onChange={(e) => executeCmd('fontSize', e.target.value)}
+                      className="bg-[#11111a] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="1">10pt</option>
+                      <option value="2">11pt</option>
+                      <option value="3">12pt</option>
+                      <option value="4">14pt</option>
+                      <option value="5">18pt</option>
+                      <option value="6">24pt</option>
+                      <option value="7">36pt</option>
+                    </select>
+                  </div>
+
+                  {/* ESTILOS DE TEXTO */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('bold')}
+                      className={getBtnStyle(activeFormats.bold)}
+                      title="Negrito (Ctrl+B)"
+                    >
+                      N
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('italic')}
+                      className={getBtnStyle(activeFormats.italic)}
+                      title="Itálico (Ctrl+I)"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('underline')}
+                      className={getBtnStyle(activeFormats.underline)}
+                      title="Sublinhado (Ctrl+U)"
+                    >
+                      S
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('strikeThrough')}
+                      className={getBtnStyle(activeFormats.strikeThrough)}
+                      title="Tachado"
+                    >
+                      abc
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleSubscript}
+                      className={getBtnStyle(activeFormats.subscript)}
+                      title="Subscrito"
+                    >
+                      x₂
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleSuperscript}
+                      className={getBtnStyle(activeFormats.superscript)}
+                      title="Sobrescrito"
+                    >
+                      x²
+                    </button>
+                  </div>
+
+                  {/* CORES E REALCE */}
+                  <div className="flex items-center gap-1.5 pr-3 border-r border-gray-800">
+                    <label className="flex items-center gap-1 cursor-pointer bg-[#11111a] px-2 py-1 rounded border border-gray-800 hover:border-gray-700">
+                      <span className="text-[10px] text-gray-400 font-semibold">Texto:</span>
+                      <input
+                        type="color"
+                        onChange={(e) => executeCmd('foreColor', e.target.value)}
+                        className="w-4 h-4 bg-transparent cursor-pointer border-none"
+                        title="Cor da Fonte"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer bg-[#11111a] px-2 py-1 rounded border border-gray-800 hover:border-gray-700">
+                      <span className="text-[10px] text-gray-400 font-semibold">Realce:</span>
+                      <input
+                        type="color"
+                        onChange={(e) => executeCmd('hiliteColor', e.target.value)}
+                        className="w-4 h-4 bg-transparent cursor-pointer border-none"
+                        title="Cor do Realce (Marca-Texto)"
+                      />
+                    </label>
+                  </div>
+
+                  {/* ALINHAMENTOS DE PARÁGRAFO */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyLeft')}
+                      className={getBtnStyle(activeFormats.justifyLeft)}
+                      title="Alinhar à Esquerda"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyCenter')}
+                      className={getBtnStyle(activeFormats.justifyCenter)}
+                      title="Centralizar"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyRight')}
+                      className={getBtnStyle(activeFormats.justifyRight)}
+                      title="Alinhar à Direita"
+                    >
+                      ≡
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('justifyFull')}
+                      className={getBtnStyle(activeFormats.justifyFull)}
+                      title="Justificar"
+                    >
+                      ⵂ
+                    </button>
+                  </div>
+
+                  {/* LISTAS E RECUOS */}
+                  <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('insertUnorderedList')}
+                      className={getBtnStyle(activeFormats.insertUnorderedList)}
+                      title="Lista com Marcadores"
+                    >
+                      •
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('insertOrderedList')}
+                      className={getBtnStyle(activeFormats.insertOrderedList)}
+                      title="Lista Numerada"
+                    >
+                      1.
+                    </button>
+
+                    {/* BOTÃO: RECUO DE PRIMEIRA LINHA VIA CSS */}
+                    <button
+                      type="button"
+                      onClick={insertFirstLineIndent}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer font-bold text-xs"
+                      title="Recuo de Primeira Linha / Parágrafo (Tab)"
+                    >
+                      ⇥₁
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('outdent')}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer"
+                      title="Diminuir Recuo"
+                    >
+                      ⇤
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('indent')}
+                      className="w-7 h-7 rounded hover:bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer"
+                      title="Aumentar Recuo"
+                    >
+                      ⇥
+                    </button>
+                  </div>
+
+                  {/* LIMPAR FORMATAÇÃO */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => executeCmd('removeFormat')}
+                      className="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs flex items-center gap-1 transition-all cursor-pointer font-semibold"
+                      title="Remover todas as formatações do texto selecionado"
+                    >
+                      <span>🧹</span>
+                      <span>Limpar Formatação</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* CONTAINER EDITÁVEL RICH TEXT */}
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  onInput={handleEditorInput}
+                  onKeyUp={checkActiveFormats}
+                  onMouseUp={checkActiveFormats}
+                  onSelect={checkActiveFormats}
+                  className="rich-editor-content w-full h-96 p-4 bg-[#11111a] text-gray-200 text-sm leading-relaxed focus:outline-none resize-y overflow-y-auto font-sans border border-gray-800/80 rounded-lg text-justify focus:border-purple-600 transition-all"
+                  style={{ minHeight: '384px' }}
                 />
+              </div>
 
-                {isReviewOpen && writingAlerts.length > 0 && (
-                  <section className="border-t border-purple-900/50 pt-4 space-y-3" aria-label="Revisão de escrita">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">Assistente de revisão</h3>
-                        <p className="text-xs text-gray-500">
-                          Sugestões locais para manter seu texto claro sem interferir no seu estilo.
-                        </p>
-                      </div>
-                      <span className="text-xs text-amber-300">
-                        {writingAlerts.length} {writingAlerts.length === 1 ? 'alerta' : 'alertas'}
-                      </span>
-                    </div>
+              {/* ASSISTENTE DE REVISÃO (ROLAGEM DENTRO DO EDITOR SEM MOVER A PÁGINA) */}
+              {showCorrectionsPanel && textSuggestions.length > 0 && (
+                <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 shadow-xl">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
+                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
+                      🪄 Assistente de Revisão ({textSuggestions.length} Alertas)
+                    </span>
+                    <span className="text-[11px] text-gray-400">Análise 100% privada e local</span>
+                  </div>
 
-                    <div className="space-y-2">
-                      {writingAlerts.map((alert) => (
-                        <article
-                          key={alert.id}
-                          className="rounded-lg border border-gray-800 bg-[#1a1a26] p-3 space-y-2"
+                  <div className="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                    {textSuggestions.map((sug) => {
+                      const options =
+                        sug.replacements && sug.replacements.length > 0
+                          ? sug.replacements
+                          : sug.replacement
+                          ? [sug.replacement]
+                          : [];
+
+                      const visibleOptions = options.slice(0, 4);
+                      const extraOptions = options.slice(4);
+
+                      return (
+                        <div
+                          key={sug.id}
+                          onMouseEnter={() => highlightCorrectionInEditor(sug)}
+                          onMouseLeave={removeHighlightFromEditor}
+                          onClick={(e) => handleCardClick(e, sug)}
+                          className="p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition-all border bg-[#1c1b2c] border-gray-800 hover:border-purple-500/80 cursor-pointer group"
+                          title="Clique no card para ir até a localização no texto"
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-amber-300">{alert.category}</span>
-                                <span className="text-[10px] uppercase tracking-wide text-gray-600">
-                                  {alert.severity}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-sm text-gray-200">
-                                <span className="rounded bg-red-950/40 px-1.5 py-0.5 text-red-200">
-                                  {alert.original}
-                                </span>
-                              </p>
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${sug.badgeStyle}`}>
+                                {sug.label}
+                              </span>
+                              <span className="text-gray-400 line-through truncate font-mono">
+                                "{sug.original}"
+                              </span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleIgnoreWritingAlert(alert.id)}
-                              className="text-xs text-gray-500 hover:text-gray-200 cursor-pointer"
-                            >
-                              Ignorar
-                            </button>
-                          </div>
-                          <p className="text-xs leading-relaxed text-gray-400">{alert.message}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {alert.suggestions
-                              .slice(0, expandedAlertId === alert.id ? alert.suggestions.length : 4)
-                              .map((suggestion) => (
-                              <button
-                                key={suggestion}
-                                type="button"
-                                onClick={() => handleApplyWritingSuggestion(alert, suggestion)}
-                                className="rounded-md border border-purple-700/70 bg-purple-950/40 px-2.5 py-1 text-xs text-purple-200 hover:bg-purple-800/60 cursor-pointer"
+
+                            <div className="flex items-center gap-1.5">
+                              <p
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveModalSuggestion(sug);
+                                }}
+                                className="text-gray-300 text-xs truncate cursor-pointer hover:text-purple-300 transition-colors"
+                                title="Clique para ver a explicação completa"
                               >
-                                {suggestion}
+                                {sug.message}
+                              </p>
+
+                              {sug.message && sug.message.length > 55 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveModalSuggestion(sug);
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline shrink-0 cursor-pointer"
+                                >
+                                  [ver mais]
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AÇÕES (ISOLADAS DE PROPAGAÇÃO DE CLIQUE) */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {visibleOptions.map((option, oIdx) => (
+                              <button
+                                key={oIdx}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApplyCorrection(sug, option);
+                                }}
+                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
+                              >
+                                {option}
                               </button>
                             ))}
-                            {alert.suggestions.length > 4 && (
-                              <button
-                                type="button"
-                                className="text-xs text-gray-400 hover:text-white cursor-pointer"
-                                onClick={() =>
-                                  setExpandedAlertId((currentId) =>
-                                    currentId === alert.id ? null : alert.id
-                                  )
-                                }
-                              >
-                                {expandedAlertId === alert.id ? 'Ver menos' : 'Ver mais'}
-                              </button>
+
+                            {extraOptions.length > 0 && (
+                              <div className="relative">
+                                <select
+                                  defaultValue=""
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    if (e.target.value) {
+                                      handleApplyCorrection(sug, e.target.value);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-lg cursor-pointer transition-colors outline-none pr-6 appearance-none"
+                                >
+                                  <option value="" disabled hidden>
+                                    +{extraOptions.length} mais ▾
+                                  </option>
+                                  {extraOptions.map((option, idx) => (
+                                    <option key={idx} value={option} className="bg-[#1c1b2c] text-white py-1">
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
+                                  ▼
+                                </span>
+                              </div>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDismissSuggestion(sug);
+                              }}
+                              className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
+                              title="Ignorar esta correção por 30 minutos"
+                            >
+                              ✕
+                            </button>
                           </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-16 text-center space-y-3">
@@ -826,7 +1434,7 @@ export default function Escrita({ projectId, onNavigate }) {
         </div>
       </div>
 
-      {/* SEÇÃO INFERIOR: APOIO VISUAL */}
+      {/* Seção Inferior: Apoio Visual */}
       <section className="mt-8 bg-[#14141e] border border-purple-900/50 rounded-xl p-6 space-y-5 shadow-2xl">
         <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-gray-800">
           <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -880,7 +1488,6 @@ export default function Escrita({ projectId, onNavigate }) {
           </div>
         </div>
 
-        {/* Renderização dos Cards */}
         {activeDrawer ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {referenceData[activeDrawer]
@@ -969,6 +1576,118 @@ export default function Escrita({ projectId, onNavigate }) {
           </p>
         )}
       </section>
+
+      {/* POPUP DE EXPLICAÇÃO COMPLETA (MODAL) */}
+      {activeModalSuggestion && (() => {
+        const allReplacements = activeModalSuggestion.replacements || 
+          (activeModalSuggestion.replacement ? [activeModalSuggestion.replacement] : []);
+
+        const mainReplacements = allReplacements.slice(0, 4);
+        const extraReplacements = allReplacements.slice(4);
+
+        return (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-[#181726] border border-purple-600/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+
+              {/* Cabeçalho do Modal */}
+              <div className="flex justify-between items-start pb-3 border-b border-gray-800">
+                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${activeModalSuggestion.badgeStyle}`}>
+                  {activeModalSuggestion.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModalSuggestion(null)}
+                  className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Trecho Original */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trecho do Texto:</h3>
+                <span className="text-red-300 font-mono bg-red-950/50 border border-red-900/60 px-3 py-1 rounded-lg text-sm inline-block line-through">
+                  "{activeModalSuggestion.original}"
+                </span>
+              </div>
+
+              {/* Explicação Detalhada */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Explicação Detalhada:</h3>
+                <div className="bg-[#11111a] border border-gray-800/90 p-4 rounded-xl text-gray-200 text-sm leading-relaxed max-h-48 overflow-y-auto">
+                  {activeModalSuggestion.message}
+                </div>
+              </div>
+
+              {/* Sugestões de Correção (4 Principais + Dropdown para Extras) */}
+              {allReplacements.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-800">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Sugestões de Correção ({allReplacements.length}):
+                  </h3>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 4 Botões Principais */}
+                    {mainReplacements.map((rep, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          handleApplyCorrection(activeModalSuggestion, rep);
+                          setActiveModalSuggestion(null);
+                        }}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs rounded-xl transition-all cursor-pointer shadow-md"
+                      >
+                        "{rep}"
+                      </button>
+                    ))}
+
+                    {/* Menu Suspenso (Dropdown) para Opções Extras */}
+                    {extraReplacements.length > 0 && (
+                      <div className="relative inline-block">
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleApplyCorrection(activeModalSuggestion, e.target.value);
+                              setActiveModalSuggestion(null);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-[#272438] hover:bg-[#322e48] border border-purple-500/50 text-purple-200 font-semibold text-xs rounded-xl cursor-pointer transition-colors outline-none pr-7 appearance-none"
+                        >
+                          <option value="" disabled hidden>
+                            +{extraReplacements.length} outras opções ▾
+                          </option>
+                          {extraReplacements.map((rep, idx) => (
+                            <option key={idx} value={rep} className="bg-[#1c1b2c] text-white py-1">
+                              Substituir por: "{rep}"
+                            </option>
+                          ))}
+                        </select>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-purple-300 text-[9px]">
+                          ▼
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Rodapé */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModalSuggestion(null)}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }

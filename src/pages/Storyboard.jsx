@@ -1273,7 +1273,7 @@ function StoryboardContent({ projectId }) {
       {/* STATUS DE SALVAMENTO NO TOPO DO CANVAS */}
       <div className="absolute top-4 left-20 z-30 flex items-center gap-2 bg-[#12121a]/90 backdrop-blur border border-gray-800 px-3 py-1.5 rounded-xl shadow-lg text-xs font-semibold pointer-events-none">
         <span className={isSaving ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}>
-          {isSaving ? '⏳ Salvando...' : '✓ Salvo no Banco'}
+          {isSaving ? '⏳ Salvando...' : '✓ Salvo'}
         </span>
       </div>
 

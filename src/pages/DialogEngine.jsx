@@ -1,10 +1,12 @@
-// DialogEngine.jsx
+// src/pages/DialogEngine.jsx
+// Página de Diálogos do StoryForge
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
 export default function DialogEngine({ projectId }) {
   const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState('Salvo');
 
   // Guia do Módulo
   const [guideOpen, setGuideOpen] = useState(true);
@@ -21,7 +23,7 @@ export default function DialogEngine({ projectId }) {
   const [selectedSceneId, setSelectedSceneId] = useState('');
   const [charAId, setCharAId] = useState('');
   const [charBId, setCharBId] = useState('none');
-  
+
   // Atmosfera Sonora
   const [soundOptions, setSoundOptions] = useState([
     'Sem áudio de fundo',
@@ -147,6 +149,7 @@ export default function DialogEngine({ projectId }) {
 
   // Salvar / Editar Diálogo
   const handleSaveDialogue = async () => {
+    setSavingStatus('Salvando...');
     const titleText = currentScene ? `Diálogo: ${currentScene.title || currentScene.nome}` : 'Diálogo sem cena';
 
     const payload = {
@@ -186,9 +189,11 @@ export default function DialogEngine({ projectId }) {
         setOpenCards((prev) => ({ ...prev, [createdCard.id]: true }));
       }
 
+      setSavingStatus('Salvo');
       resetForm();
     } catch (err) {
       console.error('Erro ao salvar diálogo:', err);
+      setSavingStatus('Erro ao salvar');
       alert('Erro ao salvar no servidor. Certifique-se de ter reiniciado o servidor após adicionar as rotas no backend.');
     }
   };
@@ -239,14 +244,17 @@ export default function DialogEngine({ projectId }) {
   };
 
   const handleDeleteCard = async (cardId) => {
+    setSavingStatus('Salvando...');
     try {
       await apiClient.delete(`/dialogues/${cardId}`).catch(() => 
         apiClient.delete(`/entities/dialogues/${cardId}`)
       );
       setSavedDialogues(savedDialogues.filter((d) => d.id !== cardId));
       if (editingCardId === cardId) resetForm();
+      setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao deletar diálogo:', err);
+      setSavingStatus('Erro ao salvar');
     }
   };
 
@@ -255,17 +263,21 @@ export default function DialogEngine({ projectId }) {
   }
 
   return (
-    <main className="dialog-engine-page max-w-6xl mx-auto space-y-8 pb-32 text-gray-200 font-sans">
-      
-      {/* 1. GUIA DO MÓDULO */}
-      <header className="mb-6">
-        <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
-          Diálogos
-        </h1>
-        <p className="text-sm text-gray-400">
-          Construção de conversas e monólogos para revelar subtexto e conflito.
-        </p>
+    <main className="module-page w-full space-y-8 pb-32 text-gray-200 font-sans">
+      {/* CABEÇALHO PADRONIZADO (SEM BARRA E PERCENTUAL DE PROGRESSO) */}
+      <header className="module-header flex justify-between items-center">
+        <div>
+          <h1>Diálogos</h1>
+          <p>Construção de conversas e monólogos para revelar subtexto e conflito.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+        </div>
       </header>
+
+      {/* 1. GUIA DO MÓDULO */}
       <section className="bg-[#11111a] border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="flex justify-between items-center p-4 bg-[#161622] border-b border-gray-800/80">
           <div className="flex items-center gap-2">

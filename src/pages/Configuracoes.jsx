@@ -13,7 +13,6 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('perfil');
 
-  // Inicializa os estados com os dados do usuário logado
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -25,28 +24,30 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Carrega os dados reais do usuário logado
+  // Carrega prioritariamente o pseudônimo vindo do cadastro ou da API
   useEffect(() => {
     if (currentUser) {
-      setDisplayName(currentUser.name || currentUser.nome || '');
+      setDisplayName(currentUser.writerName || currentUser.fullName || currentUser.name || '');
       setEmail(currentUser.email || '');
     } else {
-      // Fallback caso não venha via props: busca direto da API /auth/me
       apiClient.get('/auth/me')
         .then((res) => {
           if (res.data?.user) {
-            setDisplayName(res.data.user.name || res.data.user.nome || '');
-            setEmail(res.data.user.email || '');
+            const u = res.data.user;
+            setDisplayName(u.writerName || u.fullName || u.name || '');
+            setEmail(u.email || '');
           }
         })
         .catch((err) => console.error('Erro ao carregar usuário:', err));
     }
   }, [currentUser]);
 
-  // Salvar Nome / Perfil no Backend
+  // 1. Salva o pseudônimo no backend, atualiza o estado React e o localStorage
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!displayName.trim()) {
+    const cleanName = displayName.trim();
+
+    if (!cleanName) {
       showToast({
         type: 'warning',
         title: 'Campo Vazio',
@@ -57,30 +58,61 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
     setIsSaving(true);
     try {
-      const res = await apiClient.put('/auth/profile', { name: displayName });
+      const res = await apiClient.put('/auth/profile', { name: cleanName });
+      const updatedUser = res.data?.user || {};
+
+      if (setCurrentUser) {
+        setCurrentUser((prev) => ({
+          ...prev,
+          ...updatedUser,
+          name: cleanName,
+          writerName: cleanName,
+          fullName: cleanName,
+        }));
+      }
+
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...storedUser, name: cleanName, writerName: cleanName }));
+      } catch (storageErr) {
+        console.error('Aviso no localStorage:', storageErr);
+      }
+
       showToast({
         type: 'success',
         title: 'Perfil Salvo',
         message: 'Nome de exibição salvo com sucesso!',
       });
-      if (setCurrentUser && res.data?.user) {
-        setCurrentUser(res.data.user);
-      }
     } catch (err) {
-      console.error('Erro ao salvar nome:', err);
+      console.error('Erro ao salvar pseudônimo:', err);
       showToast({
         type: 'error',
         title: 'Erro ao Salvar',
-        message: err.response?.data?.error || 'Erro ao atualizar o perfil.',
+        message: err.response?.data?.error || err.response?.data?.message || 'Erro ao atualizar o perfil.',
       });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Alterar Senha no Backend
-  const handleResetPassword = async (e) => {
+  // Validador de Senha Forte
+  const validatePasswordStrength = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const isLongEnough = password.length >= 6;
+
+    if (!isLongEnough) return 'A senha deve ter no mínimo 6 caracteres.';
+    if (!hasUppercase) return 'A nova senha deve conter pelo menos uma letra maiúscula.';
+    if (!hasLowercase) return 'A nova senha deve conter pelo menos uma letra minúscula.';
+    if (!hasNumber) return 'A nova senha deve conter pelo menos um número.';
+    return null;
+  };
+
+  // 2. ALTERAÇÃO DE SENHA (Aba E-mail & Segurança)
+  const handleChangePassword = async (e) => {
     e.preventDefault();
+
     if (!currentPassword || !newPassword) {
       showToast({
         type: 'warning',
@@ -90,12 +122,27 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       return;
     }
 
+    const validationError = validatePasswordStrength(newPassword);
+    if (validationError) {
+      showToast({
+        type: 'warning',
+        title: 'Requisitos de Senha',
+        message: validationError,
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await apiClient.put('/auth/profile', { currentPassword, newPassword });
+      const response = await apiClient.put('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+
       showToast({
         type: 'success',
         title: 'Senha Alterada',
-        message: 'Sua senha foi alterada com sucesso!',
+        message: response.data?.message || 'Sua senha foi alterada com sucesso!',
       });
       setCurrentPassword('');
       setNewPassword('');
@@ -104,19 +151,45 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       showToast({
         type: 'error',
         title: 'Erro ao Alterar Senha',
-        message: err.response?.data?.error || 'Erro ao alterar a senha.',
+        message: err.response?.data?.message || err.response?.data?.error || 'Erro ao alterar a senha.',
       });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 3. SOLICITAÇÃO DE EXCLUSÃO DE CONTA (Aba Privacidade & Conta)
+  const handleRequestAccountDelete = async () => {
+    setIsSaving(true);
+    try {
+      await apiClient.post('/auth/request-delete');
+      setDeleteEmailSent(true);
+      showToast({
+        type: 'success',
+        title: 'E-mail Enviado',
+        message: 'Enviamos o link de confirmação para o seu e-mail.',
+      });
+    } catch (err) {
+      console.error('Erro ao solicitar exclusão:', err);
+      showToast({
+        type: 'error',
+        title: 'Erro na Solicitação',
+        message: err.response?.data?.message || err.response?.data?.error || 'Erro ao solicitar e-mail de exclusão.',
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   // Executar encerramento de sessão
   const executeLogout = () => {
     localStorage.removeItem('storyforge_token');
-    window.location.href = '/login';
+    localStorage.removeItem('user');
+    window.location.reload();
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20 text-gray-200 font-sans">
+    <div className="max-w-4xl mx-auto space-y-8 pb-10 text-gray-200 font-sans">
       
       {/* CABEÇALHO */}
       <div>
@@ -127,7 +200,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       </div>
 
       {/* ABAS DE NAVEGAÇÃO */}
-      <div className="flex border-b border-gray-800 gap-2 pb-1">
+      <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
         {[
           { id: 'perfil', label: 'Perfil do Autor', icon: User },
           { id: 'seguranca', label: 'E-mail & Segurança', icon: Key },
@@ -171,7 +244,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                   className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
                   placeholder="Seu nome oficial ou pseudônimo"
                 />
-                <p className="text-[11px] text-gray-500">Este nome é utilizado nos relatórios e StoryBible exportada.</p>
+                <p className="text-[11px] text-gray-500">Este pseudônimo é exibido como o autor responsável pelos projetos, relatórios e StoryBible exportada.</p>
               </div>
             </div>
 
@@ -181,7 +254,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 disabled={isSaving}
                 className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all"
               >
-                {isSaving ? 'Salvando...' : 'Salvar Nome'}
+                {isSaving ? 'Salvando...' : 'Salvar Pseudônimo'}
               </button>
             </div>
           </form>
@@ -204,7 +277,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            <form onSubmit={handleResetPassword} className="pt-4 border-t border-gray-800 space-y-4">
+            <form onSubmit={handleChangePassword} className="pt-4 border-t border-gray-800 space-y-4">
               <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Alteração de Senha</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -231,9 +304,10 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
+                disabled={isSaving}
+                className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer disabled:bg-gray-800"
               >
-                Atualizar Senha
+                {isSaving ? 'Atualizando...' : 'Atualizar Senha'}
               </button>
             </form>
           </div>
@@ -299,7 +373,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-400 font-bold">Suporte</span>
-                <span className="text-xs text-purple-300">suporte@storyforge.com.br</span>
+                <span className="text-xs text-purple-300">app.storyforge@gmail.com</span>
               </div>
             </div>
           </div>
@@ -308,7 +382,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
       {/* MODAL DE CONFIRMAÇÃO DE LOGOUT */}
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
             <button
               type="button"
@@ -351,7 +425,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
             <button
               type="button"
@@ -372,10 +446,11 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setDeleteEmailSent(true)}
-                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+                    disabled={isSaving}
+                    onClick={handleRequestAccountDelete}
+                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 text-white font-bold text-xs rounded-xl cursor-pointer"
                   >
-                    Enviar E-mail de Confirmação
+                    {isSaving ? 'Enviando E-mail...' : 'Enviar E-mail de Confirmação'}
                   </button>
                   <button
                     type="button"

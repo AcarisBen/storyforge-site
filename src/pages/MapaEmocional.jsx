@@ -1,4 +1,5 @@
-// MapaEmocional.jsx
+// src/pages/MapaEmocional.jsx
+// Página de Mapa Emocional do StoryForge
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -119,7 +120,7 @@ export default function MapaEmocional({ projectId }) {
     }
   }, [projectId]);
 
-  // 3. AUTO-SAVE DO TIMER CORRIGIDO
+  // 3. AUTO-SAVE COM DEBOUNCE
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -172,31 +173,28 @@ export default function MapaEmocional({ projectId }) {
       return updated;
     });
   };
-  
+
   return (
-    <main className="max-w-6xl mx-auto space-y-6 pb-32 text-gray-200 font-sans p-6">
-      <div className="flex justify-between items-start mb-6">
+    <main className="module-page w-full emotional-map-page space-y-6 pb-32 text-gray-200 font-sans">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA MAPA EMOCIONAL */}
+      <header className="module-header flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-normal text-white tracking-tight mb-1">
-            Mapa Emocional
-          </h1>
-          <p className="text-sm text-gray-400">
-            Gráfico das emoções que o público sente ao longo da jornada da história.
-          </p>
+          <h1>Mapa Emocional</h1>
+          <p>Gráfico das emoções que o público sente ao longo da jornada da história.</p>
         </div>
-        <div className="text-xs font-semibold pt-2">
-          <span className={isSaving ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}>
-            {isSaving ? '⏳ Salvando...' : '✓ Salvo no Banco'}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {isSaving ? 'Salvando...' : 'Salvo'}
           </span>
         </div>
-      </div>
-      
+      </header>
+
       {/* GUIA DO MÓDULO */}
       <div className="border border-gray-800/80 rounded-2xl bg-[#12121a] overflow-hidden">
         <button
           type="button"
           onClick={() => setIsGuideOpen((prev) => !prev)}
-          className="w-full p-4 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#161622] transition-colors"
+          className="w-full p-4 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#161622] transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <span className="text-amber-400">💡</span>
@@ -218,7 +216,7 @@ export default function MapaEmocional({ projectId }) {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveGuideTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     activeGuideTab === tab.id
                       ? 'bg-purple-950/80 border border-purple-500 text-purple-200'
                       : 'text-gray-400 hover:text-white hover:bg-[#12121a]'
@@ -258,16 +256,16 @@ export default function MapaEmocional({ projectId }) {
         )}
       </div>
 
-      <div className="flex justify-between items-center pt-2">
+      <div className="flex justify-between items-center my-6">
         <span className="text-xs font-semibold text-gray-400">
           {points.length} ponto(s) na jornada emocional
         </span>
         <button
           type="button"
           onClick={handleAddPoint}
-          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs transition-all flex items-center gap-1.5"
         >
-          <span>+</span> Novo Ponto
+          <span>＋</span> Novo Ponto
         </button>
       </div>
 
@@ -316,7 +314,7 @@ export default function MapaEmocional({ projectId }) {
         )}
       </div>
 
-      {/* CONTROLE DE SLIDERS COLORIDOS + LIXEIRA NO FIM */}
+      {/* CONTROLE DE SLIDERS COLORIDOS */}
       {points.length > 0 && (
         <div className="border border-gray-800/80 rounded-2xl bg-[#12121a] p-5 space-y-4">
           <div className="grid grid-cols-11 gap-2 text-xs font-bold text-gray-400 border-b border-gray-800 pb-2 px-2 items-center">
@@ -360,10 +358,10 @@ export default function MapaEmocional({ projectId }) {
                   <button
                     type="button"
                     onClick={() => handleDeletePoint(point.id)}
-                    className="text-red-500 hover:text-red-400 text-sm font-bold p-1 cursor-pointer transition-transform hover:scale-110"
+                    className="text-red-500 hover:text-red-400 text-xs font-bold p-1 cursor-pointer transition-transform hover:scale-110"
                     title="Excluir Ponto"
                   >
-                    🗑
+                    Excluir
                   </button>
                 </div>
               </div>
@@ -390,7 +388,7 @@ export default function MapaEmocional({ projectId }) {
                 <select
                   value={point.characterId || ''}
                   onChange={(e) => handleUpdatePoint(point.id, 'characterId', e.target.value)}
-                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500"
+                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="">Sem personagem</option>
                   {characters.map((c) => (
@@ -403,7 +401,7 @@ export default function MapaEmocional({ projectId }) {
                 <select
                   value={point.worldId || ''}
                   onChange={(e) => handleUpdatePoint(point.id, 'worldId', e.target.value)}
-                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500"
+                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="">Sem elemento do mundo</option>
                   {worldElements.map((w) => (
@@ -416,7 +414,7 @@ export default function MapaEmocional({ projectId }) {
                 <select
                   value={point.sceneId || ''}
                   onChange={(e) => handleUpdatePoint(point.id, 'sceneId', e.target.value)}
-                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500"
+                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="">Sem cena</option>
                   {scenes.map((s) => (
@@ -429,7 +427,7 @@ export default function MapaEmocional({ projectId }) {
                 <select
                   value={point.mysteryId || ''}
                   onChange={(e) => handleUpdatePoint(point.id, 'mysteryId', e.target.value)}
-                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500"
+                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="">Sem mistério</option>
                   {mysteries.map((m) => (
@@ -442,7 +440,7 @@ export default function MapaEmocional({ projectId }) {
                 <select
                   value={point.twistId || ''}
                   onChange={(e) => handleUpdatePoint(point.id, 'twistId', e.target.value)}
-                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500"
+                  className="bg-[#12121a] border border-gray-800 rounded-lg p-2 text-gray-300 truncate outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="">Sem plot twist</option>
                   {twists.map((t) => (

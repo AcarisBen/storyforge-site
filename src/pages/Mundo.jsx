@@ -1,3 +1,6 @@
+// src/pages/Mundo.jsx
+// Página de Mundo do StoryForge. Permite criar e gerenciar elementos do universo da história, como planetas, cidades, biomas, sistemas de magia, facções e muito mais.
+
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
@@ -169,17 +172,27 @@ export default function Mundo({ projectId }) {
   // Criar ou Editar Elemento no PostgreSQL
   async function saveElement() {
     if (!draft.name.trim() || !projectId) return;
-    if (draft.type === 'Outros' && !draft.customType.trim()) {
+    if ((draft.type === 'Outros' || draft.type === 'Outro') && !draft.customType.trim()) {
       alert('Por favor, digite o nome do novo tipo.');
       return;
     }
 
+    const finalType = (draft.type === 'Outros' || draft.type === 'Outro') && draft.customType.trim()
+      ? draft.customType.trim()
+      : draft.type;
+
+    const payload = {
+      name: draft.name.trim(),
+      type: finalType,
+      description: draft.description,
+    };
+
     try {
       if (editingId) {
-        const res = await apiClient.put(`/entities/world/${editingId}`, draft);
+        const res = await apiClient.put(`/entities/world/${editingId}`, payload);
         setElements((prev) => prev.map((item) => (item.id === editingId ? res.data : item)));
       } else {
-        const res = await apiClient.post(`/entities/projects/${projectId}/world`, draft);
+        const res = await apiClient.post(`/entities/projects/${projectId}/world`, payload);
         setElements((prev) => [...prev, res.data]);
       }
 
@@ -205,8 +218,9 @@ export default function Mundo({ projectId }) {
   }
 
   return (
-    <main className="characters-page world-page">
-      <header className="characters-header">
+    <main className="module-page w-full world-page">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA MUNDO */}
+      <header className="module-header flex justify-between items-center">
         <div>
           <h1>Mundo</h1>
           <p>A construção completa do universo onde a história acontece.</p>
@@ -215,7 +229,7 @@ export default function Mundo({ projectId }) {
 
       <WorldGuide />
 
-      <div className="world-toolbar">
+      <div className="world-toolbar mt-6">
         <nav className="world-filters flex flex-wrap gap-2">
           {/* Botão "Todos" (Mantém a cor Roxa quando ativo) */}
           <button
@@ -230,7 +244,7 @@ export default function Mundo({ projectId }) {
             Todos ({elements.length})
           </button>
 
-          {/* Botões das 21 Categorias de Mundo */}
+          {/* Botões das Categorias de Mundo */}
           {allFilterTypes.map((type) => {
             const isSelected = filter === type;
             const colorStyle = isSelected
@@ -255,7 +269,7 @@ export default function Mundo({ projectId }) {
       </div>
 
       {isCreating && (
-        <div className="world-create-form space-y-3">
+        <div className="world-create-form space-y-3 mt-4">
           <input
             autoFocus
             type="text"
@@ -272,8 +286,8 @@ export default function Mundo({ projectId }) {
             ))}
           </select>
 
-          {/* Campo Extra de Tipo Customizado (Visível apenas se o usuário escolher 'Outro') */}
-          {draft.type === 'Outro' && (
+          {/* Campo Extra de Tipo Customizado (Visível apenas se o usuário escolher 'Outros') */}
+          {(draft.type === 'Outros' || draft.type === 'Outro') && (
             <input
               type="text"
               placeholder="Digite seu tipo personalizado (ex: Artefato, Guilda, Constelação)..."
@@ -306,7 +320,7 @@ export default function Mundo({ projectId }) {
           <p>Nenhum elemento criado ainda.</p>
         </div>
       ) : (
-        <div className="world-elements">
+        <div className="world-elements mt-6">
           {visibleElements.map((element) => (
             <article className="world-card" key={element.id}>
               <div>

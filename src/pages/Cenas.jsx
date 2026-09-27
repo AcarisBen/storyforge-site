@@ -1,5 +1,5 @@
 // src/pages/Cenas.jsx
-// Página de gerenciamento de cenas do projeto, incluindo criação, edição e reordenação
+// Página de Cenas do StoryForge: gerenciamento, criação, edição e reordenação de cenas.
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
@@ -103,8 +103,9 @@ export default function Cenas({ projectId }) {
   const [expandedScene, setExpandedScene] = useState(null);
   const [draggedScene, setDraggedScene] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState('Salvo');
 
-  // Estado para modal de exclusão (substitui o window.confirm)
+  // Estado para modal de exclusão
   const [sceneToDelete, setSceneToDelete] = useState(null);
 
   // Carregar cenas do PostgreSQL ao abrir a página
@@ -126,7 +127,7 @@ export default function Cenas({ projectId }) {
     fetchScenes();
   }, [projectId]);
 
-  // Cálculo da barra de progresso global
+  // Cálculo da barra de progresso global baseado nos tópicos preenchidos
   const totalPossibleTopics = scenes.length * (sceneFields.length + 1); // +1 referente ao Título
   let filledTopicsCount = 0;
 
@@ -146,6 +147,7 @@ export default function Cenas({ projectId }) {
   // Criar nova cena no PostgreSQL
   async function handleCreateScene() {
     if (!newTitle.trim() || !projectId) return;
+    setSavingStatus('Salvando...');
 
     try {
       const payload = { title: newTitle.trim(), ...blankScene() };
@@ -156,19 +158,25 @@ export default function Cenas({ projectId }) {
       setExpandedScene(created.id);
       setIsCreating(false);
       setNewTitle('');
+      setSavingStatus('Salvo');
 
-      showToast({
-        type: 'success',
-        title: 'Cena Criada',
-        message: 'A nova cena foi criada com sucesso!',
-      });
+      if (showToast) {
+        showToast({
+          type: 'success',
+          title: 'Cena Criada',
+          message: 'A nova cena foi criada com sucesso!',
+        });
+      }
     } catch (err) {
       console.error('Erro ao criar cena:', err);
-      showToast({
-        type: 'error',
-        title: 'Erro ao Criar',
-        message: 'Não foi possível criar a cena.',
-      });
+      setSavingStatus('Erro ao salvar');
+      if (showToast) {
+        showToast({
+          type: 'error',
+          title: 'Erro ao Criar',
+          message: 'Não foi possível criar a cena.',
+        });
+      }
     }
   }
 
@@ -176,6 +184,7 @@ export default function Cenas({ projectId }) {
   const updateTimeoutRef = useRef({});
 
   function updateScene(sceneId, changes) {
+    setSavingStatus('Salvando...');
     setScenes((prev) =>
       prev.map((s) => (s.id === sceneId ? { ...s, ...changes } : s))
     );
@@ -189,8 +198,10 @@ export default function Cenas({ projectId }) {
         const currentScene = scenes.find((s) => s.id === sceneId);
         const updatedData = { ...currentScene, ...changes };
         await apiClient.put(`/entities/scenes/${sceneId}`, updatedData);
+        setSavingStatus('Salvo');
       } catch (err) {
         console.error('Erro ao salvar cena automaticamente:', err);
+        setSavingStatus('Erro ao salvar');
       }
     }, 1000);
   }
@@ -198,24 +209,31 @@ export default function Cenas({ projectId }) {
   // Executar exclusão confirmada
   async function executeDeleteScene() {
     if (!sceneToDelete) return;
+    setSavingStatus('Salvando...');
 
     try {
       await apiClient.delete(`/entities/scenes/${sceneToDelete.id}`);
       setScenes((prev) => prev.filter((item) => item.id !== sceneToDelete.id));
       if (expandedScene === sceneToDelete.id) setExpandedScene(null);
+      setSavingStatus('Salvo');
 
-      showToast({
-        type: 'success',
-        title: 'Cena Excluída',
-        message: `A cena "${sceneToDelete.title || 'sem título'}" foi removida.`,
-      });
+      if (showToast) {
+        showToast({
+          type: 'success',
+          title: 'Cena Excluída',
+          message: `A cena "${sceneToDelete.title || 'sem título'}" foi removida.`,
+        });
+      }
     } catch (err) {
       console.error('Erro ao excluir cena:', err);
-      showToast({
-        type: 'error',
-        title: 'Erro ao Excluir',
-        message: 'Não foi possível excluir a cena.',
-      });
+      setSavingStatus('Erro ao salvar');
+      if (showToast) {
+        showToast({
+          type: 'error',
+          title: 'Erro ao Excluir',
+          message: 'Não foi possível excluir a cena.',
+        });
+      }
     } finally {
       setSceneToDelete(null);
     }
@@ -236,38 +254,34 @@ export default function Cenas({ projectId }) {
   }
 
   return (
-    <main className="characters-page scenes-page">
-      <header className="characters-header">
+    <main className="module-page w-full scenes-page">
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA CENAS */}
+      <header className="module-header flex justify-between items-center">
         <div>
           <h1>Cenas</h1>
           <p>Cada cena como unidade narrativa com objetivo, conflito e gancho.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progressPercentage}%
+          </div>
+        </div>
       </header>
 
-      {/* Barra de Progresso baseada nos tópicos preenchidos */}
-      <section className="bg-[#181822] p-4 rounded-xl border border-gray-800 mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
-            Progresso Geral das Cenas
-          </span>
-          <span className="text-sm font-bold text-purple-400">
-            {progressPercentage}% ({filledTopicsCount}/{totalPossibleTopics} tópicos)
-          </span>
-        </div>
-        <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-300 rounded-full"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-      </section>
+      {/* BARRA DE PROGRESSO PADRÃO */}
+      <div className="module-progress-track">
+        <div style={{ width: `${progressPercentage}%` }} />
+      </div>
 
       <SceneGuide />
 
-      <div className="scenes-toolbar flex justify-between items-center my-4">
+      <div className="scenes-toolbar flex justify-between items-center my-6">
         <span className="text-gray-400 text-sm font-medium">{scenes.length} cena(s)</span>
         
-        {/* Botão arredondado conforme o estilo das outras telas */}
         <button
           className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all"
           type="button"
@@ -277,7 +291,7 @@ export default function Cenas({ projectId }) {
         </button>
       </div>
 
-      {/* Modal / Formulário inicial para Criar Nova Cena */}
+      {/* Form para Criar Nova Cena */}
       {isCreating && (
         <div className="character-create-form bg-[#1c1c28] p-4 rounded-xl border border-purple-900/50 mb-6 space-y-3">
           <input
@@ -349,7 +363,7 @@ export default function Cenas({ projectId }) {
 
                 {/* Botão de Excluir */}
                 <button
-                  className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-2 rounded-lg hover:bg-red-950/30 transition-all"
+                  className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-2 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold"
                   type="button"
                   aria-label={`Excluir ${scene.title}`}
                   onClick={() => setSceneToDelete(scene)}

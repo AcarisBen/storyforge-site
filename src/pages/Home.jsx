@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-// Página inicial do StoryForge, exibindo a lista de projetos do usuário
+// Página inicial do StoryForge, exibindo a lista de projetos do usuário, opções de busca, criação e importação de projetos, além de modais para suporte e configurações.
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import { useToast } from '../context/ToastContext';
+import Configuracoes from './Configuracoes';
 
 const ESSENCIA_FIELDS = [
   'O que torna a história única?',
@@ -31,22 +32,18 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   // Estados dos Modais Globais
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState('perfil');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
 
   // Estados das Configurações do Usuário
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
   // Apoio
   const [copiedPix, setCopiedPix] = useState(false);
-  const PIX_KEY = 'suporte@storyforge.com.br';
+  const PIX_KEY = 'app.storyforge@gmail.com';
 
   // Importação
   const fileInputRef = useRef(null);
@@ -139,7 +136,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         const selectedFrameworks = Array.isArray(dataObj.selectedFrameworks) ? dataObj.selectedFrameworks : [];
         if (selectedFrameworks.length === 0) return 0;
         const values = dataObj.values || {};
-        const countFilled = (obj) => Object.values(obj).filter((val) => typeof val === 'string' && val.trim() !== '').length;
+        const countFilled = (obj) => Object.values(obj || {}).filter((val) => typeof val === 'string' && val.trim() !== '').length;
 
         let selectedFieldCount = 0;
         let completedFieldCount = 0;
@@ -221,6 +218,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         format: newProject.format,
         status: 'Desenvolvimento',
         progress: 0,
+        writerName: currentUser?.writerName || currentUser?.fullName || currentUser?.name || 'Autor StoryForge',
       });
 
       const created = res.data;
@@ -228,92 +226,31 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
       setIsModalOpen(false);
       setNewProject({ title: '', format: 'Romance / Livro' });
 
-      showToast({
-        type: 'success',
-        title: 'Projeto Criado',
-        message: 'Seu novo projeto foi criado com sucesso!',
-      });
+      if (showToast) {
+        showToast({
+          type: 'success',
+          title: 'Projeto Criado',
+          message: 'Seu novo projeto foi criado com sucesso!',
+        });
+      }
 
       if (onSelectProject) onSelectProject(created);
     } catch (err) {
       console.error('Erro ao criar projeto:', err);
-      showToast({
-        type: 'error',
-        title: 'Erro de Conexão',
-        message: 'Não foi possível conectar ao servidor para criar o projeto.',
-      });
-    }
-  };
-
-  // Salvar Perfil do Autor na API
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    if (!displayName.trim()) {
-      showToast({
-        type: 'warning',
-        title: 'Campo Vazio',
-        message: 'O nome de exibição não pode ficar em branco.',
-      });
-      return;
-    }
-
-    setIsSavingProfile(true);
-    try {
-      const res = await apiClient.put('/auth/profile', { name: displayName });
-      showToast({
-        type: 'success',
-        title: 'Perfil Salvo',
-        message: 'Nome de exibição salvo com sucesso!',
-      });
-      if (setCurrentUser && res.data?.user) {
-        setCurrentUser(res.data.user);
+      if (showToast) {
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível conectar ao servidor para criar o projeto.',
+        });
       }
-    } catch (err) {
-      console.error('Erro ao salvar nome:', err);
-      showToast({
-        type: 'error',
-        title: 'Erro ao Salvar',
-        message: err.response?.data?.error || 'Erro ao atualizar o perfil.',
-      });
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  // Redefinir Senha na API
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    if (!currentPassword || !newPassword) {
-      showToast({
-        type: 'warning',
-        title: 'Campos Incompletos',
-        message: 'Preencha a senha atual e a nova senha.',
-      });
-      return;
-    }
-
-    try {
-      await apiClient.put('/auth/profile', { currentPassword, newPassword });
-      showToast({
-        type: 'success',
-        title: 'Senha Alterada',
-        message: 'Sua senha foi alterada com sucesso!',
-      });
-      setCurrentPassword('');
-      setNewPassword('');
-    } catch (err) {
-      console.error('Erro ao alterar senha:', err);
-      showToast({
-        type: 'error',
-        title: 'Erro ao Alterar Senha',
-        message: err.response?.data?.error || 'Erro ao alterar a senha.',
-      });
     }
   };
 
   // Logout com confirmação
   const executeLogout = () => {
     localStorage.removeItem('storyforge_token');
+    localStorage.removeItem('user');
     window.location.reload();
   };
 
@@ -324,28 +261,34 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     try {
       await apiClient.delete(`/entities/projects/${projectToDelete.id}`);
       setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
-      showToast({
-        type: 'success',
-        title: 'Projeto Excluído',
-        message: `O projeto "${projectToDelete.title}" foi removido com sucesso.`,
-      });
+      if (showToast) {
+        showToast({
+          type: 'success',
+          title: 'Projeto Excluído',
+          message: `O projeto "${projectToDelete.title}" foi removido com sucesso.`,
+        });
+      }
     } catch (err) {
       console.error('Erro ao excluir projeto:', err);
-      showToast({
-        type: 'error',
-        title: 'Falha ao Excluir',
-        message: 'Não foi possível excluir o projeto. Tente novamente.',
-      });
+      if (showToast) {
+        showToast({
+          type: 'error',
+          title: 'Falha ao Excluir',
+          message: 'Não foi possível excluir o projeto. Tente novamente.',
+        });
+      }
     } finally {
       setProjectToDelete(null);
     }
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setPendingFile(file);
-    processImport(file);
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      processImport(file);
+    }
+    if (e.target) e.target.value = '';
   };
 
   const processImport = async (file) => {
@@ -371,9 +314,9 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         const meta = importedJson.exportMeta || {};
         const pData = importedJson.projectData;
 
-        const rawTitle = pData.identity?.['Título'] || pData.title || 'Projeto Importado';
+        const rawTitle = pData.identity?.['Título'] || pData.identity?.['title'] || pData.title || 'Projeto Importado';
         const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
-        const exportAuthor = meta.exportedBy || 'Autor StoryForge';
+        const exportAuthor = meta.exportedBy || pData.identity?.['Autor'] || 'Autor Desconhecido';
         const exportDate = meta.exportedAt ? new Date(meta.exportedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
         const projectPayload = {
@@ -573,7 +516,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   return (
     <div className="min-h-screen bg-[#0d0d12] text-white p-8 font-sans">
       
-      {/* BARRA SUPERIOR (BOTÃO APOIE À ESQUERDA | CONFIGURAÇÕES & SAIR À DIREITA) */}
+      {/* BARRA SUPERIOR */}
       <div className="flex justify-between items-start mb-8 max-w-7xl mx-auto">
         <button 
           type="button" 
@@ -602,7 +545,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         </div>
       </div>
 
-      {/* APRESENTAÇÃO / HERO */}
+      {/* APRESENTAÇÃO */}
       <div className="text-center max-w-2xl mx-auto mb-16">
         <div className="flex items-center justify-center gap-4 mb-2">
           <img 
@@ -679,8 +622,10 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
             {filteredProjects.map((project) => {
               const rawTitle = project.title || project.name || 'Sem Título';
               const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
-              const isImported = project.isImported || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
-              const authorName = project.author || project.writerName || 'Autor StoryForge';
+
+              const isImported = Boolean(project.isImported) || Boolean(project.exportedBy) || project.description?.includes('Importado em') || rawTitle.includes('(Importado)');
+              
+              const authorName = project.exportedBy || project.writerName || project.author || currentUser?.writerName || currentUser?.fullName || currentUser?.name || 'Autor StoryForge';
               const importDate = project.exportedAt || new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR');
 
               return (
@@ -736,7 +681,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
 
                     <p className="text-[11px] text-gray-400 italic font-normal pt-2 border-t border-gray-800/60 truncate">
                       {isImported 
-                        ? `Projeto importado em ${importDate} por ${authorName}` 
+                        ? `Projeto exportado em ${importDate} por ${authorName}` 
                         : (project.description || `Criado em ${new Date(project.createdAt || Date.now()).toLocaleDateString('pt-BR')}`)}
                     </p>
                   </div>
@@ -747,186 +692,21 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         )}
       </div>
 
-      {/* MODAL DE CONFIGURAÇÕES */}
+      {/* MODAL DE CONFIGURAÇÕES PADRONIZADO */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               type="button"
               onClick={() => setShowSettingsModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer z-10"
             >
               <X size={20} />
             </button>
-
-            <div className="border-b border-gray-800 pb-4">
-              <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                <Settings size={22} className="text-purple-400" /> Configurações
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Gerencie seu perfil, segurança e preferências no StoryForge.</p>
-            </div>
-
-            <div className="flex border-b border-gray-800 gap-2 pb-1 overflow-x-auto">
-              {[
-                { id: 'perfil', label: 'Perfil do Autor', icon: User },
-                { id: 'seguranca', label: 'E-mail & Segurança', icon: Key },
-                { id: 'privacidade', label: 'Privacidade & Conta', icon: Shield },
-                { id: 'sobre', label: 'Versão & Sistema', icon: Info },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const active = activeSettingsTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveSettingsTab(tab.id)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
-                      active ? 'bg-purple-600 text-white shadow-lg' : 'bg-[#171724] text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    <Icon size={14} /> {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-4">
-              {/* ABA 1: PERFIL */}
-              {activeSettingsTab === 'perfil' && (
-                <form onSubmit={handleSaveProfile} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400">Nome de Exibição / Pseudônimo</label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
-                      placeholder="Seu nome oficial ou pseudônimo"
-                    />
-                    <p className="text-[11px] text-gray-500">Exibido nos relatórios e na StoryBible exportada.</p>
-                  </div>
-
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={isSavingProfile}
-                      className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all"
-                    >
-                      {isSavingProfile ? 'Salvando...' : 'Salvar Nome'}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* ABA 2: SEGURANÇA */}
-              {activeSettingsTab === 'seguranca' && (
-                <div className="space-y-6">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400">E-mail da Conta</label>
-                    <input
-                      type="email"
-                      value={email}
-                      disabled
-                      className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-gray-400 opacity-75 cursor-not-allowed"
-                    />
-                  </div>
-
-                  <form onSubmit={handleResetPassword} className="pt-4 border-t border-gray-800 space-y-4">
-                    <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Alterar Senha</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-400">Senha Atual</label>
-                        <input
-                          type="password"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-400">Nova Senha</label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full bg-[#171724] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="px-5 py-2.5 bg-[#171724] hover:bg-gray-800 border border-gray-700 text-xs font-bold text-white rounded-xl cursor-pointer"
-                    >
-                      Atualizar Senha
-                    </button>
-                  </form>
-                </div>
-              )}
-
-              {/* ABA 3: PRIVACIDADE */}
-              {activeSettingsTab === 'privacidade' && (
-                <div className="space-y-6">
-                  <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-2">
-                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
-                      <Cookie size={16} className="text-amber-400" /> Política de Cookies e Armazenamento
-                    </h4>
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      Utilizamos armazenamento local exclusivamente para manter sua sessão conectada com segurança. Nenhum dado do seu manuscrito é compartilhado com terceiros.
-                    </p>
-                  </div>
-
-                  <div className="pt-2 space-y-3">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sessão</h4>
-                    <button
-                      type="button"
-                      onClick={() => setShowLogoutModal(true)}
-                      className="px-4 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer"
-                    >
-                      <LogOut size={15} /> Encerrar Sessão neste Dispositivo
-                    </button>
-                  </div>
-
-                  <div className="pt-6 border-t border-gray-800 space-y-3">
-                    <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Trash2 size={15} /> Exclusão Permanente de Conta
-                    </h4>
-                    <p className="text-xs text-gray-400">
-                      A exclusão da conta apaga todos os seus projetos sem possibilidade de recuperação.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteAccountModal(true)}
-                      className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl cursor-pointer"
-                    >
-                      Excluir Minha Conta
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ABA 4: SOBRE */}
-              {activeSettingsTab === 'sobre' && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-3">
-                    <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                      <span className="text-xs text-gray-400 font-bold">Versão Atual</span>
-                      <span className="text-xs font-mono font-bold text-purple-400">v1.0.0 (Beta)</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                      <span className="text-xs text-gray-400 font-bold">Ambiente</span>
-                      <span className="text-xs font-mono text-gray-300">Desenvolvimento Independente</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400 font-bold">Suporte</span>
-                      <span className="text-xs text-purple-300">suporte@storyforge.com.br</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <Configuracoes 
+              currentUser={currentUser} 
+              setCurrentUser={setCurrentUser} 
+            />
           </div>
         </div>
       )}
@@ -1017,131 +797,78 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         </div>
       )}
 
-      {/* MODAL DE EXCLUSÃO DE CONTA */}
-      {showDeleteAccountModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
-            <button
-              type="button"
-              onClick={() => setShowDeleteAccountModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-
-            {!deleteEmailSent ? (
-              <>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <AlertTriangle className="text-red-500" size={18} /> Confirmar Exclusão de Conta
-                </h3>
-                <p className="text-xs text-gray-300">
-                  Enviaremos um e-mail de confirmação para <b>{email}</b>.
-                </p>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteEmailSent(true)}
-                    className="flex-1 py-2.5 bg-red-600 text-white font-bold text-xs rounded-xl cursor-pointer"
-                  >
-                    Enviar E-mail
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteAccountModal(false)}
-                    className="px-4 py-2.5 bg-[#171724] text-gray-400 font-bold text-xs rounded-xl cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center space-y-3 py-2">
-                <CheckCircle className="text-emerald-400 mx-auto" size={36} />
-                <h3 className="text-base font-bold text-white">E-mail Enviado!</h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteAccountModal(false);
-                    setDeleteEmailSent(false);
-                  }}
-                  className="w-full py-2 bg-[#171724] text-white font-bold text-xs rounded-xl cursor-pointer"
-                >
-                  Fechar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* POP-UP / MODAL DE APOIO */}
+      {/* MODAL DE APOIO (ESTILO GLASSMORPHISM) */}
       {showSupportModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#11111a] border border-purple-900/50 rounded-2xl p-6 md:p-8 w-full max-w-2xl shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-[#12111d]/90 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-[0_0_50px_rgba(168,85,247,0.2)] space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
             
             <button
               type="button"
               onClick={() => setShowSupportModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all cursor-pointer border border-white/10"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
 
-            <div className="flex items-center gap-4 border-b border-gray-800 pb-4">
-              <div className="p-3 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-purple-950/50">
-                <Coffee size={26} />
+            <div className="flex items-center gap-4 border-b border-white/10 pb-5">
+              <div className="p-3.5 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-purple-500/30 shrink-0">
+                <Coffee size={28} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white tracking-tight">Apoie o StoryForge ✍️</h3>
-                <p className="text-xs text-purple-300 font-medium mt-0.5">
+                <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                  Apoie o StoryForge ✍️
+                </h3>
+                <p className="text-xs md:text-sm text-purple-300/80 font-medium mt-0.5">
                   Um estúdio feito de escritor para escritores
                 </p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs text-gray-300 leading-relaxed">
-              <p className="text-sm font-semibold text-purple-200">
+            <div className="space-y-2 text-sm text-gray-300 leading-relaxed">
+              <p className="font-semibold text-purple-200 text-base">
                 Olá, escritores! Antes de tudo, muito obrigado por estar aqui.
               </p>
-              
-              <p>
+              <p className="text-xs md:text-sm text-gray-300">
                 Esse site foi criado com muito carinho, de forma totalmente independente, para ajudar futuros autores a desenvolverem suas próprias histórias. Ele é fruto de muita dedicação e pesquisa para te apoiar ao máximo nessa jornada!
               </p>
+            </div>
 
-              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 flex items-start gap-3">
-                <AlertTriangle size={18} className="shrink-0 text-amber-400 mt-0.5" />
-                <p className="text-[11px] leading-relaxed">
-                  Como é um projeto mantido por uma pessoa só, você pode encontrar algo fora do lugar. Peço um pouquinho de paciência e, se puder me avisar quando vir um erro, ajuda demais a melhorar o site para todo mundo!
-                </p>
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 text-xs text-amber-200/90 leading-relaxed">
+              <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block text-amber-300 font-bold mb-0.5">Projeto Independente:</strong>
+                Como é um projeto mantido por uma pessoa só, você pode encontrar algo fora do lugar. Peço um pouquinho de paciência e, se puder me avisar quando vir um erro pelo email de suporte, ajuda demais a melhorar o site para todo mundo!
               </div>
+            </div>
 
-              <p className="font-semibold text-gray-200">
-                A ideia é manter o StoryForge <span className="text-emerald-400 font-bold">gratuito para sempre</span>. Como você pode ajudar a manter esse sonho vivo?
+            <div className="space-y-3">
+              <p className="text-xs md:text-sm font-semibold text-purple-200">
+                A ideia é manter o StoryForge gratuito para sempre. Como você pode ajudar a manter esse sonho vivo?
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div className="p-3.5 bg-[#171724] border border-purple-800/40 rounded-xl space-y-1.5">
-                  <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                    <Heart size={14} className="fill-purple-400 text-purple-400" /> Contribuição Financeira
-                  </span>
-                  <p className="text-[11px] text-gray-400 leading-normal">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                <div className="p-4 bg-purple-950/40 border border-purple-500/20 rounded-2xl space-y-1.5 backdrop-blur-sm">
+                  <div className="flex items-center gap-2 text-purple-300 font-bold text-xs md:text-sm">
+                    <span>💜</span> Contribuição Financeira
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">
                     Qualquer quantia ajuda diretamente a cobrir os custos de servidor, banco de dados e manutenção.
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-[#171724] border border-indigo-800/40 rounded-xl space-y-1.5">
-                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-indigo-400" /> Divulgação & Comunidade
-                  </span>
-                  <p className="text-[11px] text-gray-400 leading-normal">
+                <div className="p-4 bg-indigo-950/40 border border-indigo-500/20 rounded-2xl space-y-1.5 backdrop-blur-sm">
+                  <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs md:text-sm">
+                    <span>✨</span> Divulgação & Comunidade
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">
                     Compartilhe com amigos, grupos de escrita ou faculdade. Cada recomendação faz uma diferença enorme!
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-[#171724] border border-gray-800 rounded-2xl space-y-3">
-              <span className="text-xs font-bold text-purple-300 block">
+            <div className="p-4 md:p-5 bg-white/5 border border-white/10 rounded-2xl space-y-3 backdrop-blur-md">
+              <span className="text-xs font-bold text-purple-300 block uppercase tracking-wider">
                 Chave Pix para contribuição rápida:
               </span>
               <div className="flex items-center gap-2">
@@ -1149,12 +876,12 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
                   type="text"
                   readOnly
                   value={PIX_KEY}
-                  className="w-full bg-[#11111a] border border-gray-800 rounded-xl p-3 text-xs text-gray-200 font-mono focus:outline-none"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs md:text-sm text-gray-200 font-mono focus:outline-none select-all"
                 />
                 <button
                   type="button"
                   onClick={handleCopyPix}
-                  className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg cursor-pointer shrink-0"
+                  className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-purple-950/50 cursor-pointer shrink-0"
                 >
                   {copiedPix ? <Check size={16} /> : <Copy size={16} />}
                   {copiedPix ? 'Copiado!' : 'Copiar Pix'}
@@ -1162,8 +889,8 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            <div className="text-center pt-1 border-t border-gray-800/80">
-              <p className="text-xs font-bold text-purple-300 italic">
+            <div className="text-center pt-2 border-t border-white/10">
+              <p className="text-xs md:text-sm font-medium text-purple-300/90 italic">
                 Muito obrigado por fazer parte disso. Bora escrever juntos! ✍️
               </p>
             </div>

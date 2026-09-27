@@ -1,4 +1,5 @@
-//login.jsx
+// src/pages/Login.jsx
+// Página de login do StoryForge
 
 import React, { useState } from 'react';
 import { 
@@ -38,11 +39,11 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
       }
     } catch (err) {
       console.error('Erro ao autenticar:', err);
-      // Exibe a mensagem enviada pelo servidor (ex: "Sua conta ainda não foi ativada...")
       setError(
         err.data?.message ||
         err.message ||
-        'Não foi possível verificar sua conta. Verifique suas informações e tente novamente.');
+        'Não foi possível verificar sua conta. Verifique suas informações e tente novamente.'
+      );
     } finally {
       setLoading(false);
     }
@@ -57,12 +58,19 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
       
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto py-8">
         
+        {/* LADO ESQUERDO: BRANDING E RECURSOS */}
         <div className="space-y-10 pr-0 lg:pr-8">
+          
+          {/* CABEÇALHO COM A LOGO E GRADIENTE OFICIAL */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-950/50">
-              <span className="text-xl">✦</span>
-            </div>
-            <span className="text-2xl font-black tracking-tight text-white">StoryForge</span>
+            <img 
+              src="/StoryForgeLOGO2.png" 
+              alt="StoryForge Logo"
+              className="w-16 h-16 object-contain shrink-0"
+            />
+            <span className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-amber-500 bg-clip-text text-transparent">
+              StoryForge
+            </span>
           </div>
 
           <div className="space-y-4">
@@ -110,6 +118,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
           </div>
         </div>
 
+        {/* LADO DIREITO: FORMULÁRIO DE LOGIN */}
         <div className="w-full max-w-md mx-auto space-y-6">
           <div className="text-center space-y-3">
             <div className="w-12 h-12 bg-[#171724] border border-gray-800 rounded-2xl flex items-center justify-center mx-auto text-purple-400 shadow-xl">
@@ -226,7 +235,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
 
       <div className="max-w-7xl mx-auto w-full pt-6 border-t border-gray-900/60 flex items-center gap-2 text-gray-500 text-[11px]">
         <ShieldCheck size={14} className="text-purple-400" />
-        <span>Seus dados protegidos com autenticação segura </span>
+        <span>Seus dados protegidos com autenticação segura</span>
       </div>
     </div>
   );

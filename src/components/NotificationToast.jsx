@@ -1,68 +1,63 @@
 // src/components/NotificationToast.jsx
-// Componente de Notificação Toast
+// Componente de notificações flutuantes (Toasts) para o StoryForge
 
+import React from 'react';
+import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
-import React, { useEffect } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
+export default function NotificationToast({ toasts, toast, onClose, removeToast }) {
+  const activeClose = removeToast || onClose || (() => {});
+  const toastList = toasts || (toast ? [toast] : []);
 
-const TYPES = {
-  success: {
-    icon: CheckCircle2,
-    border: 'border-emerald-500/50',
-    bg: 'bg-[#111c16]',
-    text: 'text-emerald-300',
-  },
-  warning: {
-    icon: AlertTriangle,
-    border: 'border-amber-500/50',
-    bg: 'bg-[#1c1811]',
-    text: 'text-amber-300',
-  },
-  error: {
-    icon: XCircle,
-    border: 'border-red-500/50',
-    bg: 'bg-[#1c1113]',
-    text: 'text-red-300',
-  },
-  info: {
-    icon: Info,
-    border: 'border-purple-500/50',
-    bg: 'bg-[#16111c]',
-    text: 'text-purple-300',
-  },
-};
-
-export default function NotificationToast({ type = 'info', title, message, onClose, duration = 4000 }) {
-  const config = TYPES[type] || TYPES.info;
-  const IconComponent = config.icon;
-
-  useEffect(() => {
-    if (duration) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [duration, onClose]);
+  if (!toastList || toastList.length === 0) return null;
 
   return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 p-4 rounded-xl border shadow-2xl backdrop-blur-md max-w-sm transition-all duration-300 animate-slide-up ${config.bg} ${config.border}`}
-    >
-      <IconComponent className={`w-5 h-5 shrink-0 mt-0.5 ${config.text}`} />
-      
-      <div className="flex-1 space-y-1">
-        {title && <h4 className={`text-xs font-bold uppercase tracking-wider ${config.text}`}>{title}</h4>}
-        <p className="text-xs text-gray-200 leading-relaxed">{message}</p>
-      </div>
+    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+      {toastList.map((t) => {
+        const id = t.id;
+        const type = t.type || 'info';
 
-      <button
-        type="button"
-        onClick={onClose}
-        className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg"
-      >
-        <X size={14} />
-      </button>
+        let icon = <Info className="text-purple-400 shrink-0" size={20} />;
+        let borderColor = 'border-purple-800/60';
+        let bgColor = 'bg-[#15121c]';
+        let titleColor = 'text-purple-300';
+
+        if (type === 'success') {
+          icon = <CheckCircle2 className="text-emerald-400 shrink-0" size={20} />;
+          borderColor = 'border-emerald-800/60';
+          bgColor = 'bg-[#101915]';
+          titleColor = 'text-emerald-300';
+        } else if (type === 'error') {
+          icon = <AlertCircle className="text-red-400 shrink-0" size={20} />;
+          borderColor = 'border-red-800/60';
+          bgColor = 'bg-[#1c1214]';
+          titleColor = 'text-red-300';
+        } else if (type === 'warning') {
+          icon = <AlertTriangle className="text-amber-400 shrink-0" size={20} />;
+          borderColor = 'border-amber-800/60';
+          bgColor = 'bg-[#1c1812]';
+          titleColor = 'text-amber-300';
+        }
+
+        return (
+          <div
+            key={id || Math.random()}
+            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl border ${borderColor} ${bgColor} shadow-2xl backdrop-blur-md w-full transition-all duration-300 animate-in fade-in slide-in-from-bottom-3`}
+          >
+            {icon}
+            <div className="flex-1 min-w-0">
+              {t.title && <h4 className={`text-xs font-bold ${titleColor} mb-0.5`}>{t.title}</h4>}
+              {t.message && <p className="text-xs text-gray-300 leading-relaxed">{t.message}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => activeClose(id)}
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0 p-0.5"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
