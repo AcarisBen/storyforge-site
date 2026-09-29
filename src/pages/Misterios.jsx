@@ -1,14 +1,54 @@
 // src/pages/Misterios.jsx
-// Página de Mistérios do StoryForge. Molda as regras do mistério, quem sabe, pistas e revelações.
+// Página de Mistérios do StoryForge com Guia do Módulo Padronizado
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Trash2,
+  Search
+} from 'lucide-react';
+
 const guideTabs = {
-  Objetivo: <p>Estruturar mistérios que prendem o público sem trapacear.</p>,
-  Dicas: <ul><li>O público deve ter todas as pistas antes da revelação — o mistério não pode trapacear.</li><li>Falsas pistas criam tensão, mas devem ser resolvidas de forma satisfatória.</li><li>O impacto da revelação deve mudar a história, não apenas informar.</li></ul>,
-  Exemplos: <ul><li>Mistério: “Quem matou o rei?” — Revelação: “O próprio herdeiro, para impedir uma guerra.”</li><li>Falsa pista: “A adaga pertence ao embaixador — mas foi plantada.”</li></ul>,
-  Perguntas: <ul><li>Quem sabe a verdade e quem não sabe?</li><li>Quais pistas o público recebe e quando?</li><li>Qual é o impacto da revelação na história?</li></ul>,
+  Objetivo: (
+    <p>Estruturar mistérios que prendem o público sem trapacear.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O público deve ter todas as pistas antes da revelação — o mistério não pode trapacear.</li>
+      <li>Falsas pistas criam tensão, mas devem ser resolvidas de forma satisfatória.</li>
+      <li>O impacto da revelação deve mudar a história, não apenas informar.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Mistério: “Quem matou o rei?” — Revelação: “O próprio herdeiro, para impedir uma guerra.”</li>
+      <li>Falsa pista: “A adaga pertence ao embaixador — mas foi plantada.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Quem sabe a verdade e quem não sabe?</li>
+      <li>Quais pistas o público recebe e quando?</li>
+      <li>Qual é o impacto da revelação na história?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
 };
 
 const mysteryFields = [
@@ -26,28 +66,57 @@ const blankMystery = () => Object.fromEntries(mysteryFields.map(([key]) => [key,
 function MysteryGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
+
   return (
-    <section className="module-guide character-guide">
-      <button className="guide-toggle cursor-pointer" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
-        <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
-        <div className="guide-content">
-          <nav className="guide-tabs" aria-label="Guia do módulo">
-            {Object.keys(guideTabs).map((tab) => (
-              <button
-                className={activeTab === tab ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span aria-hidden="true">{tab === 'Objetivo' ? '◎' : tab === 'Dicas' ? '♧' : tab === 'Exemplos' ? '▣' : '?'}</span>
-                {tab}
-              </button>
-            ))}
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
           </nav>
-          <div className="guide-description">{guideTabs[activeTab]}</div>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
         </div>
       )}
     </section>
@@ -258,11 +327,11 @@ export default function Misterios({ projectId }) {
       <div className="mystery-toolbar flex justify-between items-center my-6">
         <span className="text-gray-400 text-sm font-medium">{mysteries.length} mistério(s)</span>
         <button
-          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all"
+          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all flex items-center gap-1.5"
           type="button"
           onClick={openCreate}
         >
-          ＋ Novo Mistério
+          <Plus size={16} /> Novo Mistério
         </button>
       </div>
 
@@ -278,9 +347,9 @@ export default function Misterios({ projectId }) {
       {loading ? (
         <div className="text-center py-12 text-gray-500">Carregando mistérios...</div>
       ) : mysteries.length === 0 && !isCreating ? (
-        <div className="empty-characters mystery-empty">
-          <span aria-hidden="true">⌕</span>
-          <p>Nenhum mistério planejado ainda.</p>
+        <div className="empty-characters mystery-empty text-center py-12">
+          <Search size={32} className="text-gray-600 mx-auto mb-2" />
+          <p className="text-gray-400 text-sm">Nenhum mistério planejado ainda.</p>
         </div>
       ) : (
         <div className="mysteries-list space-y-4">
@@ -291,18 +360,19 @@ export default function Misterios({ projectId }) {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="text-gray-400 hover:text-white cursor-pointer px-2 text-sm"
+                    className="text-gray-400 hover:text-white cursor-pointer px-2 transition-colors"
                     onClick={() => setExpandedId(expandedId === mystery.id ? null : mystery.id)}
                   >
-                    {expandedId === mystery.id ? '⌃' : '⌄'}
+                    {expandedId === mystery.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
                   <button
                     type="button"
-                    className="text-red-400 hover:text-red-300 cursor-pointer p-1 rounded hover:bg-red-950/30 text-xs font-bold transition-all"
+                    className="text-red-400 hover:text-red-300 cursor-pointer p-1.5 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold flex items-center gap-1"
                     aria-label={`Excluir ${mystery.title}`}
                     onClick={() => deleteMystery(mystery.id)}
                   >
-                    Excluir
+                    <Trash2 size={14} />
+                    <span>Excluir</span>
                   </button>
                 </div>
               </header>

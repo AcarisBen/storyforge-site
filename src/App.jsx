@@ -1,5 +1,5 @@
 // src/App.jsx
-// Componente principal da aplicação StoryForge com Roteamento de Segurança por E-mail
+// Aplicação StoryForge com Sidebar Liquid Glass (Com cabeçalho e títulos limpos, sem contornos desnecessários)
 
 import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
@@ -36,9 +36,6 @@ import {
   CheckSquare, BookOpen, Menu, FolderKanban 
 } from 'lucide-react';
 
-// ==========================================
-// MOCK DATA PARA MODO DESENVOLVIMENTO / TESTES
-// ==========================================
 const MOCK_USER = {
   id: 'dev-user-123',
   name: 'Desenvolvedor',
@@ -53,9 +50,9 @@ const MOCK_PROJECT = {
 };
 
 const NAVIGATION_ITEMS = [
-  { title: 'Visão geral', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
+  { title: 'VISÃO GERAL', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
   { 
-    title: 'Fundação', 
+    title: 'FUNDAÇÃO', 
     items: [
       ['Identidade', 'identidade', Fingerprint], 
       ['Essência da História', 'essencia', Sparkles], 
@@ -63,14 +60,14 @@ const NAVIGATION_ITEMS = [
     ] 
   },
   { 
-    title: 'Estrutura', 
+    title: 'ESTRUTURA', 
     items: [
       ['Estrutura Dramática', 'estrutura', GitBranch], 
       ['Ritmo & Timeline', 'ritmo', Activity]
     ] 
   },
   { 
-    title: 'Conteúdo', 
+    title: 'CONTEÚDO', 
     items: [
       ['Personagens', 'personagens', Users], 
       ['Mundo', 'mundo', Globe], 
@@ -80,7 +77,7 @@ const NAVIGATION_ITEMS = [
     ] 
   },
   { 
-    title: 'Camadas', 
+    title: 'CAMADAS', 
     items: [
       ['Mistérios', 'misterios', Search], 
       ['Plot Twists', 'plot-twists', Zap], 
@@ -88,14 +85,14 @@ const NAVIGATION_ITEMS = [
     ] 
   },
   { 
-    title: 'Escrita', 
+    title: 'ESCRITA', 
     items: [
       ['Escrita & Manuscrito', 'escrita', PenTool], 
       ['Storyboard', 'storyboard', LayoutGrid]
     ] 
   },
   { 
-    title: 'Verificação', 
+    title: 'VERIFICAÇÃO', 
     items: [
       ['Checklist', 'checklist', CheckSquare], 
       ['Story Bible', 'story-bible', BookOpen]
@@ -107,60 +104,130 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="brand">
-        <div className="brand-left">
-          {!isCollapsed && <strong>StoryForge</strong>}
-        </div>
-        <button 
-          type="button" 
-          onClick={() => setIsCollapsed(!isCollapsed)} 
-          className="toggle-sidebar-btn"
-          title={isCollapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          <Menu size={20} />
-        </button>
-      </div>
-      
-      <button 
-        className={`projects-link flex items-center gap-2 ${isCollapsed ? 'justify-center w-full mx-0 px-0' : ''}`}
-        type="button" 
-        onClick={onBackToProjects} 
-        title="Meus Projetos"
-      >
-        <FolderKanban size={20} className="text-purple-400 shrink-0" />
-        {!isCollapsed && <span>Meus Projetos</span>}
-      </button>
+    <aside 
+      style={{
+        position: 'relative',
+        width: isCollapsed ? '84px' : '280px',
+        minWidth: isCollapsed ? '84px' : '280px',
+        height: 'calc(100vh - 24px)',
+        margin: '12px 0 12px 12px',
+        borderRadius: '28px',
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(30, 22, 58, 0.45) 40%, rgba(12, 10, 26, 0.75) 100%)',
+        backdropFilter: 'blur(35px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(35px) saturate(200%)',
+        border: '1.5px solid rgba(255, 255, 255, 0.35)',
+        boxShadow: `
+          inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65), 
+          inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.2), 
+          inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.45),
+          0 25px 60px rgba(0, 0, 0, 0.65), 
+          0 0 35px rgba(168, 85, 247, 0.2)
+        `,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        zIndex: 40,
+        padding: isCollapsed ? '16px 8px' : '20px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px'
+      }}
+    >
+      {/* Filete vertical brilhante de refração no lado direito (Vidro Líquido) */}
+      <div 
+        style={{
+          position: 'absolute',
+          right: '3px',
+          top: '22%',
+          height: '45%',
+          width: '3.5px',
+          background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)',
+          borderRadius: '9999px',
+          filter: 'blur(0.5px)',
+          pointerEvents: 'none'
+        }}
+      />
 
-      <div className="project-summary">
+      {/* Marca & Botão de Colapsar */}
+      <div className="flex items-center justify-between px-2 pt-1">
         {!isCollapsed && (
-          <div>
-            <strong style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', display: 'block', marginBottom: '2px' }}>
-              {currentProject?.title || 'Projeto'}
-            </strong>
-            <span className="text-xs text-gray-400">
-              {currentProject?.format || 'Romance / Livro'}
+          <div className="flex items-center gap-1">
+            <span className="text-xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(255,255,255,0.4)]">
+              Story<span className="text-amber-400">Forge</span>
             </span>
           </div>
         )}
+        <button 
+          type="button" 
+          onClick={() => setIsCollapsed(!isCollapsed)} 
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 flex items-center justify-center text-white transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] cursor-pointer"
+          title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          <Menu size={18} />
+        </button>
       </div>
 
-      <nav className="sidebar-nav" aria-label="Navegação do projeto">
+      {/* Meus Projetos (Limpo, sem contorno de card) */}
+      <button 
+        type="button" 
+        onClick={onBackToProjects} 
+        className={`flex items-center gap-2.5 px-2 py-1 text-purple-200/90 hover:text-white transition-colors cursor-pointer ${isCollapsed ? 'justify-center w-full px-0' : ''}`}
+        title="Meus Projetos"
+      >
+        <FolderKanban size={18} className="text-purple-300 shrink-0" />
+        {!isCollapsed && (
+          <span className="text-sm font-medium">Meus Projetos</span>
+        )}
+      </button>
+
+      {/* Título do Projeto Selecionado (Limpo, sem contorno de card nem seta) */}
+      {!isCollapsed && (
+        <div className="px-2 py-1">
+          <h2 className="text-xl font-bold text-white leading-tight drop-shadow-sm">
+            {currentProject?.title || 'Projeto'}
+          </h2>
+          <span className="text-xs text-purple-200/70 font-medium block mt-0.5">
+            {currentProject?.format || 'Romance / Livro'}
+          </span>
+        </div>
+      )}
+
+      {/* Itens de Navegação */}
+      <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
         {NAVIGATION_ITEMS.map((section) => (
-          <div className="nav-section" key={section.title}>
-            {!isCollapsed && <p>{section.title}</p>}
-            {section.items.map(([label, id, Icon]) => (
-              <button 
-                className={activePage === id ? 'nav-item active' : 'nav-item'} 
-                type="button" 
-                key={id} 
-                onClick={() => onNavigate(id)}
-                title={isCollapsed ? label : ''}
-              >
-                <Icon size={18} className="nav-symbol" />
-                {!isCollapsed && <span>{label}</span>}
-              </button>
-            ))}
+          <div key={section.title} className="space-y-1.5 pt-2 border-t border-white/10 first:border-0 first:pt-0">
+            {!isCollapsed && (
+              <p className="text-[10px] font-bold tracking-wider text-purple-200/60 uppercase px-2 mb-1">
+                {section.title}
+              </p>
+            )}
+            {section.items.map(([label, id, Icon]) => {
+              const isActive = activePage === id;
+              return (
+                <button 
+                  key={id}
+                  type="button" 
+                  onClick={() => onNavigate(id)}
+                  title={isCollapsed ? label : ''}
+                  className={`w-full flex items-center gap-3 p-2 rounded-2xl transition-all cursor-pointer ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-purple-500/40 to-indigo-500/35 border border-purple-300/60 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_4px_18px_rgba(168,85,247,0.3)] font-semibold' 
+                      : 'hover:bg-white/10 border border-transparent text-gray-300 hover:text-white'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                >
+                  <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                    isActive
+                      ? 'bg-purple-500/50 border-purple-300/70 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]'
+                      : 'bg-white/10 border-white/20 text-purple-200/80'
+                  }`}>
+                    <Icon size={16} />
+                  </div>
+                  {!isCollapsed && (
+                    <span className="text-xs truncate">{label}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ))}
       </nav>
@@ -169,14 +236,12 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
-  // Inicializado com dados fictícios para permitir testes rápidos sem login/seleção de projeto
   const [currentUser, setCurrentUser] = useState(MOCK_USER); 
   const [currentProject, setCurrentProject] = useState(MOCK_PROJECT);
-  const [activePage, setActivePage] = useState('escrita'); // Página inicial padrão para testes
+  const [activePage, setActivePage] = useState('escrita');
 
   const [authScreen, setAuthScreen] = useState('login');
   
-  // Captura de Tokens de E-mail via URL Query Params
   const [confirmToken, setConfirmToken] = useState(null);
   const [resetToken, setResetToken] = useState(null);
   const [deleteToken, setDeleteToken] = useState(null);
@@ -238,7 +303,6 @@ export default function App() {
     return <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center text-gray-400">Carregando StoryForge...</div>;
   }
 
-  // ROTA DE ATIVAÇÃO DE E-MAIL
   if (confirmToken) {
     return (
       <ConfirmEmail 
@@ -248,7 +312,6 @@ export default function App() {
     );
   }
 
-  // ROTA DE REDEFINIÇÃO DE SENHA
   if (resetToken) {
     return (
       <ResetPassword 
@@ -258,7 +321,6 @@ export default function App() {
     );
   }
 
-  // ROTA DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA
   if (deleteToken) {
     return (
       <ConfirmDelete 
@@ -271,7 +333,6 @@ export default function App() {
     );
   }
 
-  // FLUXO DE AUTENTICAÇÃO (DESLOGADO)
   if (!currentUser) {
     if (authScreen === 'register') {
       return (
@@ -298,7 +359,6 @@ export default function App() {
     );
   }
 
-  // USUÁRIO LOGADO - SELEÇÃO DE PROJETO
   if (!currentProject) {
     return (
       <Home 
@@ -365,14 +425,14 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell flex h-screen w-screen overflow-hidden bg-[#0a0814]">
       <Sidebar 
         activePage={activePage} 
         onNavigate={setActivePage} 
         onBackToProjects={handleBackToProjects}
         currentProject={currentProject}
       />
-      <div className="page-content">{renderPage()}</div>
+      <div className="page-content flex-1 overflow-y-auto">{renderPage()}</div>
     </div>
   );
 }

@@ -4,42 +4,110 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
-const tabs = {
-  Objetivo: {
-    icon: '◎',
-    content: <p>Selecionar e combinar frameworks estruturais para dar ritmo e forma à história.</p>,
-  },
-  Dicas: {
-    icon: '♧',
-    content: (
-      <ul>
-        <li>Você pode usar um framework ou combinar vários — não existe resposta única.</li>
-        <li>Cada framework resolve um problema narrativo diferente.</li>
-        <li>A estrutura serve à história — não o contrário.</li>
-      </ul>
-    ),
-  },
-  Exemplos: {
-    icon: '▣',
-    content: (
-      <ul>
-        <li>3 Atos: Setup, Confronto, Resolução.</li>
-        <li>Jornada do Herói: 12 estágios de Joseph Campbell.</li>
-        <li>Save the Cat: 15 beats de Blake Snyder.</li>
-      </ul>
-    ),
-  },
-  Perguntas: {
-    icon: '?',
-    content: (
-      <ul>
-        <li>Qual framework melhor serve o ritmo que você imagina?</li>
-        <li>Você quer uma estrutura clássica ou experimental?</li>
-        <li>Como os frameworks escolhidos se complementam?</li>
-      </ul>
-    ),
-  },
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown 
+} from 'lucide-react';
+
+const guideTabs = {
+  Objetivo: (
+    <p>Selecionar e combinar frameworks estruturais para dar ritmo e forma à história.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Você pode usar um framework ou combinar vários — não existe resposta única.</li>
+      <li>Cada framework resolve um problema narrativo diferente.</li>
+      <li>A estrutura serve à história — não o contrário.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>3 Atos: Setup, Confronto, Resolução.</li>
+      <li>Jornada do Herói: 12 estágios de Joseph Campbell.</li>
+      <li>Save the Cat: 15 beats de Blake Snyder.</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Qual framework melhor serve o ritmo que você imagina?</li>
+      <li>Você quer uma estrutura clássica ou experimental?</li>
+      <li>Como os frameworks escolhidos se complementam?</li>
+    </ul>
+  ),
 };
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
+function EstruturaGuide() {
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const frameworks = [
   ['3 Atos', 'Setup, Confronto, Resolução', '3 beats', 'A estrutura clássica de três atos é a espinha dorsal da maioria das histórias ocidentais.'],
@@ -119,7 +187,6 @@ const freytagStages = [
   ['Resolução', 'O novo normal e equilíbrio final.'],
 ];
 
-// Funções auxiliares para estilização colorida dos cards
 function getFrameworkCardStyle(name, isSelected) {
   const norm = name.toLowerCase();
   if (norm.includes('3 atos')) {
@@ -167,8 +234,6 @@ function getCheckBadgeStyle(name) {
 }
 
 export default function EstruturaDramatica({ projectId }) {
-  const [activeTab, setActiveTab] = useState('Objetivo');
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
   const [selectedFrameworks, setSelectedFrameworks] = useState([]);
   const [savingStatus, setSavingStatus] = useState('Salvo');
   const isFirstRender = useRef(true);
@@ -187,7 +252,7 @@ export default function EstruturaDramatica({ projectId }) {
   const [isSaveTheCatOpen, setIsSaveTheCatOpen] = useState(true);
   const [isFreytagOpen, setIsFreytagOpen] = useState(true);
 
-  // 1. Buscar do PostgreSQL ao abrir
+  // 1. Buscar dados ao abrir
   useEffect(() => {
     if (!projectId) return;
 
@@ -249,7 +314,6 @@ export default function EstruturaDramatica({ projectId }) {
     return () => clearTimeout(timer);
   }, [selectedFrameworks, actValues, sequenceValues, heroValues, storyCircleValues, saveTheCatValues, freytagValues, projectId]);
 
-  const activeContent = tabs[activeTab];
   const completedActs = acts.filter(([label]) => (actValues[label] || '').trim() !== '').length;
   const completedSequences = sequences.filter(([label]) => (sequenceValues[label] || '').trim() !== '').length;
   const completedHeroStages = heroStages.filter(([label]) => (heroValues[label] || '').trim() !== '').length;
@@ -295,37 +359,10 @@ export default function EstruturaDramatica({ projectId }) {
           <div className="module-progress"><span aria-hidden="true" />{progress}%</div>
         </div>
       </header>
+
       <div className="module-progress-track"><div style={{ width: `${progress}%` }} /></div>
 
-      <section className="module-guide">
-        <button
-          className="guide-toggle cursor-pointer"
-          type="button"
-          aria-expanded={isGuideOpen}
-          aria-controls="module-guide-content"
-          onClick={() => setIsGuideOpen((c) => !c)}
-        >
-          <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-          <span aria-hidden="true">{isGuideOpen ? '⌃' : '⌄'}</span>
-        </button>
-        {isGuideOpen && (
-          <div className="guide-content" id="module-guide-content">
-            <nav className="guide-tabs" aria-label="Guia do módulo">
-              {Object.entries(tabs).map(([label, tab]) => (
-                <button
-                  className={activeTab === label ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
-                  type="button"
-                  key={label}
-                  onClick={() => setActiveTab(label)}
-                >
-                  <span aria-hidden="true">{tab.icon}</span>{label}
-                </button>
-              ))}
-            </nav>
-            <div className="guide-description">{activeContent.content}</div>
-          </div>
-        )}
-      </section>
+      <EstruturaGuide />
 
       <p className="framework-intro mb-4">Selecione um ou mais frameworks estruturais. Você pode usar apenas um ou combinar vários — não existe resposta única.</p>
 

@@ -1,14 +1,57 @@
 // src/pages/PlotTwists.jsx
-// Página de Planejamento de Plot Twists do StoryForge.
+// Página de Planejamento de Plot Twists do StoryForge com Guia do Módulo e Guia de Foreshadowing Padronizados
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Trash2,
+  Zap,
+  Sparkles,
+  Eye,
+  BookMarked
+} from 'lucide-react';
+
 const guideTabs = {
-  Objetivo: <p>Construir reviravoltas que surpreendem mas que parecem inevitáveis em retrospecto.</p>,
-  Dicas: <ul><li>Um bom plot twist muda o significado de tudo que veio antes.</li><li>Foreshadowing deve ser sutil o suficiente para não ser óbvio, mas claro em retrospecto.</li><li>A consequência do twist deve ser mais importante que o próprio twist.</li></ul>,
-  Exemplos: <ul><li>Twist: “O mentor é o vilão.” — Foreshadowing: “Ele sabia demais sobre o inimigo.”</li><li>Consequência: “O protagonista precisa encontrar uma nova fonte de sabedoria.”</li></ul>,
-  Perguntas: <ul><li>O que o público acredita que é verdade e não é?</li><li>Onde você planta as sementes do twist?</li><li>Como a revelação muda a história daqui para frente?</li></ul>,
+  Objetivo: (
+    <p>Construir reviravoltas que surpreendem mas que parecem inevitáveis em retrospecto.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Um bom plot twist muda o significado de tudo que veio antes.</li>
+      <li>Foreshadowing deve ser sutil o suficiente para não ser óbvio, mas claro em retrospecto.</li>
+      <li>A consequência do twist deve ser mais importante que o próprio twist.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Twist: “O mentor é o vilão.” — Foreshadowing: “Ele sabia demais sobre o inimigo.”</li>
+      <li>Consequência: “O protagonista precisa encontrar uma nova fonte de sabedoria.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O que o público acredita que é verdade e não é?</li>
+      <li>Onde você planta as sementes do twist?</li>
+      <li>Como a revelação muda a história daqui para frente?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
 };
 
 const fields = [
@@ -23,36 +66,58 @@ const blankTwist = () => Object.fromEntries(fields.map(([key]) => [key, '']));
 
 function TwistGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+
   return (
-    <section className="module-guide character-guide">
+    <section className="module-guide character-guide mb-4 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
       <button
-        className="guide-toggle cursor-pointer"
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
         type="button"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((value) => !value)}
+        onClick={() => setIsOpen((prev) => !prev)}
       >
-        <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
-        <div className="guide-content">
-          <nav className="guide-tabs" aria-label="Guia do módulo">
-            {Object.keys(guideTabs).map((tab) => (
-              <button
-                className={activeTab === tab ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span aria-hidden="true">
-                  {tab === 'Objetivo' ? '◎' : tab === 'Dicas' ? '♧' : tab === 'Exemplos' ? '▣' : '?'}
-                </span>
-                {tab}
-              </button>
-            ))}
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
           </nav>
-          <div className="guide-description">{guideTabs[activeTab]}</div>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
         </div>
       )}
     </section>
@@ -61,38 +126,80 @@ function TwistGuide() {
 
 export function ForeshadowingGuide() {
   const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <section className="module-guide foreshadowing-guide mt-3">
+    <section className="module-guide foreshadowing-guide mb-6 rounded-2xl border border-purple-500/20 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
       <button
-        className="guide-toggle cursor-pointer"
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
         type="button"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((prev) => !prev)}
       >
-        <span>O que é foreshadowing?</span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <Sparkles size={18} className="text-purple-400 shrink-0" />
+          O que é Foreshadowing?
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
+
       {isOpen && (
-        <div className="guide-content">
-          <p>“Foreshadowing” significa “presságio” ou “prenúncio”, referindo-se a pistas ou sinais introduzidos pelo autor que antecipam eventos futuros na narrativa.</p>
-          <h3>Tipos de Foreshadowing</h3>
-          <ol>
-            <li><strong>Direto (Explícito):</strong> O narrador ou personagens fornecem pistas claras.</li>
-            <li><strong>Indireto (Sutil):</strong> Pistas discretas, como símbolos ou ambientação.</li>
-            <li><strong>Simbolismo:</strong> Objetos ou eventos simbolizam o que está por vir.</li>
-            <li><strong>Profético:</strong> Sonhos ou visões dão pistas sobre possíveis desfechos.</li>
-          </ol>
-          <h3>Exemplo em Literatura</h3>
-          <ul>
-            <li>Em <em>Macbeth</em>, de Shakespeare, as profecias das bruxas prefiguram a ascensão e queda de Macbeth.</li>
-            <li>Nuvens negras no início de uma história podem prenunciar tragédia.</li>
-          </ul>
-          <h3>Técnicas para um foreshadowing eficaz</h3>
-          <ul>
-            <li><strong>Detalhes plantados cedo:</strong> Introduzir objetos ou diálogos logo no início.</li>
-            <li><strong>Alinhamento com temas:</strong> Conectar o presságio aos temas centrais da obra.</li>
-            <li><strong>Equilíbrio:</strong> Sugerir possibilidades sem revelar demais.</li>
-          </ul>
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4 text-xs text-gray-300 leading-relaxed">
+          <div className="bg-[#11111a] p-3.5 rounded-xl border border-gray-800/80 pt-3">
+            <p className="text-gray-300">
+              <strong className="text-purple-300">“Foreshadowing”</strong> significa <em className="text-amber-300 font-normal">“presságio”</em> ou <em className="text-amber-300 font-normal">“prenúncio”</em>, referindo-se a pistas ou sinais introduzidos estrategicamente pelo autor que antecipam eventos futuros sem estragar a surpresa.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-1.5 text-purple-400">
+              <Eye size={14} /> Tipos de Foreshadowing
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="bg-[#161622] p-2.5 rounded-xl border border-gray-800">
+                <span className="font-bold text-purple-300 block mb-0.5">1. Direto (Explícito)</span>
+                <p className="text-[#a0a0b8] text-[11px]">O narrador ou os personagens fornecem avisos e pistas declaradas claramente.</p>
+              </div>
+              <div className="bg-[#161622] p-2.5 rounded-xl border border-gray-800">
+                <span className="font-bold text-purple-300 block mb-0.5">2. Indireto (Sutil)</span>
+                <p className="text-[#a0a0b8] text-[11px]">Pistas discretas ocultas na ambientação, diálogos banais ou ações secundárias.</p>
+              </div>
+              <div className="bg-[#161622] p-2.5 rounded-xl border border-gray-800">
+                <span className="font-bold text-purple-300 block mb-0.5">3. Simbolismo</span>
+                <p className="text-[#a0a0b8] text-[11px]">Objetos, cores, clima ou eventos paralelos que simbolizam o desfecho por vir.</p>
+              </div>
+              <div className="bg-[#161622] p-2.5 rounded-xl border border-gray-800">
+                <span className="font-bold text-purple-300 block mb-0.5">4. Profético</span>
+                <p className="text-[#a0a0b8] text-[11px]">Sonhos, profecias ou lendas antigas que antecipam o destino dos personagens.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div className="bg-[#11111a] p-3.5 rounded-xl border border-gray-800/80 space-y-2">
+              <h4 className="font-bold text-amber-400 text-xs flex items-center gap-1">
+                <BookMarked size={14} /> Exemplos na Literatura
+              </h4>
+              <ul className="space-y-1.5 list-disc pl-4 text-gray-300 text-[11px]">
+                <li>Em <em>Macbeth</em>, de Shakespeare, as profecias das bruxas prefiguram a ascensão e queda trágica do protagonista.</li>
+                <li>Mudanças repentinas no clima ou nuvens carregadas logo no início prefiguram tragédias iminentes.</li>
+              </ul>
+            </div>
+
+            <div className="bg-[#11111a] p-3.5 rounded-xl border border-gray-800/80 space-y-2">
+              <h4 className="font-bold text-purple-400 text-xs flex items-center gap-1">
+                <Zap size={14} /> Técnicas para Eficácia
+              </h4>
+              <ul className="space-y-1.5 list-disc pl-4 text-gray-300 text-[11px]">
+                <li><strong>Plantio precoce:</strong> Introduza objetos, habilidades ou menções no início antes que virem peças do clímax.</li>
+                <li><strong>Alinhamento com temas:</strong> Conecte o presságio diretamente aos conflitos e dilemas centrais da narrativa.</li>
+                <li><strong>Equilíbrio sutil:</strong> Sugira possibilidades para atiçar a curiosidade sem entregar o desfecho.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -304,11 +411,11 @@ export default function PlotTwists({ projectId }) {
       <div className="mystery-toolbar flex justify-between items-center my-6">
         <span className="text-gray-400 text-sm font-medium">{twists.length} plot twist(s)</span>
         <button
-          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all"
+          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all flex items-center gap-1.5"
           type="button"
           onClick={openCreate}
         >
-          ＋ Novo Plot Twist
+          <Plus size={16} /> Novo Plot Twist
         </button>
       </div>
 
@@ -324,9 +431,9 @@ export default function PlotTwists({ projectId }) {
       {loading ? (
         <div className="text-center py-12 text-gray-500">Carregando plot twists...</div>
       ) : twists.length === 0 && !isCreating ? (
-        <div className="empty-characters plot-empty">
-          <span aria-hidden="true">ϟ</span>
-          <p>Nenhum plot twist planejado ainda.</p>
+        <div className="empty-characters plot-empty text-center py-12">
+          <Zap size={32} className="text-gray-600 mx-auto mb-2" />
+          <p className="text-gray-400 text-sm">Nenhum plot twist planejado ainda.</p>
         </div>
       ) : (
         <div className="twists-list space-y-4">
@@ -337,28 +444,29 @@ export default function PlotTwists({ projectId }) {
                   className="cursor-pointer flex-1 flex items-center gap-2 select-none font-semibold text-gray-200 text-sm"
                   onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
                 >
-                  <span aria-hidden="true" className="text-purple-400">ϟ</span>
+                  <Zap size={16} className="text-purple-400 shrink-0" />
                   {twist.title || 'Plot Twist sem título'}
                 </h2>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="text-gray-400 hover:text-white cursor-pointer px-2 text-sm"
+                    className="text-gray-400 hover:text-white cursor-pointer px-2 transition-colors"
                     onClick={() => setExpandedId(expandedId === twist.id ? null : twist.id)}
                   >
-                    {expandedId === twist.id ? '⌃' : '⌄'}
+                    {expandedId === twist.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
                   <button
                     type="button"
-                    className="text-red-400 hover:text-red-300 cursor-pointer p-1 rounded hover:bg-red-950/30 text-xs font-bold transition-all"
+                    className="text-red-400 hover:text-red-300 cursor-pointer p-1.5 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold flex items-center gap-1"
                     aria-label={`Excluir ${twist.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteTwist(twist.id);
                     }}
                   >
-                    Excluir
+                    <Trash2 size={14} />
+                    <span>Excluir</span>
                   </button>
                 </div>
               </header>

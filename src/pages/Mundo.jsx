@@ -4,6 +4,20 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Pencil,
+  Trash2,
+  Globe
+} from 'lucide-react';
+
 const baseElementTypes = [
   'Planeta', 'Mapa', 'País', 'Cidade', 'Bioma', 'Clima', 'Política', 'Economia',
   'Religião', 'Tecnologia', 'Fauna', 'Flora', 'Idioma', 'História', 'Cronologia',
@@ -12,10 +26,37 @@ const baseElementTypes = [
 ];
 
 const guideTabs = {
-  Objetivo: <p>Construir um mundo coerente, imersivo e funcional que sustenta a narrativa.</p>,
-  Dicas: <ul><li>O mundo deve refletir o tema — cada elemento tem propósito narrativo.</li><li>Sistemas (magia, economia, combate) precisam de regras claras e consistentes.</li><li>A história do mundo afeta o presente da narrativa.</li></ul>,
-  Exemplos: <ul><li>Sistema de Magia: “A magia custa energia vital — quanto maior o feitiço, mais curta a vida.”</li><li>Facção: “A Ordem dos Guardiões protege os segredos antigos a qualquer custo.”</li></ul>,
-  Perguntas: <ul><li>Como o mundo reflete o tema da história?</li><li>Quais regras governam os sistemas do mundo?</li><li>Que conflitos existem entre as facções?</li></ul>,
+  Objetivo: (
+    <p>Construir um mundo coerente, imersivo e funcional que sustenta a narrativa.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O mundo deve refletir o tema — cada elemento tem propósito narrativo.</li>
+      <li>Sistemas (magia, economia, combate) precisam de regras claras e consistentes.</li>
+      <li>A história do mundo afeta o presente da narrativa.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Sistema de Magia: “A magia custa energia vital — quanto maior o feitiço, mais curta a vida.”</li>
+      <li>Facção: “A Ordem dos Guardiões protege os segredos antigos a qualquer custo.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Como o mundo reflete o tema da história?</li>
+      <li>Quais regras governam os sistemas do mundo?</li>
+      <li>Que conflitos existem entre as facções?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
 };
 
 function getWorldTheme(type = '') {
@@ -84,28 +125,57 @@ function getWorldTheme(type = '') {
 function WorldGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
+
   return (
-    <section className="module-guide character-guide">
-      <button className="guide-toggle cursor-pointer" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
-        <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
-        <div className="guide-content">
-          <nav className="guide-tabs" aria-label="Guia do módulo">
-            {Object.keys(guideTabs).map((tab) => (
-              <button
-                className={activeTab === tab ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span aria-hidden="true">{tab === 'Objetivo' ? '◎' : tab === 'Dicas' ? '♧' : tab === 'Exemplos' ? '▣' : '?'}</span>
-                {tab}
-              </button>
-            ))}
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
           </nav>
-          <div className="guide-description">{guideTabs[activeTab]}</div>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
         </div>
       )}
     </section>
@@ -231,7 +301,7 @@ export default function Mundo({ projectId }) {
 
       <div className="world-toolbar mt-6">
         <nav className="world-filters flex flex-wrap gap-2">
-          {/* Botão "Todos" (Mantém a cor Roxa quando ativo) */}
+          {/* Botão "Todos" */}
           <button
             className={`px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-all ${
               filter === 'Todos'
@@ -263,8 +333,8 @@ export default function Mundo({ projectId }) {
             );
           })}
         </nav>
-        <button className="new-character-button cursor-pointer" type="button" onClick={openCreate}>
-          ＋ Novo
+        <button className="new-character-button cursor-pointer flex items-center gap-1" type="button" onClick={openCreate}>
+          <Plus size={14} /> Novo
         </button>
       </div>
 
@@ -286,7 +356,7 @@ export default function Mundo({ projectId }) {
             ))}
           </select>
 
-          {/* Campo Extra de Tipo Customizado (Visível apenas se o usuário escolher 'Outros') */}
+          {/* Campo Extra de Tipo Customizado */}
           {(draft.type === 'Outros' || draft.type === 'Outro') && (
             <input
               type="text"
@@ -316,7 +386,7 @@ export default function Mundo({ projectId }) {
         <div className="text-center py-12 text-gray-500">Carregando universo...</div>
       ) : visibleElements.length === 0 ? (
         <div className="empty-characters world-empty">
-          <span aria-hidden="true">◎</span>
+          <Globe size={32} className="text-gray-600 mx-auto mb-2" />
           <p>Nenhum elemento criado ainda.</p>
         </div>
       ) : (
@@ -329,11 +399,11 @@ export default function Mundo({ projectId }) {
                 <p>{element.description || 'Sem descrição.'}</p>
               </div>
               <div className="world-card-actions">
-                <button className="cursor-pointer" type="button" onClick={() => openEdit(element)}>
-                  Editar
+                <button className="cursor-pointer flex items-center gap-1" type="button" onClick={() => openEdit(element)}>
+                  <Pencil size={13} /> Editar
                 </button>
-                <button className="cursor-pointer" type="button" onClick={() => deleteElement(element.id)}>
-                  Excluir
+                <button className="cursor-pointer flex items-center gap-1" type="button" onClick={() => deleteElement(element.id)}>
+                  <Trash2 size={13} /> Excluir
                 </button>
               </div>
             </article>

@@ -1,9 +1,35 @@
 // src/pages/Escrita.jsx
-// Página de Escrita do Projeto
+// Página de Escrita do Projeto com Ícone de Exclamação no Guia do Módulo
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
+
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Sparkles,
+  Copy,
+  Check,
+  Trash2,
+  GripVertical,
+  Eraser,
+  User,
+  Globe,
+  GitBranch,
+  Activity,
+  Clapperboard,
+  Search,
+  Zap,
+  Eye,
+  X,
+  Plus
+} from 'lucide-react';
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
@@ -12,19 +38,19 @@ const guideTabs = {
     <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do programa.</p>
   ),
   Dicas: (
-    <ul>
+    <ul className="space-y-1.5 list-disc pl-4">
       <li>Use os elementos já criados (personagens, cenas, mundo) como base para a escrita.</li>
       <li>Abra os itens de Apoio Visual na seção inferior para consultar suas ideias com espaço de sobra.</li>
     </ul>
   ),
   Exemplos: (
-    <ul>
+    <ul className="space-y-1.5 list-disc pl-4">
       <li>Capítulo 1: Abertura que apresenta o protagonista e o mundo.</li>
       <li>Capítulo 2: Incidente incitante que inicia a jornada.</li>
     </ul>
   ),
   Perguntas: (
-    <ul>
+    <ul className="space-y-1.5 list-disc pl-4">
       <li>Qual é o foco deste capítulo?</li>
       <li>Quais elementos da pré-produção se encaixam aqui?</li>
       <li>O ritmo deste capítulo serve ao conjunto da obra?</li>
@@ -132,52 +158,68 @@ function getCharacterBadgeStyle(type = '') {
   return 'bg-gray-800 text-gray-300 border-gray-700';
 }
 
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
 function EscritaGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <section className="module-guide character-guide mb-6">
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
       <button
-        className="guide-toggle cursor-pointer"
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
         type="button"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
       >
-        <span>
-          <b aria-hidden="true">💡</b> Guia do Módulo
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
         </span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
 
+      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
-        <div className="guide-content">
-          <nav className="guide-tabs" aria-label="Guia do módulo">
-            {Object.keys(guideTabs).map((tab) => (
-              <button
-                className={
-                  activeTab === tab
-                    ? 'guide-tab active cursor-pointer'
-                    : 'guide-tab cursor-pointer'
-                }
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span aria-hidden="true">
-                  {tab === 'Objetivo'
-                    ? '◎'
-                    : tab === 'Dicas'
-                    ? '💡'
-                    : tab === 'Exemplos'
-                    ? '📖'
-                    : '?'}
-                </span>
-                {tab}
-              </button>
-            ))}
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
           </nav>
-          <div className="guide-description">{guideTabs[activeTab]}</div>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
         </div>
       )}
     </section>
@@ -203,7 +245,6 @@ export default function Escrita({ projectId, onNavigate }) {
 
   const getSugKey = (sug) => `${sug.original}_${sug.offset}_${sug.label}`;
 
-  // ESTADO DOS BOTÕES DA BARRA DE FERRAMENTAS
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -232,9 +273,8 @@ export default function Escrita({ projectId, onNavigate }) {
   });
 
   const [textSuggestions, setTextSuggestions] = useState([]);
-const [savingStatus, setSavingStatus] = useState('Salvo');
+  const [savingStatus, setSavingStatus] = useState('Salvo');
 
-  // BUSCA DADOS DO PROJETO
   useEffect(() => {
     if (!projectId) return;
 
@@ -319,7 +359,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
         });
       } catch (err) {
         console.error('Erro ao carregar dados do manuscrito:', err);
-      } finally {
+      } font-medium; {
         setLoading(false);
       }
     };
@@ -329,7 +369,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
-  // SINCRONIZA O CONTEÚDO DO CAPÍTULO SELECIONADO NO EDITOR DE TEXTO
   useEffect(() => {
     if (editorRef.current && selectedChapter) {
       if (editorRef.current.innerHTML !== selectedChapter.content) {
@@ -338,7 +377,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     }
   }, [selectedId]);
 
-  // ANÁLISE GRAMATICAL EM SEGUNDO PLANO (COM FILTRO DE ESPAÇO EM BRANCO)
   useEffect(() => {
     const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
 
@@ -358,7 +396,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
         const response = await apiClient.post('/entities/grammar-check', { text: rawText });
         const rawLt = response.data || [];
 
-        // Filtra regras de espaço em branco para não dar falso positivo ao usar formatação
         ltSuggestions = rawLt.filter((s) => {
           const isWhitespaceRule =
             s.rule?.id === 'WHITESPACE_RULE' ||
@@ -390,7 +427,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     };
   }, [selectedChapter?.content]);
 
-  // VERIFICA E ATUALIZA ESTADO ATIVO DOS BOTÕES DE FORMATAÇÃO
   const checkActiveFormats = () => {
     if (!editorRef.current) return;
     try {
@@ -409,7 +445,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
         insertOrderedList: document.queryCommandState('insertOrderedList'),
       });
     } catch (e) {
-      // Ignora exceções em seleções nulas
+      // Ignora exceções
     }
   };
 
@@ -443,7 +479,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     checkActiveFormats();
   };
 
-  // RECUO DE PRIMEIRA LINHA VIA CSS (SEM CARACTERES DE ESPAÇO)
   const insertFirstLineIndent = () => {
     if (!editorRef.current) return;
 
@@ -484,7 +519,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     }
   };
 
-  // ROLA APENAS A CAIXA DO EDITOR (SEM MOVER O SCROLL DA PÁGINA INTEIRA)
   const handleCardClick = (e, sug) => {
     if (
       e.target.closest('button') ||
@@ -504,10 +538,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
         const editorRect = editor.getBoundingClientRect();
         const markRect = mark.getBoundingClientRect();
 
-        // Posição relativa da marca em relação ao topo visível do editor
         const offsetTop = markRect.top - editorRect.top;
-
-        // Calcula a nova posição para centralizar o texto dentro da caixa do editor
         const targetScrollTop = editor.scrollTop + offsetTop - (editor.clientHeight / 2) + (markRect.height / 2);
 
         editor.scrollTo({
@@ -525,7 +556,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     checkActiveFormats();
   };
 
-  // DESTAQUE ROXO EM TEMPO REAL
   const highlightCorrectionInEditor = (sug) => {
     if (!editorRef.current || !sug || !sug.original) return;
     removeHighlightFromEditor();
@@ -619,7 +649,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     }
   };
 
-  // APLICA CORREÇÃO NO LOCAL EXATO DO TEXTO
   function handleApplyCorrection(suggestion, chosenReplacement) {
     if (!selectedChapter || !editorRef.current) return;
 
@@ -716,12 +745,11 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
   function handleDismissSuggestion(sug) {
     removeHighlightFromEditor();
     const key = getSugKey(sug);
-    const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutos de espera
+    const COOLDOWN_MS = 30 * 60 * 1000;
     ignoredSuggestionsRef.current.set(key, Date.now() + COOLDOWN_MS);
     setTextSuggestions((prev) => prev.filter((s) => s.id !== sug.id));
   }
 
-  // CÁLCULO DE PROGRESSO
   const POINTS_PER_CHAPTER = 10;
   const totalPossiblePoints = chapters.length * POINTS_PER_CHAPTER;
   let currentPoints = 0;
@@ -781,7 +809,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
     }
   }
 
-  // SALVAMENTO AUTOMÁTICO NO BACKEND SEM STALE CLOSURE
   function updateSelectedChapter(key, value) {
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
@@ -898,6 +925,16 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
     }`;
 
+  const drawerTabsConfig = [
+    ['Personagens', 'personagens', User],
+    ['Mundo', 'mundo', Globe],
+    ['Estrutura Dramática', 'estrutura', GitBranch],
+    ['Ritmo & Timeline', 'ritmo', Activity],
+    ['Cenas', 'cenas', Clapperboard],
+    ['Mistérios', 'misterios', Search],
+    ['Plot Twists', 'twists', Zap],
+  ];
+
   return (
     <main className="module-page w-full manuscript-page">
       <style>{`
@@ -909,28 +946,28 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
       `}</style>
 
       <header className="module-header flex justify-between items-center">
-    <div>
-      <h1>Escrita & Manuscrito</h1>
-      <p>Escreva capítulos e consulte seus elementos criados em tempo real.</p>
-    </div>
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
-        {savingStatus}
-      </span>
-      <div className="module-progress">
-        <span aria-hidden="true" />
-        {progressPercentage}%
-      </div>
-    </div>
-  </header>
+        <div>
+          <h1>Escrita & Manuscrito</h1>
+          <p>Escreva capítulos e consulte seus elementos criados em tempo real.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
+            {savingStatus}
+          </span>
+          <div className="module-progress">
+            <span aria-hidden="true" />
+            {progressPercentage}%
+          </div>
+        </div>
+      </header>
 
       <div className="module-progress-track">
-    <div style={{ width: `${progressPercentage}%` }} />
-  </div>
+        <div style={{ width: `${progressPercentage}%` }} />
+      </div>
 
       <EscritaGuide />
 
-      {/* GRID COM EXPANSÃO HORIZONTAL (3 COLUNAS CAPÍTULOS / 9 COLUNAS EDITOR) */}
+      {/* GRID COM EXPANSÃO HORIZONTAL */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         
         {/* Painel de Capítulos */}
@@ -938,11 +975,11 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Capítulos</h2>
             <button
-              className="new-character-button cursor-pointer text-xs px-3 py-1"
+              className="new-character-button cursor-pointer text-xs px-3 py-1 flex items-center gap-1"
               type="button"
               onClick={() => setIsCreating((prev) => !prev)}
             >
-              + Novo
+              <Plus size={14} /> Novo
             </button>
           </div>
 
@@ -1000,7 +1037,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-600 cursor-grab text-xs">░░</span>
+                    <GripVertical size={16} className="text-gray-600 cursor-grab shrink-0" />
                     <div>
                       <h3 className="font-semibold text-sm leading-tight">
                         {chapter.title}
@@ -1014,7 +1051,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                     title="Excluir capítulo"
                     onClick={(e) => handleDeleteChapter(chapter.id, e)}
                   >
-                    🗑
+                    <Trash2 size={15} />
                   </button>
                 </div>
               ))}
@@ -1046,7 +1083,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                       }`}
                       title="Alternar Painel de Correção Ortográfica"
                     >
-                      <span>✨</span>
+                      <Sparkles size={14} className="text-amber-400 shrink-0" />
                       <span>{textSuggestions.length} Alertas</span>
                     </button>
 
@@ -1060,7 +1097,11 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                       }`}
                       title="Copiar Título e Conteúdo do Capítulo"
                     >
-                      <span>{copied ? '✓' : '📋'}</span>
+                      {copied ? (
+                        <Check size={14} className="text-emerald-400 shrink-0" />
+                      ) : (
+                        <Copy size={14} className="shrink-0" />
+                      )}
                       <span>{copied ? 'Copiado!' : 'Copiar'}</span>
                     </button>
 
@@ -1078,10 +1119,10 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                   </div>
                 </div>
 
-                {/* BARRA DE FERRAMENTAS COM OS TAMANHOS A PARTIR DE 10pt */}
+                {/* BARRA DE FERRAMENTAS DO EDITOR */}
                 <div className="bg-[#191926] border border-gray-800 rounded-lg p-2 flex flex-wrap items-center gap-3 text-xs text-gray-300 select-none">
                   
-                  {/* FONTE E TAMANHOS (10pt a 36pt) */}
+                  {/* FONTE E TAMANHOS */}
                   <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
                     <select
                       onChange={(e) => executeCmd('fontName', e.target.value)}
@@ -1184,7 +1225,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                     </label>
                   </div>
 
-                  {/* ALINHAMENTOS DE PARÁGRAFO */}
+                  {/* ALINHAMENTOS */}
                   <div className="flex items-center gap-1 pr-3 border-r border-gray-800">
                     <button
                       type="button"
@@ -1239,7 +1280,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                       1.
                     </button>
 
-                    {/* BOTÃO: RECUO DE PRIMEIRA LINHA VIA CSS */}
                     <button
                       type="button"
                       onClick={insertFirstLineIndent}
@@ -1275,7 +1315,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                       className="px-2 py-1 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs flex items-center gap-1 transition-all cursor-pointer font-semibold"
                       title="Remover todas as formatações do texto selecionado"
                     >
-                      <span>🧹</span>
+                      <Eraser size={14} />
                       <span>Limpar Formatação</span>
                     </button>
                   </div>
@@ -1294,12 +1334,12 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                 />
               </div>
 
-              {/* ASSISTENTE DE REVISÃO (ROLAGEM DENTRO DO EDITOR SEM MOVER A PÁGINA) */}
+              {/* ASSISTENTE DE REVISÃO */}
               {showCorrectionsPanel && textSuggestions.length > 0 && (
                 <div className="bg-[#161522] border border-purple-900/60 rounded-xl p-4 space-y-3 shadow-xl">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-800/80">
                     <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
-                      🪄 Assistente de Revisão ({textSuggestions.length} Alertas)
+                      <Sparkles size={15} className="text-purple-400 shrink-0" /> Assistente de Revisão ({textSuggestions.length} Alertas)
                     </span>
                   </div>
 
@@ -1361,7 +1401,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                             </div>
                           </div>
 
-                          {/* AÇÕES (ISOLADAS DE PROPAGAÇÃO DE CLIQUE) */}
                           <div className="flex items-center gap-1.5 shrink-0">
                             {visibleOptions.map((option, oIdx) => (
                               <button
@@ -1412,10 +1451,10 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                                 e.stopPropagation();
                                 handleDismissSuggestion(sug);
                               }}
-                              className="ml-1 px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer font-bold"
+                              className="ml-1 p-1 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                               title="Ignorar esta correção por 30 minutos"
                             >
-                              ✕
+                              <X size={14} />
                             </button>
                           </div>
                         </div>
@@ -1427,7 +1466,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
             </>
           ) : (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-16 text-center space-y-3">
-              <span className="text-4xl text-gray-600 block">📖</span>
+              <BookOpen size={36} className="text-gray-600 mx-auto block" />
               <p className="text-gray-400 text-sm">
                 Selecione ou crie um capítulo para começar a escrever.
               </p>
@@ -1443,15 +1482,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
             <span className="text-gray-400 font-bold mr-2 uppercase tracking-wider text-[11px]">
               Apoio Visual:
             </span>
-            {[
-              ['Personagens', 'personagens', '👤'],
-              ['Mundo', 'mundo', '🌍'],
-              ['Estrutura Dramática', 'estrutura', '🏛'],
-              ['Ritmo & Timeline', 'ritmo', '⏳'],
-              ['Cenas', 'cenas', '🎬'],
-              ['Mistérios', 'misterios', '🔍'],
-              ['Plot Twists', 'twists', '⚡'],
-            ].map(([label, key, icon]) => (
+            {drawerTabsConfig.map(([label, key, IconComponent]) => (
               <button
                 key={key}
                 type="button"
@@ -1462,7 +1493,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                     : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                 }`}
               >
-                <span>{icon}</span>
+                <IconComponent size={14} className="shrink-0" />
                 <span>{label}</span>
               </button>
             ))}
@@ -1481,10 +1512,10 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
             {activeDrawer && (
               <button
                 type="button"
-                className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md bg-gray-800/50 hover:bg-gray-800"
+                className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md bg-gray-800/50 hover:bg-gray-800 flex items-center gap-1"
                 onClick={() => setActiveDrawer(null)}
               >
-                ✕ Ocultar Painel
+                <X size={13} /> Ocultar Painel
               </button>
             )}
           </div>
@@ -1515,7 +1546,7 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                           onClick={() => onNavigate(item.pageKey)}
                           className="absolute top-4 right-4 text-gray-500 hover:text-purple-300 text-base cursor-pointer p-1 transition-colors"
                         >
-                          👁
+                          <Eye size={16} />
                         </button>
                       )}
 
@@ -1591,7 +1622,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
           <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
             <div className="bg-[#181726] border border-purple-600/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
               
-              {/* Cabeçalho do Modal */}
               <div className="flex justify-between items-start pb-3 border-b border-gray-800">
                 <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${activeModalSuggestion.badgeStyle}`}>
                   {activeModalSuggestion.label}
@@ -1599,13 +1629,12 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                 <button
                   type="button"
                   onClick={() => setActiveModalSuggestion(null)}
-                  className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer transition-colors"
+                  className="text-gray-400 hover:text-white p-1 cursor-pointer transition-colors"
                 >
-                  ✕
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Trecho Original */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trecho do Texto:</h3>
                 <span className="text-red-300 font-mono bg-red-950/50 border border-red-900/60 px-3 py-1 rounded-lg text-sm inline-block line-through">
@@ -1613,7 +1642,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                 </span>
               </div>
 
-              {/* Explicação Detalhada */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Explicação Detalhada:</h3>
                 <div className="bg-[#11111a] border border-gray-800/90 p-4 rounded-xl text-gray-200 text-sm leading-relaxed max-h-48 overflow-y-auto">
@@ -1621,7 +1649,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                 </div>
               </div>
 
-              {/* Sugestões de Correção (4 Principais + Dropdown para Extras) */}
               {allReplacements.length > 0 && (
                 <div className="space-y-2 pt-2 border-t border-gray-800">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -1629,7 +1656,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                   </h3>
                   
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* 4 Botões Principais */}
                     {mainReplacements.map((rep, idx) => (
                       <button
                         key={idx}
@@ -1644,7 +1670,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                       </button>
                     ))}
 
-                    {/* Menu Suspenso (Dropdown) para Opções Extras */}
                     {extraReplacements.length > 0 && (
                       <div className="relative inline-block">
                         <select
@@ -1675,7 +1700,6 @@ const [savingStatus, setSavingStatus] = useState('Salvo');
                 </div>
               )}
 
-              {/* Rodapé */}
               <div className="flex justify-end pt-2">
                 <button
                   type="button"

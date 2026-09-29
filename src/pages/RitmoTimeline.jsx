@@ -1,41 +1,115 @@
+// src/pages/RitmoTimeline.jsx
+// Página de Ritmo & Timeline do StoryForge
+
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
-const tabs = {
-  Objetivo: {
-    icon: '◎',
-    content: <p>Definir e visualizar os marcos narrativos essenciais na ordem dramática correta.</p>,
-  },
-  Dicas: {
-    icon: '♧',
-    content: (
-      <ul>
-        <li>O incidente incitante deve acontecer nos primeiros 10-15% da história.</li>
-        <li>O midpoint deve inverter ou escalar o conflito de forma significativa.</li>
-        <li>O clímax deve ser o ponto de maior tensão e deve responder ao tema.</li>
-      </ul>
-    ),
-  },
-  Exemplos: {
-    icon: '▣',
-    content: (
-      <ul>
-        <li>Incidente Incitante: “Luke descobre a mensagem da Princesa Leia.”</li>
-        <li>Midpoint: “O protagonista descobre que o mentor é o vilão.”</li>
-      </ul>
-    ),
-  },
-  Perguntas: {
-    icon: '?',
-    content: (
-      <ul>
-        <li>O que dá início à jornada do protagonista?</li>
-        <li>Qual é o ponto de virada que muda tudo?</li>
-        <li>O clímax responde à pergunta dramática central?</li>
-      </ul>
-    ),
-  },
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Pencil,
+  Trash2,
+  Plus
+} from 'lucide-react';
+
+const guideTabs = {
+  Objetivo: (
+    <p>Definir e visualizar os marcos narrativos essenciais na ordem dramática correta.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O incidente incitante deve acontecer nos primeiros 10-15% da história.</li>
+      <li>O midpoint deve inverter ou escalar o conflito de forma significativa.</li>
+      <li>O clímax deve ser o ponto de maior tensão e deve responder ao tema.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Incidente Incitante: “Luke descobre a mensagem da Princesa Leia.”</li>
+      <li>Midpoint: “O protagonista descobre que o mentor é o vilão.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O que dá início à jornada do protagonista?</li>
+      <li>Qual é o ponto de virada que muda tudo?</li>
+      <li>O clímax responde à pergunta dramática central?</li>
+    </ul>
+  ),
 };
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
+function RitmoTimelineGuide() {
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const milestones = [
   ['Prólogo', 'O contexto inicial, a ambientação histórica ou um vislumbre do passado que antecede a trama.'],
@@ -49,8 +123,6 @@ const milestones = [
 ];
 
 export default function RitmoTimeline({ projectId }) {
-  const [activeTab, setActiveTab] = useState('Objetivo');
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
   const [events, setEvents] = useState(() => Object.fromEntries(milestones.map(([name]) => [name, []])));
   const [openMilestone, setOpenMilestone] = useState(null);
   const [draft, setDraft] = useState({ title: '', description: '' });
@@ -101,7 +173,6 @@ export default function RitmoTimeline({ projectId }) {
     return () => clearTimeout(timer);
   }, [events, projectId]);
 
-  const activeContent = tabs[activeTab];
   const completedMilestones = milestones.filter(([name]) => (events[name] || []).length > 0).length;
   const progress = Math.round((completedMilestones / milestones.length) * 100);
 
@@ -232,26 +303,11 @@ export default function RitmoTimeline({ projectId }) {
       </header>
       <div className="module-progress-track"><div style={{ width: `${progress}%` }} /></div>
 
-      <section className="module-guide">
-        <button className="guide-toggle cursor-pointer" type="button" aria-expanded={isGuideOpen} aria-controls="timeline-guide-content" onClick={() => setIsGuideOpen((c) => !c)}>
-          <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-          <span aria-hidden="true">{isGuideOpen ? '⌃' : '⌄'}</span>
-        </button>
-        {isGuideOpen && (
-          <div className="guide-content" id="timeline-guide-content">
-            <nav className="guide-tabs" aria-label="Guia do módulo">
-              {Object.entries(tabs).map(([label, tab]) => (
-                <button className={activeTab === label ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'} type="button" key={label} onClick={() => setActiveTab(label)}>
-                  <span aria-hidden="true">{tab.icon}</span>{label}
-                </button>
-              ))}
-            </nav>
-            <div className="guide-description">{activeContent.content}</div>
-          </div>
-        )}
-      </section>
+      <RitmoTimelineGuide />
 
-      <p className="timeline-intro">Cada marco narrativo contém sua descrição e os eventos da timeline vinculados a ele. Adicione eventos diretamente sob cada marco.</p>
+      <p className="timeline-intro mb-4 text-xs text-gray-400">
+        Cada marco narrativo contém sua descrição e os eventos da timeline vinculados a ele. Adicione eventos diretamente sob cada marco.
+      </p>
       
       <section className="timeline-list" aria-label="Marcos narrativos">
         {milestones.map(([name, description], index) => {
@@ -273,11 +329,11 @@ export default function RitmoTimeline({ projectId }) {
                   )}
                 </div>
                 <button 
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${theme.button}`} 
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${theme.button}`} 
                   type="button" 
                   onClick={() => openEventForm(name)}
                 >
-                  + Evento
+                  <Plus size={14} /> Evento
                 </button>
               </header>
 
@@ -287,22 +343,22 @@ export default function RitmoTimeline({ projectId }) {
                 <div className="event-form space-y-2 mb-3 bg-[#1a1a26] p-4 rounded-lg border border-gray-800">
                   <input
                     type="text"
-                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white"
+                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-600"
                     placeholder="Título do evento..."
                     value={draft.title}
                     onChange={(event) => setDraft({ ...draft, title: event.target.value })}
                   />
                   <textarea
-                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white"
+                    className="w-full bg-[#12121a] border border-gray-700 rounded-lg p-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-600"
                     placeholder="Descrição do evento..."
                     value={draft.description}
                     onChange={(event) => setDraft({ ...draft, description: event.target.value })}
                   />
                   <div className="event-form-actions flex gap-2">
-                    <button className="event-save px-3 py-1 bg-purple-600 text-white rounded text-xs cursor-pointer" type="button" onClick={() => saveEvent(name)}>
+                    <button className="event-save px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded text-xs cursor-pointer transition-colors" type="button" onClick={() => saveEvent(name)}>
                       {editingEvent ? 'Salvar' : 'Adicionar'}
                     </button>
-                    <button className="event-cancel px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs cursor-pointer" type="button" onClick={cancelEvent}>
+                    <button className="event-cancel px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium rounded text-xs cursor-pointer transition-colors" type="button" onClick={cancelEvent}>
                       Cancelar
                     </button>
                   </div>
@@ -315,9 +371,13 @@ export default function RitmoTimeline({ projectId }) {
                     <strong className="text-white text-xs block mb-0.5">{event.title}</strong>
                     <p className="text-gray-400 text-[11px]">{event.description}</p>
                   </div>
-                  <div className="event-actions flex gap-2 text-xs text-gray-500">
-                    <button className="hover:text-purple-400 cursor-pointer" type="button" aria-label={`Editar ${event.title}`} onClick={() => editEvent(name, event)}>✎</button>
-                    <button className="hover:text-red-400 cursor-pointer" type="button" aria-label={`Excluir ${event.title}`} onClick={() => deleteEvent(name, event.id)}>🗑</button>
+                  <div className="event-actions flex gap-2 text-xs text-gray-500 shrink-0 ml-2">
+                    <button className="hover:text-purple-400 cursor-pointer p-1 transition-colors" type="button" aria-label={`Editar ${event.title}`} onClick={() => editEvent(name, event)}>
+                      <Pencil size={14} />
+                    </button>
+                    <button className="hover:text-red-400 cursor-pointer p-1 transition-colors" type="button" aria-label={`Excluir ${event.title}`} onClick={() => deleteEvent(name, event.id)}>
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}

@@ -1,16 +1,129 @@
 // src/pages/DialogEngine.jsx
-// Página de Diálogos do StoryForge
+// Página de Diálogos do StoryForge com Guia do Módulo Padronizado
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  Check,
+  Save,
+  MessageSquare,
+  Music,
+  ChevronUp as ArrowUp,
+  ChevronDown as ArrowDown
+} from 'lucide-react';
+
+const guideTabs = {
+  Objetivo: (
+    <p>
+      Construir conversas verossímeis e intensas que revelem características marcantes dos personagens, evitem a exposição artificial de dados e impulsionem a narrativa através do subtexto e do conflito direto.
+    </p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li><b>Vozes Distintas:</b> Cada personagem deve ter um ritmo, vocabulário e extensão de frases únicos. Se esconder o nome, ainda deve ser possível identificar quem fala.</li>
+      <li><b>Solilóquios & Pensamentos:</b> Selecione "Nenhum" no Interlocutor B para criar monólogos internos do protagonista.</li>
+      <li><b>Camada Sonora Personalizada:</b> Adicione seu próprio áudio customizado no seletor para imersão sonora na plataforma Immerziva.</li>
+      <li><b>Edição & Reordenação:</b> Você pode recolher, reordenar ou editar qualquer card salvo para prolongar ou encurtar a conversa a qualquer momento.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <div className="p-3 bg-[#171724] rounded-xl border border-gray-800 space-y-1 font-serif text-gray-300">
+      <p>— Você tem certeza? — perguntou Ana, cruzando os braços.</p>
+      <p>— Absoluta. — Marcos guardou as chaves no bolso. — Precisamos ir agora.</p>
+    </div>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O que cada personagem quer obter nesta conversa?</li>
+      <li>O que eles estão tentando esconder um do outro (Subtexto)?</li>
+      <li>Esta conversa altera o rumo da cena ou poderia ser eliminada?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
+function DialogEngineGuide() {
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function DialogEngine({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState('Salvo');
-
-  // Guia do Módulo
-  const [guideOpen, setGuideOpen] = useState(true);
-  const [guideTab, setGuideTab] = useState('objetivo');
 
   // Dados do projeto
   const [projectChars, setProjectChars] = useState([]);
@@ -30,7 +143,7 @@ export default function DialogEngine({ projectId }) {
     '🌧️ Chuva forte e trovões',
     '☕ Café movimentado / Ruído urbano',
     '🎵 Trilha: Suspense & Tensão',
-    '🎵 Trilha: Dramática & Melancólica',
+    '🎶 Trilha: Dramática & Melancólica',
     '❄️ Vento gélido e tempestade'
   ]);
   const [selectedSound, setSelectedSound] = useState('Sem áudio de fundo');
@@ -231,7 +344,6 @@ export default function DialogEngine({ projectId }) {
 
   const handleCopyCard = (card) => {
     const textFormatted = card.lines.map((l) => {
-      const speakerName = l.speaker === 'A' ? card.charAName : card.charBName;
       const actionText = l.action ? ` — ${l.action}.` : '';
       return `— ${l.text}${actionText}`;
     }).join('\n\n');
@@ -264,7 +376,7 @@ export default function DialogEngine({ projectId }) {
 
   return (
     <main className="module-page w-full space-y-8 pb-32 text-gray-200 font-sans">
-      {/* CABEÇALHO PADRONIZADO (SEM BARRA E PERCENTUAL DE PROGRESSO) */}
+      {/* CABEÇALHO PADRONIZADO DA PÁGINA */}
       <header className="module-header flex justify-between items-center">
         <div>
           <h1>Diálogos</h1>
@@ -278,82 +390,13 @@ export default function DialogEngine({ projectId }) {
       </header>
 
       {/* 1. GUIA DO MÓDULO */}
-      <section className="bg-[#11111a] border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="flex justify-between items-center p-4 bg-[#161622] border-b border-gray-800/80">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-bold">!</span>
-            <h2 className="text-sm font-bold text-white tracking-wide">Guia do Módulo</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setGuideOpen(!guideOpen)}
-            className="text-gray-400 hover:text-white font-bold text-xs cursor-pointer"
-          >
-            {guideOpen ? '▲' : '▼'}
-          </button>
-        </div>
-
-        {guideOpen && (
-          <div className="p-5 space-y-4">
-            <div className="flex gap-2 border-b border-gray-800 pb-3 text-xs">
-              {['objetivo', 'dicas', 'exemplos', 'perguntas'].map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setGuideTab(tab)}
-                  className={`px-3 py-1.5 rounded-lg font-bold capitalize transition-all cursor-pointer ${
-                    guideTab === tab ? 'bg-purple-900/60 text-purple-300 border border-purple-700/50' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {tab === 'objetivo' && '🎯 '}
-                  {tab === 'dicas' && '♠ '}
-                  {tab === 'exemplos' && '▣ '}
-                  {tab === 'perguntas' && '? '}
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-xs text-gray-300 leading-relaxed">
-              {guideTab === 'objetivo' && (
-                <p>
-                  Construir conversas verossímeis e intensas que revelem características marcantes dos personagens, evitem a exposição artificial de dados e impulsionem a narrativa através do subtexto e do conflito direto.
-                </p>
-              )}
-
-              {guideTab === 'dicas' && (
-                <div className="space-y-2">
-                  <p>• <b>Vozes Distintas:</b> Cada personagem deve ter um ritmo, vocabulário e extensão de frases únicos. Se esconder o nome, ainda deve ser possível identificar quem fala.</p>
-                  <p>• <b>Solilóquios & Pensamentos:</b> Selecione "Nenhum" no Interlocutor B para criar monólogos internos do protagonista.</p>
-                  <p>• <b>Camada Sonora Personalizada:</b> Adicione seu próprio áudio customizado no seletor para imersão sonora na plataforma Immerziva.</p>
-                  <p>• <b>Edição & Reordenação:</b> Você pode recolher, reordenar ou editar qualquer card salvo para prolongar ou encurtar a conversa a qualquer momento.</p>
-                </div>
-              )}
-
-              {guideTab === 'exemplos' && (
-                <div className="p-3 bg-[#171724] rounded-xl border border-gray-800 space-y-1 font-serif text-gray-300">
-                  <p>— Você tem certeza? — perguntou Ana, cruzando os braços.</p>
-                  <p>— Absoluta. — Marcos guardou as chaves no bolso. — Precisamos ir agora.</p>
-                </div>
-              )}
-
-              {guideTab === 'perguntas' && (
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>O que cada personagem quer obter nesta conversa?</li>
-                  <li>O que eles estão tentando esconder um do outro (Subtexto)?</li>
-                  <li>Esta conversa altera o rumo da cena ou poderia ser eliminada?</li>
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+      <DialogEngineGuide />
 
       {/* 2. CONSTRUTOR DE DIÁLOGOS */}
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl p-6 space-y-6 shadow-2xl">
         <div className="flex justify-between items-center border-b border-gray-800 pb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <span>🗣️</span> {editingCardId ? 'Editando Diálogo' : 'Construtor de Diálogo'}
+            <MessageSquare size={20} className="text-purple-400" /> {editingCardId ? 'Editando Diálogo' : 'Construtor de Diálogo'}
           </h2>
           {editingCardId && (
             <button
@@ -361,7 +404,7 @@ export default function DialogEngine({ projectId }) {
               onClick={resetForm}
               className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
             >
-              Cancelando Edição (Criar Novo)
+              Cancelar Edição (Criar Novo)
             </button>
           )}
         </div>
@@ -375,7 +418,7 @@ export default function DialogEngine({ projectId }) {
             <select
               value={selectedSceneId}
               onChange={(e) => setSelectedSceneId(e.target.value)}
-              className="w-full bg-[#181824] border border-gray-800 rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+              className="w-full bg-[#181824] border border-gray-800 rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-purple-500 cursor-pointer"
             >
               {projectScenes.length === 0 && <option value="">Nenhuma cena cadastrada no projeto</option>}
               {projectScenes.map((s, idx) => (
@@ -393,7 +436,7 @@ export default function DialogEngine({ projectId }) {
             <select
               value={selectedSound}
               onChange={(e) => setSelectedSound(e.target.value)}
-              className="w-full bg-[#181824] border border-gray-800 rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-amber-500"
+              className="w-full bg-[#181824] border border-gray-800 rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-amber-500 cursor-pointer"
             >
               {soundOptions.map((sound, i) => (
                 <option key={i} value={sound}>{sound}</option>
@@ -410,9 +453,9 @@ export default function DialogEngine({ projectId }) {
               <button
                 type="button"
                 onClick={handleAddCustomSound}
-                className="px-3 py-2 bg-amber-950 text-amber-300 border border-amber-800/60 rounded-lg text-xs font-bold shrink-0 hover:bg-amber-900 cursor-pointer"
+                className="px-3 py-2 bg-amber-950 text-amber-300 border border-amber-800/60 rounded-lg text-xs font-bold shrink-0 hover:bg-amber-900 cursor-pointer flex items-center gap-1 transition-colors"
               >
-                + Adicionar
+                <Plus size={14} /> Adicionar
               </button>
             </div>
           </div>
@@ -425,7 +468,7 @@ export default function DialogEngine({ projectId }) {
             <select
               value={charAId}
               onChange={(e) => setCharAId(e.target.value)}
-              className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2.5 text-xs font-bold text-white outline-none focus:border-purple-500"
+              className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2.5 text-xs font-bold text-white outline-none focus:border-purple-500 cursor-pointer"
             >
               {projectChars.length === 0 && <option value="">Nenhum personagem cadastrado</option>}
               {projectChars.map((c) => (
@@ -441,7 +484,7 @@ export default function DialogEngine({ projectId }) {
             <select
               value={charBId}
               onChange={(e) => setCharBId(e.target.value)}
-              className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2.5 text-xs font-bold text-white outline-none focus:border-indigo-500"
+              className="w-full bg-[#181824] border border-gray-800 rounded-lg p-2.5 text-xs font-bold text-white outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="none">Nenhum (Solilóquio / Monólogo Interno)</option>
               {projectChars.map((c) => (
@@ -461,17 +504,17 @@ export default function DialogEngine({ projectId }) {
               <button
                 type="button"
                 onClick={() => addDialogueLine('A')}
-                className="px-3 py-1.5 bg-purple-900/50 hover:bg-purple-800 text-purple-300 border border-purple-700/50 rounded-lg text-xs font-bold cursor-pointer transition-all"
+                className="px-3 py-1.5 bg-purple-900/50 hover:bg-purple-800 text-purple-300 border border-purple-700/50 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
               >
-                + Fala {charA.name || charA.nome || 'Personagem A'}
+                <Plus size={14} /> Fala {charA.name || charA.nome || 'Personagem A'}
               </button>
               {charB && (
                 <button
                   type="button"
                   onClick={() => addDialogueLine('B')}
-                  className="px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 rounded-lg text-xs font-bold cursor-pointer transition-all"
+                  className="px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
                 >
-                  + Fala {charB.name || charB.nome}
+                  <Plus size={14} /> Fala {charB.name || charB.nome}
                 </button>
               )}
             </div>
@@ -499,7 +542,7 @@ export default function DialogEngine({ projectId }) {
                       <button
                         type="button"
                         onClick={() => removeLine(idx)}
-                        className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
+                        className="text-xs text-red-400 hover:text-red-300 cursor-pointer transition-colors"
                       >
                         Remover
                       </button>
@@ -545,8 +588,8 @@ export default function DialogEngine({ projectId }) {
             <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">
               📄 Pré-visualização Formatada
             </h3>
-            <span className="text-[11px] px-2.5 py-1 bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded-md font-medium">
-              {selectedSound}
+            <span className="text-[11px] px-2.5 py-1 bg-amber-950/60 text-amber-300 border border-amber-800/40 rounded-md font-medium flex items-center gap-1">
+              <Music size={12} /> {selectedSound}
             </span>
           </div>
 
@@ -592,9 +635,10 @@ export default function DialogEngine({ projectId }) {
           <button
             type="button"
             onClick={handleSaveDialogue}
-            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-900/30 transition-all cursor-pointer"
+            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-900/30 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            {editingCardId ? '🔄 Salvar Alterações no Diálogo' : '💾 Salvar Diálogo como Card'}
+            <Save size={16} />
+            <span>{editingCardId ? 'Salvar Alterações no Diálogo' : 'Salvar Diálogo como Card'}</span>
           </button>
         </div>
       </section>
@@ -602,7 +646,7 @@ export default function DialogEngine({ projectId }) {
       {/* 3. DIÁLOGOS SALVOS */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <span>📚</span> Diálogos Salvos no Projeto ({savedDialogues.length})
+          <BookOpen size={20} className="text-purple-400" /> Diálogos Salvos no Projeto ({savedDialogues.length})
         </h2>
 
         {savedDialogues.length === 0 ? (
@@ -622,9 +666,9 @@ export default function DialogEngine({ projectId }) {
                       <button
                         type="button"
                         onClick={() => toggleCard(card.id)}
-                        className="text-gray-400 hover:text-white font-bold text-xs cursor-pointer"
+                        className="text-gray-400 hover:text-white font-bold text-xs cursor-pointer p-1 transition-colors"
                       >
-                        {isOpen ? '▲' : '▼'}
+                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
                       <div>
                         <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">
@@ -649,19 +693,19 @@ export default function DialogEngine({ projectId }) {
                           type="button"
                           disabled={idx === 0}
                           onClick={() => handleMoveCard(idx, -1)}
-                          className="px-2 py-1 bg-[#181824] border border-gray-700 hover:border-purple-600 rounded text-[10px] text-gray-300 disabled:opacity-30 cursor-pointer"
+                          className="p-1 bg-[#181824] border border-gray-700 hover:border-purple-600 rounded text-gray-300 disabled:opacity-30 cursor-pointer transition-colors"
                           title="Mover para Cima"
                         >
-                          ▲
+                          <ArrowUp size={14} />
                         </button>
                         <button
                           type="button"
                           disabled={idx === savedDialogues.length - 1}
                           onClick={() => handleMoveCard(idx, 1)}
-                          className="px-2 py-1 bg-[#181824] border border-gray-700 hover:border-purple-600 rounded text-[10px] text-gray-300 disabled:opacity-30 cursor-pointer"
+                          className="p-1 bg-[#181824] border border-gray-700 hover:border-purple-600 rounded text-gray-300 disabled:opacity-30 cursor-pointer transition-colors"
                           title="Mover para Baixo"
                         >
-                          ▼
+                          <ArrowDown size={14} />
                         </button>
                       </div>
                     </div>
@@ -689,23 +733,26 @@ export default function DialogEngine({ projectId }) {
                           <button
                             type="button"
                             onClick={() => handleEditCard(card)}
-                            className="px-3 py-1.5 bg-[#181824] hover:bg-amber-950/40 border border-gray-700 hover:border-amber-600 text-amber-300 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                            className="px-3 py-1.5 bg-[#181824] hover:bg-amber-950/40 border border-gray-700 hover:border-amber-600 text-amber-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
                           >
-                            ✏️ Editar
+                            <Pencil size={13} />
+                            <span>Editar</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopyCard(card)}
-                            className="px-3 py-1.5 bg-[#181824] hover:bg-purple-900/40 border border-gray-700 hover:border-purple-600 text-gray-300 hover:text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                            className="px-3 py-1.5 bg-[#181824] hover:bg-purple-900/40 border border-gray-700 hover:border-purple-600 text-gray-300 hover:text-white text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
                           >
-                            {copyStatus === card.id ? '✅ Copiado!' : '📋 Copiar'}
+                            {copyStatus === card.id ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                            <span>{copyStatus === card.id ? 'Copiado!' : 'Copiar'}</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteCard(card.id)}
-                            className="px-3 py-1.5 bg-[#181824] hover:bg-red-950/60 border border-gray-700 hover:border-red-600 text-red-400 hover:text-red-300 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                            className="px-3 py-1.5 bg-[#181824] hover:bg-red-950/60 border border-gray-700 hover:border-red-600 text-red-400 hover:text-red-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
                           >
-                            🗑️ Excluir
+                            <Trash2 size={13} />
+                            <span>Excluir</span>
                           </button>
                         </div>
                       </div>

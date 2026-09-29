@@ -4,11 +4,52 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Trash2,
+  GripVertical,
+  Clapperboard
+} from 'lucide-react';
+
 const guideTabs = {
-  Objetivo: <p>Estruturar cada cena como uma unidade dramática que avança a história.</p>,
-  Dicas: <ul><li>Toda cena precisa de um objetivo — se a cena não muda nada, corte-a.</li><li>O conflito da cena deve escalar ou transformar a situação.</li><li>O gancho para a próxima cena mantém o público engajado.</li></ul>,
-  Exemplos: <ul><li>Objetivo: “Convencer o aliado a entrar na batalha.”</li><li>Gancho: “A porta se abre e revela o vilão.”</li></ul>,
-  Perguntas: <ul><li>O que esta cena muda na história?</li><li>Qual é o conflito central da cena?</li><li>Como ela conecta com a próxima?</li></ul>,
+  Objetivo: (
+    <p>Estruturar cada cena como uma unidade dramática que avança a história.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Toda cena precisa de um objetivo — se a cena não muda nada, corte-a.</li>
+      <li>O conflito da cena deve escalar ou transformar a situação.</li>
+      <li>O gancho para a próxima cena mantém o público engajado.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Objetivo: “Convencer o aliado a entrar na batalha.”</li>
+      <li>Gancho: “A porta se abre e revela o vilão.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>O que esta cena muda na história?</li>
+      <li>Qual é o conflito central da cena?</li>
+      <li>Como ela conecta com a próxima?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
 };
 
 const sceneFields = [
@@ -30,28 +71,57 @@ const blankScene = () => Object.fromEntries(sceneFields.map(([key]) => [key, '']
 function SceneGuide() {
   const [activeTab, setActiveTab] = useState('Objetivo');
   const [isOpen, setIsOpen] = useState(true);
+
   return (
-    <section className="module-guide character-guide">
-      <button className="guide-toggle cursor-pointer" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
-        <span><b aria-hidden="true">!</b> Guia do Módulo</span>
-        <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
       </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
-        <div className="guide-content">
-          <nav className="guide-tabs" aria-label="Guia do módulo">
-            {Object.keys(guideTabs).map((tab) => (
-              <button
-                className={activeTab === tab ? 'guide-tab active cursor-pointer' : 'guide-tab cursor-pointer'}
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span aria-hidden="true">{tab === 'Objetivo' ? '◎' : tab === 'Dicas' ? '♧' : tab === 'Exemplos' ? '▣' : '?'}</span>
-                {tab}
-              </button>
-            ))}
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
           </nav>
-          <div className="guide-description">{guideTabs[activeTab]}</div>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
         </div>
       )}
     </section>
@@ -246,11 +316,11 @@ export default function Cenas({ projectId }) {
         <span className="text-gray-400 text-sm font-medium">{scenes.length} cena(s)</span>
         
         <button
-          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all"
+          className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all flex items-center gap-1.5"
           type="button"
           onClick={() => setIsCreating(true)}
         >
-          ＋ Nova Cena
+          <Plus size={16} /> Nova Cena
         </button>
       </div>
 
@@ -266,14 +336,14 @@ export default function Cenas({ projectId }) {
           />
           <div className="flex gap-2">
             <button
-              className="cursor-pointer bg-purple-600 px-4 py-2 rounded-lg text-white font-medium text-sm"
+              className="cursor-pointer bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-white font-medium text-sm transition-colors"
               type="button"
               onClick={handleCreateScene}
             >
               Criar Cena
             </button>
             <button
-              className="cursor-pointer bg-gray-800 px-4 py-2 rounded-lg text-gray-300 font-medium text-sm"
+              className="cursor-pointer bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-gray-300 font-medium text-sm transition-colors"
               type="button"
               onClick={() => setIsCreating(false)}
             >
@@ -286,9 +356,9 @@ export default function Cenas({ projectId }) {
       {loading ? (
         <div className="text-center py-12 text-gray-500">Carregando cenas...</div>
       ) : scenes.length === 0 && !isCreating ? (
-        <div className="empty-characters scenes-empty">
-          <span aria-hidden="true">▦</span>
-          <p>Nenhuma cena criada ainda.</p>
+        <div className="empty-characters scenes-empty text-center py-12">
+          <Clapperboard size={32} className="text-gray-600 mx-auto mb-2" />
+          <p className="text-gray-400 text-sm">Nenhuma cena criada ainda.</p>
         </div>
       ) : (
         <div className="scenes-list space-y-4">
@@ -302,10 +372,10 @@ export default function Cenas({ projectId }) {
               onDrop={() => moveScene(scene.id)}
             >
               <header className="scene-card-header flex items-center gap-3 p-4 bg-[#1e1e2c]">
-                <span className="drag-handle cursor-grab text-gray-500" aria-label="Arraste para reordenar">
-                  ⁙
+                <span className="drag-handle cursor-grab text-gray-500 flex items-center" aria-label="Arraste para reordenar">
+                  <GripVertical size={16} />
                 </span>
-                <span className="scene-number text-purple-400 font-bold">
+                <span className="scene-number text-purple-400 font-bold text-sm">
                   #{index + 1}
                 </span>
                 <button
@@ -316,21 +386,22 @@ export default function Cenas({ projectId }) {
                   {scene.title || 'Cena sem título'}
                 </button>
                 <button
-                  className="scene-chevron text-gray-400 cursor-pointer px-2"
+                  className="scene-chevron text-gray-400 hover:text-white cursor-pointer px-2 transition-colors"
                   type="button"
                   aria-label="Expandir cena"
                   onClick={() => setExpandedScene(expandedScene === scene.id ? null : scene.id)}
                 >
-                  {expandedScene === scene.id ? '⌃' : '⌄'}
+                  {expandedScene === scene.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                 </button>
 
                 <button
-                  className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-2 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold"
+                  className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-1.5 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold flex items-center gap-1"
                   type="button"
                   aria-label={`Excluir ${scene.title}`}
                   onClick={() => deleteScene(scene.id, scene.title)}
                 >
-                  Excluir
+                  <Trash2 size={14} />
+                  <span>Excluir</span>
                 </button>
               </header>
 

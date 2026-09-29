@@ -1,8 +1,21 @@
 // src/pages/Relacoes.jsx
-// Página de Relações entre Personagens do StoryForge. Como as conexões entre personagens moldam a narrativa e o conflito.
+// Página de Relações entre Personagens do StoryForge com Guia do Módulo Padronizado
 
 import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../api/apiClient';
+
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Trash2,
+  X
+} from 'lucide-react';
 
 const RELATION_TYPES = {
   Amizade: { label: 'Amizade', color: '#10b981', letter: 'A' },
@@ -23,6 +36,104 @@ const INTENSITY_OPTIONS = [
   { value: 8, label: 'Grossa (7 - 8)' },
   { value: 10, label: 'Muito Grossa (9 - 10)' },
 ];
+
+const guideTabs = {
+  Objetivo: (
+    <p>Visualizar e organizar a rede de relacionamentos entre todos os personagens.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Relações complexas geram conflito — use-as deliberadamente.</li>
+      <li>Alianças e rivalidades podem mudar ao longo da história.</li>
+      <li>O grafo revela personagens isolados que precisam de conexão.</li>
+      <li>Alterne as relações conforme as cenas mudam.</li>
+      <li>Personagens abstratos podem fazer parte da história.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li><strong>Amizade:</strong> “O mentor e o protagonista compartilham um passado comum.”</li>
+      <li><strong>Rivalidade:</strong> “Dois generais que servem reinos opostos.”</li>
+      <li><strong>Abstrato:</strong> “A fome encarava o menino como se zombasse dele.”</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Quais personagens se conectam e por quê?</li>
+      <li>Onde existem tensões não exploradas?</li>
+      <li>Como as relações mudam ao longo da história?</li>
+      <li>Algum personagem pode ser mais complexo?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
+function RelacoesGuide() {
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function getCharacterBorderColor(char = {}) {
   const sanitize = (str) =>
@@ -63,8 +174,6 @@ export default function Relacoes({ projectId }) {
   const [relations, setRelations] = useState([]);
   const [savingStatus, setSavingStatus] = useState('Salvo');
 
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('dicas');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedSceneFilter, setSelectedSceneFilter] = useState('todas');
 
@@ -234,76 +343,7 @@ export default function Relacoes({ projectId }) {
       </header>
 
       {/* GUIA DO MÓDULO */}
-      <section className="bg-[#12131a] border border-gray-800/80 rounded-xl overflow-hidden shadow-lg">
-        <button
-          type="button"
-          onClick={() => setIsGuideOpen(!isGuideOpen)}
-          className="w-full px-4 py-3 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#181924] transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400">💡</span>
-            <span>Guia do Módulo</span>
-          </div>
-          <span>{isGuideOpen ? '⌃' : '⌄'}</span>
-        </button>
-
-        {isGuideOpen && (
-          <div className="p-4 border-t border-gray-800/60 bg-[#0e0f16]">
-            <div className="flex gap-2 mb-3 border-b border-gray-800 pb-2">
-              {[
-                { id: 'objetivo', label: 'Objetivo', icon: '🎯' },
-                { id: 'dicas', label: 'Dicas', icon: '💡' },
-                { id: 'exemplos', label: 'Exemplos', icon: '📖' },
-                { id: 'perguntas', label: 'Perguntas', icon: '❓' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === tab.id
-                      ? 'bg-purple-950/80 text-purple-200 border border-purple-600/60 shadow'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
-                  }`}
-                >
-                  <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="text-xs text-gray-300 leading-relaxed">
-              {activeTab === 'objetivo' && (
-                <p>Visualizar e organizar a rede de relacionamentos entre todos os personagens.</p>
-              )}
-              {activeTab === 'dicas' && (
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  <li>Relações complexas geram conflito — use-as deliberadamente.</li>
-                  <li>Alianças e rivalidades podem mudar ao longo da história.</li>
-                  <li>O grafo revela personagens isolados que precisam de conexão.</li>
-                  <li>Alterne as relações conforme as cenas mudam.</li>
-                  <li>Personagens abstratos podem fazer parte da história.</li>
-                </ul>
-              )}
-              {activeTab === 'exemplos' && (
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  <li><strong>Amizade:</strong> "O mentor e o protagonista compartilham um passado comum."</li>
-                  <li><strong>Rivalidade:</strong> "Dois generais que servem reinos opostos."</li>
-                  <li><strong>Abstrato:</strong> "A fome encarava o menino como se zombasse dele."</li>
-                </ul>
-              )}
-              {activeTab === 'perguntas' && (
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  <li>Quais personagens se conectam e por quê?</li>
-                  <li>Onde existem tensões não exploradas?</li>
-                  <li>Como as relações mudam ao longo da história?</li>
-                  <li>Algum personagem pode ser mais complexo?</li>
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+      <RelacoesGuide />
 
       {/* CONTROLES E LEGENDA DE TIPOS DE RELAÇÃO */}
       <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
@@ -333,7 +373,15 @@ export default function Relacoes({ projectId }) {
             onClick={() => (isFormOpen ? setIsFormOpen(false) : handleOpenForm())}
             className="px-4 py-2 bg-purple-900/60 hover:bg-purple-800 border border-purple-500/80 text-purple-100 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            {isFormOpen ? '✕ Cancelar' : '+ Nova Relação'}
+            {isFormOpen ? (
+              <>
+                <X size={14} /> Cancelar
+              </>
+            ) : (
+              <>
+                <Plus size={14} /> Nova Relação
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -348,7 +396,7 @@ export default function Relacoes({ projectId }) {
                 value={charA}
                 onChange={(e) => setCharA(e.target.value)}
                 required
-                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Selecione...</option>
                 {characters.map((c) => (
@@ -363,7 +411,7 @@ export default function Relacoes({ projectId }) {
                 value={charB}
                 onChange={(e) => setCharB(e.target.value)}
                 required
-                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Selecione...</option>
                 {characters.map((c) => (
@@ -379,7 +427,7 @@ export default function Relacoes({ projectId }) {
               <select
                 value={relType}
                 onChange={(e) => setRelType(e.target.value)}
-                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 {Object.keys(RELATION_TYPES).map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -392,7 +440,7 @@ export default function Relacoes({ projectId }) {
               <select
                 value={relSceneId}
                 onChange={(e) => setRelSceneId(e.target.value)}
-                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Geral (Todas as Cenas)</option>
                 {scenes.map((s) => (
@@ -406,7 +454,7 @@ export default function Relacoes({ projectId }) {
               <select
                 value={intensity}
                 onChange={(e) => setIntensity(Number(e.target.value))}
-                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 {INTENSITY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -583,7 +631,7 @@ export default function Relacoes({ projectId }) {
                       className="text-gray-500 hover:text-red-400 text-xs p-1 transition-colors cursor-pointer"
                       title="Excluir relação"
                     >
-                      🗑
+                      <Trash2 size={13} />
                     </button>
                   </div>
 

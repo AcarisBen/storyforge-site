@@ -1,5 +1,5 @@
 // src/pages/MapaEmocional.jsx
-// Página de Mapa Emocional do StoryForge
+// Página de Mapa Emocional do StoryForge com Guia do Módulo Padronizado
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -13,6 +13,19 @@ import {
 } from 'recharts';
 import apiClient from '../api/apiClient';
 
+import { 
+  Target, 
+  Lightbulb, 
+  BookOpen, 
+  HelpCircle, 
+  AlertCircle,
+  ChevronUp, 
+  ChevronDown,
+  Plus,
+  Trash2,
+  HeartPulse
+} from 'lucide-react';
+
 const EMOTIONS = [
   { key: 'curiosidade', label: 'Curiosidade', color: '#a855f7' },
   { key: 'tensao', label: 'Tensão', color: '#ef4444' },
@@ -23,6 +36,100 @@ const EMOTIONS = [
   { key: 'alegria', label: 'Alegria', color: '#eab308' },
   { key: 'alivio', label: 'Alívio', color: '#14b8a6' },
 ];
+
+const guideTabs = {
+  Objetivo: (
+    <p>Visualizar a jornada emocional da narrativa para garantir variação, tensão e ritmo ao longo da história.</p>
+  ),
+  Dicas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>A variação emocional é o que mantém o público engajado do início ao fim.</li>
+      <li>Picos de alta tensão precisam de vales de alívio ou respiro para terem impacto real.</li>
+      <li>A emoção final deve corresponder ao tom e ao gênero da sua obra.</li>
+    </ul>
+  ),
+  Exemplos: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li><strong>Abertura:</strong> Curiosidade média → <strong>Incidente Incitante:</strong> Tensão alta → <strong>Midpoint:</strong> Choque.</li>
+      <li><strong>Clímax:</strong> Medo + Tensão máximos → <strong>Resolução:</strong> Alívio + Alegria.</li>
+    </ul>
+  ),
+  Perguntas: (
+    <ul className="space-y-1.5 list-disc pl-4">
+      <li>Qual é a jornada emocional que você quer que o público viva?</li>
+      <li>Onde estão os picos e vales emocionais da história?</li>
+      <li>A emoção final corresponde ao tom desejado para a obra?</li>
+    </ul>
+  ),
+};
+
+// Mapeamento centralizado de ícones e cores do Guia do Módulo
+const GUIDE_TAB_CONFIG = {
+  Objetivo: { Icon: Target, color: 'text-red-400' },
+  Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
+  Exemplos: { Icon: BookOpen, color: 'text-purple-400' },
+  Perguntas: { Icon: HelpCircle, color: 'text-orange-400' },
+};
+
+function EmotionalMapGuide() {
+  const [activeTab, setActiveTab] = useState('Objetivo');
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
+      {/* Cabeçalho do Guia com ícone de Exclamação */}
+      <button
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span className="flex items-center gap-2 font-bold text-white text-sm">
+          <AlertCircle size={18} className="text-amber-400 shrink-0" />
+          Guia do Módulo
+        </span>
+        {isOpen ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+
+      {/* Conteúdo com Abas Padronizadas */}
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-white/5 space-y-4">
+          <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
+            {Object.keys(guideTabs).map((tab) => {
+              const config = GUIDE_TAB_CONFIG[tab] || { Icon: HelpCircle, color: 'text-gray-400' };
+              const { Icon, color } = config;
+              const isActive = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    isActive
+                      ? 'bg-purple-600/30 border-purple-500/80 text-white shadow-[0_2px_10px_rgba(168,85,247,0.25)]'
+                      : 'bg-[#1a1a26] border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <Icon size={16} className={`shrink-0 ${color}`} />
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="text-xs text-gray-300 leading-relaxed bg-[#11111a] p-4 rounded-xl border border-gray-800/80">
+            {guideTabs[activeTab]}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 // Tooltip com valores na cor de cada emoção
 const CustomTooltip = ({ active, payload, label }) => {
@@ -54,8 +161,6 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function MapaEmocional({ projectId }) {
   const [points, setPoints] = useState([]);
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
-  const [activeGuideTab, setActiveGuideTab] = useState('objetivo');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -190,71 +295,7 @@ export default function MapaEmocional({ projectId }) {
       </header>
 
       {/* GUIA DO MÓDULO */}
-      <div className="border border-gray-800/80 rounded-2xl bg-[#12121a] overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setIsGuideOpen((prev) => !prev)}
-          className="w-full p-4 flex justify-between items-center text-xs font-bold text-gray-300 hover:bg-[#161622] transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400">💡</span>
-            <span>Guia do Módulo</span>
-          </div>
-          <span>{isGuideOpen ? '⌃' : '⌄'}</span>
-        </button>
-
-        {isGuideOpen && (
-          <div className="p-4 border-t border-gray-800/60 bg-[#161622] space-y-4">
-            <div className="flex gap-2 border-b border-gray-800 pb-3">
-              {[
-                { id: 'objetivo', label: '🎯 Objetivo' },
-                { id: 'dicas', label: '💡 Dicas' },
-                { id: 'exemplos', label: '📖 Exemplos' },
-                { id: 'perguntas', label: '❓ Perguntas' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveGuideTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    activeGuideTab === tab.id
-                      ? 'bg-purple-950/80 border border-purple-500 text-purple-200'
-                      : 'text-gray-400 hover:text-white hover:bg-[#12121a]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-xs text-gray-300 leading-relaxed">
-              {activeGuideTab === 'objetivo' && (
-                <p>Visualizar a jornada emocional da narrativa para garantir variação e ritmo.</p>
-              )}
-              {activeGuideTab === 'dicas' && (
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>A variação emocional é o que mantém o público engajado.</li>
-                  <li>Picos de tensão precisam de vales de alívio para terem impacto.</li>
-                  <li>A emoção final deve corresponder ao tom da obra.</li>
-                </ul>
-              )}
-              {activeGuideTab === 'exemplos' && (
-                <ul className="list-disc pl-4 space-y-1">
-                  <li><strong>Abertura:</strong> Curiosidade média → <strong>Incidente Incitante:</strong> Tensão alta → <strong>Midpoint:</strong> Choque.</li>
-                  <li><strong>Clímax:</strong> Medo + Tensão máximos → <strong>Resolução:</strong> Alívio + Alegria.</li>
-                </ul>
-              )}
-              {activeGuideTab === 'perguntas' && (
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>Qual é a jornada emocional que você quer que o público viva?</li>
-                  <li>Onde estão os picos e vales emocionais?</li>
-                  <li>A emoção final corresponde ao tom da obra?</li>
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      <EmotionalMapGuide />
 
       <div className="flex justify-between items-center my-6">
         <span className="text-xs font-semibold text-gray-400">
@@ -265,7 +306,7 @@ export default function MapaEmocional({ projectId }) {
           onClick={handleAddPoint}
           className="new-character-button cursor-pointer rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs transition-all flex items-center gap-1.5"
         >
-          <span>＋</span> Novo Ponto
+          <Plus size={16} /> Novo Ponto
         </button>
       </div>
 
@@ -273,6 +314,7 @@ export default function MapaEmocional({ projectId }) {
       <div className="border border-gray-800/80 rounded-2xl bg-[#12121a] p-6 min-h-[350px] flex items-center justify-center">
         {points.length === 0 ? (
           <div className="text-center space-y-2 py-10">
+            <HeartPulse size={32} className="text-gray-600 mx-auto mb-1" />
             <p className="text-sm font-semibold text-gray-300">Nenhum ponto emocional mapeado ainda.</p>
             <p className="text-xs text-gray-500">
               Adicione pontos da história (ex: Abertura, Incidente Incitante, Midpoint, Clímax) e defina a intensidade de cada emoção.
@@ -358,10 +400,11 @@ export default function MapaEmocional({ projectId }) {
                   <button
                     type="button"
                     onClick={() => handleDeletePoint(point.id)}
-                    className="text-red-500 hover:text-red-400 text-xs font-bold p-1 cursor-pointer transition-transform hover:scale-110"
+                    className="text-red-400 hover:text-red-300 text-xs font-bold p-1 cursor-pointer transition-colors flex items-center gap-1"
                     title="Excluir Ponto"
                   >
-                    Excluir
+                    <Trash2 size={14} />
+                    <span>Excluir</span>
                   </button>
                 </div>
               </div>
