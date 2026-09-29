@@ -323,7 +323,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 <Cookie size={16} className="text-amber-400" /> Política de Cookies e Armazenamento
               </h3>
               <p className="text-xs text-gray-300 leading-relaxed">
-                Utilizamos armazenamento local exclusivamente para manter sua sessão conectada com segurança. Nenhum dado ou texto do seu manuscrito é comercializado com terceiros.
+                Utilizamos armazenamento local exclusivamente para manter sua sessão conectada com segurança. Nenhum dado ou texto da sua escrita é comercializado com terceiros.
               </p>
             </div>
 

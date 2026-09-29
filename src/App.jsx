@@ -86,7 +86,7 @@ const NAVIGATION_ITEMS = [
   { 
     title: 'ESCRITA', 
     items: [
-      ['Escrita & Manuscrito', 'escrita', PenTool], 
+      ['Escrita', 'escrita', PenTool], 
       ['Storyboard', 'storyboard', LayoutGrid]
     ] 
   },

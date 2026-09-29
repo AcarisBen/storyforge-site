@@ -1271,7 +1271,7 @@ export default function StoryBible({ projectId, project, currentUser }) {
       <section className="bg-[#12121a] border border-gray-800/80 rounded-2xl overflow-hidden shadow-2xl">
         <button type="button" onClick={() => toggleSection('manuscrito')} className="w-full flex justify-between items-center p-6 bg-[#161622] border-b border-gray-800/60 text-left cursor-pointer print:p-0 print:bg-transparent">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✍️</span> 8. Escrita & Manuscrito</h2>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><span>✍️</span> 8. Escrita</h2>
             <p className="text-xs text-gray-400 mt-0.5 print:hidden">Capítulos Desenvolvidos e Texto Final da Obra</p>
           </div>
           <span className="text-gray-400 font-bold text-lg print:hidden">{openSections.manuscrito ? '⌃' : '⌄'}</span>

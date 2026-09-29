@@ -92,7 +92,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white">Escrita Estruturada</h3>
-                <p className="text-xs text-gray-400">Capítulos, cenas e manuscritos organizados</p>
+                <p className="text-xs text-gray-400">Capítulos, cenas e escritas organizados</p>
               </div>
             </div>
 
