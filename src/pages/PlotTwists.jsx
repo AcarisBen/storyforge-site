@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -272,6 +273,8 @@ function TwistInlineForm({ twist, onChange }) {
 }
 
 export default function PlotTwists({ projectId }) {
+  const { showToast } = useToast();
+
   const [twists, setTwists] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [draft, setDraft] = useState(blankTwist());
@@ -290,13 +293,18 @@ export default function PlotTwists({ projectId }) {
         setTwists(res.data || []);
       } catch (err) {
         console.error('Erro ao buscar plot twists:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os plot twists do projeto.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchTwists();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // Barra de Progresso baseada nos 5 tópicos por item
   const totalPossibleTopics = twists.length * fields.length;
@@ -321,7 +329,17 @@ export default function PlotTwists({ projectId }) {
 
   // Salvar novo Plot Twist no PostgreSQL
   async function saveTwist() {
-    if (!draft.title.trim() || !projectId) return;
+    if (!draft.title.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, informe o título do plot twist.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
+
     setSavingStatus('Salvando...');
 
     try {
@@ -331,10 +349,20 @@ export default function PlotTwists({ projectId }) {
       setIsCreating(false);
       setDraft(blankTwist());
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Plot Twist Criado',
+        message: `O plot twist "${res.data.title || draft.title}" foi criado com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao criar plot twist:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Não foi possível criar o plot twist.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível criar o plot twist.'
+      });
     }
   }
 
@@ -374,10 +402,20 @@ export default function PlotTwists({ projectId }) {
       setTwists((prev) => prev.filter((t) => t.id !== id));
       if (expandedId === id) setExpandedId(null);
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Plot Twist Excluído',
+        message: 'O plot twist foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir plot twist:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Erro ao excluir o plot twist.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir o plot twist.'
+      });
     }
   }
 

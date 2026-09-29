@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 const EMOTIONS = [
   { key: 'curiosidade', label: 'Curiosidade', color: '#a855f7' },
@@ -37,6 +38,7 @@ const ESSENCIA_FIELDS = [
 ];
 
 export default function Dashboard({ projectId, onNavigate, currentProject }) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
 
   const [counts, setCounts] = useState({
@@ -243,13 +245,18 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
 
       } catch (err) {
         console.error('Erro ao carregar Dashboard:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Carregamento',
+          message: 'Não foi possível carregar os dados do Dashboard.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   const overallProgress = Math.round(
     (moduleProgress.identidade +
@@ -264,7 +271,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
     return <div className="text-center py-20 text-purple-400 font-medium">Carregando Dashboard do Projeto...</div>;
   }
 
-  // Mapeamento dos 8 marcos com cores específicas do módulo Ritmo & Timeline
   const milestonesList = [
     { label: 'Prólogo', active: Array.isArray(timelineEvents['Prólogo']) && timelineEvents['Prólogo'].length > 0, activeColor: 'bg-indigo-600 shadow-indigo-600/80 ring-indigo-950 text-indigo-200' },
     { label: 'I. Incitante', active: Array.isArray(timelineEvents['Incidente Incitante']) && timelineEvents['Incidente Incitante'].length > 0, activeColor: 'bg-purple-600 shadow-purple-600/80 ring-purple-950 text-purple-200' },
@@ -371,7 +377,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Personagens Cadastrados</p>
               </div>
             </div>
-            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -387,7 +392,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Elementos do Mundo</p>
               </div>
             </div>
-            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -403,7 +407,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Cenas Mapeadas</p>
               </div>
             </div>
-            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
           <div
@@ -413,7 +416,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-2xl">🔍</span>
-                {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
               </div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Mistérios</p>
               {counts.misteriosList.length > 0 ? (
@@ -442,7 +444,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-2xl">⚡</span>
-                {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
               </div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Plot Twists</p>
               {counts.twistsList.length > 0 ? (
@@ -477,7 +478,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <p className="text-xs text-gray-400 font-medium">Itens da Checklist</p>
               </div>
             </div>
-            {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
           </div>
 
         </div>
@@ -495,7 +495,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <span className="text-xl">📈</span>
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">MAPA EMOCIONAL</span>
               </div>
-              {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
             </div>
 
             <div className="w-full h-44 bg-[#181824] rounded-xl p-4 border border-gray-800 flex flex-col justify-between relative overflow-hidden">
@@ -578,7 +577,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 <span className="text-xl">🕸️</span>
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">RELAÇÕES DE PERSONAGENS</span>
               </div>
-              {/* <span className="text-gray-600 group-hover:text-purple-400 text-sm transition-colors">→</span> */}
             </div>
 
             <div className="w-full h-44 bg-[#181824] rounded-xl p-4 border border-gray-800 flex items-center justify-center relative overflow-hidden">
@@ -681,7 +679,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
         </div>
       </section>
 
-      {/* 4. LINHA DO TEMPO (ROXO AO LARANJA + CORES INDIVIDUAIS NOS NÓS + ESPESSURA H-1) */}
+      {/* 4. LINHA DO TEMPO */}
       <section className="space-y-4">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
           LINHA DO TEMPO (ESTRUTURA DE 3 ATOS)
@@ -690,10 +688,8 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
         <div className="p-8 bg-[#12121a] border border-gray-800/80 rounded-2xl shadow-xl">
           <div className="relative flex justify-between items-center max-w-5xl mx-auto px-4">
             
-            {/* Linha base cinza no fundo com espessura h-1 */}
             <div className="absolute top-3 left-6 right-6 h-1 bg-[#181824] z-0" />
 
-            {/* Linhas conectoras com gradiente contínuo Roxo (#9333ea) -> Laranja (#f97316) */}
             <div className="absolute top-3 left-6 right-6 h-1 z-0 flex pointer-events-none">
               {milestonesList.slice(0, -1).map((m, idx) => {
                 const nextM = milestonesList[idx + 1];
@@ -703,7 +699,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
                 const startRatio = idx / totalSegments;
                 const endRatio = (idx + 1) / totalSegments;
 
-                // Interpolação Hex pura de Roxo (9333ea) para Laranja (f97316)
                 const startR = Math.round(147 + (249 - 147) * startRatio);
                 const startG = Math.round(51 + (115 - 51) * startRatio);
                 const startB = Math.round(234 + (22 - 234) * startRatio);
@@ -730,7 +725,6 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
               })}
             </div>
 
-            {/* Renderização dos nós dos 8 marcos com a cor do módulo individual */}
             {milestonesList.map((m, idx) => (
               <div
                 key={idx}

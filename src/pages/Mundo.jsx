@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -183,6 +184,8 @@ function WorldGuide() {
 }
 
 export default function Mundo({ projectId }) {
+  const { showToast } = useToast();
+
   const [elements, setElements] = useState([]);
   const [filter, setFilter] = useState('Todos');
   const [isCreating, setIsCreating] = useState(false);
@@ -201,15 +204,20 @@ export default function Mundo({ projectId }) {
         setElements(res.data || []);
       } catch (err) {
         console.error('Erro ao buscar elementos do mundo:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os elementos do mundo.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorldElements();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
-  // Junta os tipos base com os tipos customizados criados pelos usuários (sem duplicar e excluindo 'Outros' dos filtros)
+  // Junta os tipos base com os tipos customizados criados pelos usuários
   const customTypesInUse = Array.from(new Set(elements.map((e) => e.type)))
     .filter((t) => !baseElementTypes.includes(t));
   
@@ -241,9 +249,23 @@ export default function Mundo({ projectId }) {
 
   // Criar ou Editar Elemento no PostgreSQL
   async function saveElement() {
-    if (!draft.name.trim() || !projectId) return;
+    if (!draft.name.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, informe o nome do elemento.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
+
     if ((draft.type === 'Outros' || draft.type === 'Outro') && !draft.customType.trim()) {
-      alert('Por favor, digite o nome do novo tipo.');
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, digite o nome do novo tipo personalizado.'
+      });
       return;
     }
 
@@ -261,16 +283,30 @@ export default function Mundo({ projectId }) {
       if (editingId) {
         const res = await apiClient.put(`/entities/world/${editingId}`, payload);
         setElements((prev) => prev.map((item) => (item.id === editingId ? res.data : item)));
+        showToast({
+          type: 'success',
+          title: 'Elemento Atualizado',
+          message: `O elemento "${payload.name}" foi atualizado com sucesso.`
+        });
       } else {
         const res = await apiClient.post(`/entities/projects/${projectId}/world`, payload);
         setElements((prev) => [...prev, res.data]);
+        showToast({
+          type: 'success',
+          title: 'Elemento Criado',
+          message: `O elemento "${payload.name}" foi criado com sucesso.`
+        });
       }
 
       setIsCreating(false);
       setEditingId(null);
     } catch (err) {
       console.error('Erro ao salvar elemento do mundo:', err);
-      alert('Não foi possível salvar o elemento.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível salvar o elemento.'
+      });
     }
   }
 
@@ -281,9 +317,18 @@ export default function Mundo({ projectId }) {
     try {
       await apiClient.delete(`/entities/world/${id}`);
       setElements((prev) => prev.filter((item) => item.id !== id));
+      showToast({
+        type: 'success',
+        title: 'Elemento Excluído',
+        message: 'O elemento foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir elemento:', err);
-      alert('Erro ao excluir o elemento.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir o elemento.'
+      });
     }
   }
 

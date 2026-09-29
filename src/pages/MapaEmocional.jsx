@@ -12,6 +12,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -160,6 +161,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function MapaEmocional({ projectId }) {
+  const { showToast } = useToast();
+
   const [points, setPoints] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -201,7 +204,14 @@ export default function MapaEmocional({ projectId }) {
         }
       } catch (err) {
         console.error('Erro ao carregar dados do Mapa Emocional:', err);
-        if (isMounted) setIsLoaded(true);
+        if (isMounted) {
+          setIsLoaded(true);
+          showToast({
+            type: 'error',
+            title: 'Erro de Conexão',
+            message: 'Não foi possível carregar os dados do Mapa Emocional.'
+          });
+        }
       }
     };
 
@@ -210,7 +220,7 @@ export default function MapaEmocional({ projectId }) {
     return () => {
       isMounted = false;
     };
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // 2. FUNÇÃO DE SALVAMENTO DIRETO NO BACKEND
   const savePointsToBackend = useCallback(async (dataToSave) => {
@@ -220,10 +230,15 @@ export default function MapaEmocional({ projectId }) {
       await apiClient.post(`/entities/projects/${projectId}/mapa-emocional`, dataToSave);
     } catch (err) {
       console.error('Erro ao salvar Mapa Emocional:', err);
+      showToast({
+        type: 'error',
+        title: 'Erro de Salvamento',
+        message: 'Não foi possível salvar as alterações no Mapa Emocional.'
+      });
     } finally {
       setIsSaving(false);
     }
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // 3. AUTO-SAVE COM DEBOUNCE
   useEffect(() => {
@@ -262,13 +277,27 @@ export default function MapaEmocional({ projectId }) {
       if (isLoaded) savePointsToBackend(updated);
       return updated;
     });
+
+    showToast({
+      type: 'success',
+      title: 'Ponto Adicionado',
+      message: `Ponto "${defaultName}" foi adicionado à jornada emocional.`
+    });
   };
 
   const handleDeletePoint = (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir este ponto emocional?')) return;
+
     setPoints((prev) => {
       const updated = prev.filter((p) => p.id !== id);
       if (isLoaded) savePointsToBackend(updated);
       return updated;
+    });
+
+    showToast({
+      type: 'success',
+      title: 'Ponto Excluído',
+      message: 'Ponto emocional removido com sucesso.'
     });
   };
 

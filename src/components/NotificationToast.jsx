@@ -44,7 +44,7 @@ export default function NotificationToast({ type = 'info', title, message, onClo
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 p-4 rounded-xl border shadow-2xl backdrop-blur-md max-w-sm transition-all duration-300 animate-slide-up ${config.bg} ${config.border}`}
+      className={`flex items-start gap-3 p-4 rounded-xl border shadow-2xl backdrop-blur-md w-full transition-all duration-300 animate-slide-up ${config.bg} ${config.border}`}
     >
       <IconComponent className={`w-5 h-5 shrink-0 mt-0.5 ${config.text}`} />
       
@@ -56,7 +56,7 @@ export default function NotificationToast({ type = 'info', title, message, onClo
       <button
         type="button"
         onClick={onClose}
-        className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg"
+        className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg cursor-pointer"
       >
         <X size={14} />
       </button>

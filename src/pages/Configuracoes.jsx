@@ -7,8 +7,11 @@ import {
   Key, Info, CheckCircle, Cookie 
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 export default function Configuracoes({ currentUser, setCurrentUser }) {
+  const { showToast } = useToast();
+
   const [activeTab, setActiveTab] = useState('perfil');
 
   const [displayName, setDisplayName] = useState('');
@@ -44,7 +47,11 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     const cleanName = displayName.trim();
 
     if (!cleanName) {
-      alert('O pseudônimo não pode ficar em branco.');
+      showToast({
+        type: 'warning',
+        title: 'Atenção',
+        message: 'O pseudônimo não pode ficar em branco.'
+      });
       return;
     }
 
@@ -70,10 +77,18 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         console.error('Aviso no localStorage:', storageErr);
       }
 
-      alert('Pseudônimo atualizado com sucesso!');
+      showToast({
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Pseudônimo atualizado com sucesso!'
+      });
     } catch (err) {
       console.error('Erro ao salvar pseudônimo:', err);
-      alert(err.response?.data?.error || err.data?.error || 'Erro ao atualizar o perfil.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Atualização',
+        message: err.response?.data?.error || err.data?.error || 'Erro ao atualizar o perfil.'
+      });
     } finally {
       setIsSaving(false);
     }
@@ -84,12 +99,12 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
-    const isLongEnough = password.length >= 6;
+    const isLongEnough = password.length >= 8;
 
     if (!isLongEnough) return 'A senha deve ter no mínimo 8 caracteres.';
     if (!hasUppercase) return 'A nova senha deve conter pelo menos uma letra maiúscula.';
     if (!hasLowercase) return 'A nova senha deve conter pelo menos uma letra minúscula.';
-    if (!hasNumber) return 'A nova senha deve conter pelo menos um caractere especial (ex: @, #, $, !).';
+    if (!hasNumber) return 'A nova senha deve conter pelo menos um número.';
     return null;
   };
 
@@ -98,13 +113,21 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     e.preventDefault();
 
     if (!currentPassword || !newPassword) {
-      alert('Preencha a senha atual e a nova senha.');
+      showToast({
+        type: 'warning',
+        title: 'Atenção',
+        message: 'Preencha a senha atual e a nova senha.'
+      });
       return;
     }
 
     const validationError = validatePasswordStrength(newPassword);
     if (validationError) {
-      alert(validationError);
+      showToast({
+        type: 'warning',
+        title: 'Senha Fraca',
+        message: validationError
+      });
       return;
     }
 
@@ -115,12 +138,20 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         newPassword,
       });
 
-      alert(response.data.message || 'Senha alterada com sucesso!');
+      showToast({
+        type: 'success',
+        title: 'Sucesso',
+        message: response.data?.message || 'Senha alterada com sucesso!'
+      });
       setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
       console.error('Erro ao alterar senha:', err);
-      alert(err.response?.data?.message || err.response?.data?.error || 'Erro ao alterar a senha.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Segurança',
+        message: err.response?.data?.message || err.response?.data?.error || 'Erro ao alterar a senha.'
+      });
     } finally {
       setIsSaving(false);
     }
@@ -130,18 +161,27 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const handleRequestAccountDelete = async () => {
     setIsSaving(true);
     try {
-      const response = await apiClient.post('/auth/request-delete');
+      await apiClient.post('/auth/request-delete');
       setDeleteEmailSent(true);
+      showToast({
+        type: 'info',
+        title: 'E-mail Enviado',
+        message: 'Instruções de exclusão enviadas para o seu e-mail.'
+      });
     } catch (err) {
       console.error('Erro ao solicitar exclusão:', err);
-      alert(err.response?.data?.message || err.response?.data?.error || 'Erro ao solicitar e-mail de exclusão.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.message || err.response?.data?.error || 'Erro ao solicitar e-mail de exclusão.'
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleLogout = () => {
-    if (confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
+    if (window.confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
       localStorage.removeItem('storyforge_token');
       localStorage.removeItem('user');
       window.location.href = '/login';

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -169,6 +170,8 @@ function getStrokeWidthFromIntensity(val = 6) {
 }
 
 export default function Relacoes({ projectId }) {
+  const { showToast } = useToast();
+
   const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
   const [relations, setRelations] = useState([]);
@@ -203,6 +206,11 @@ export default function Relacoes({ projectId }) {
         setRelations(Array.isArray(resRels?.data) ? resRels.data : []);
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar as relações do projeto.'
+        });
       }
     };
 
@@ -211,7 +219,7 @@ export default function Relacoes({ projectId }) {
     }
 
     return () => { isMounted = false; };
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   const nodePositions = useMemo(() => {
     if (!Array.isArray(characters) || characters.length === 0) return {};
@@ -280,7 +288,11 @@ export default function Relacoes({ projectId }) {
   const handleSaveRelation = async (e) => {
     e.preventDefault();
     if (!charA || !charB || charA === charB) {
-      alert('Selecione dois personagens diferentes.');
+      showToast({
+        type: 'warning',
+        title: 'Seleção Inválida',
+        message: 'Selecione dois personagens diferentes.'
+      });
       return;
     }
 
@@ -301,29 +313,54 @@ export default function Relacoes({ projectId }) {
       const res = await apiClient.post(`/entities/relations`, payload);
       if (editingId) {
         setRelations((prev) => prev.map((r) => (r.id === editingId ? res.data : r)));
+        showToast({
+          type: 'success',
+          title: 'Relação Atualizada',
+          message: 'A relação foi atualizada com sucesso.'
+        });
       } else {
         setRelations((prev) => [...prev, res.data]);
+        showToast({
+          type: 'success',
+          title: 'Relação Criada',
+          message: 'A relação foi criada com sucesso.'
+        });
       }
       setIsFormOpen(false);
       setSavingStatus('Salvo');
     } catch (err) {
       console.error('Erro ao salvar relação:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Não foi possível salvar a relação no banco de dados.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Salvamento',
+        message: err.response?.data?.error || 'Não foi possível salvar a relação no banco de dados.'
+      });
     }
   };
 
   const handleDeleteRelation = async (id, e) => {
     e.stopPropagation();
+    if (!window.confirm('Tem certeza que deseja excluir esta relação?')) return;
+
     setSavingStatus('Salvando...');
     try {
       await apiClient.delete(`/entities/relations/${id}`);
       setRelations((prev) => prev.filter((r) => r.id !== id));
       setSavingStatus('Salvo');
+      showToast({
+        type: 'success',
+        title: 'Relação Excluída',
+        message: 'A relação foi removida com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao deletar relação:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Erro ao excluir relação.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir a relação.'
+      });
     }
   };
 

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -266,6 +267,8 @@ function CharacterDetail({ character, onBack, onUpdate, onDelete }) {
 }
 
 export default function Personagens({ projectId }) {
+  const { showToast } = useToast();
+
   const [characters, setCharacters] = useState([]);
   const [filter, setFilter] = useState('todos');
   const [isCreating, setIsCreating] = useState(false);
@@ -284,13 +287,18 @@ export default function Personagens({ projectId }) {
         setCharacters(res.data || []);
       } catch (err) {
         console.error('Erro ao buscar personagens:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os personagens.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCharacters();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   const counts = Object.fromEntries(
     Object.keys(characterTypes).map((type) => [type, characters.filter((c) => c.type === type).length])
@@ -299,7 +307,16 @@ export default function Personagens({ projectId }) {
 
   // Criar Personagem no PostgreSQL
   async function createCharacter() {
-    if (!newCharacter.name.trim() || !projectId) return;
+    if (!newCharacter.name.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Informe o nome do personagem.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
 
     try {
       const payload = {
@@ -315,9 +332,19 @@ export default function Personagens({ projectId }) {
       setSelectedCharacter(created);
       setIsCreating(false);
       setNewCharacter({ name: '', type: 'protagonista' });
+
+      showToast({
+        type: 'success',
+        title: 'Personagem Criado',
+        message: `O personagem "${created.name || payload.name}" foi criado com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao criar personagem no banco:', err);
-      alert('Não foi possível criar o personagem.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível criar o personagem.'
+      });
     }
   }
 
@@ -334,9 +361,19 @@ export default function Personagens({ projectId }) {
       await apiClient.delete(`/characters/${id}`);
       setCharacters((prev) => prev.filter((c) => c.id !== id));
       if (selectedCharacter?.id === id) setSelectedCharacter(null);
+
+      showToast({
+        type: 'success',
+        title: 'Personagem Excluído',
+        message: 'O personagem foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir personagem:', err);
-      alert('Erro ao excluir o personagem.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir o personagem.'
+      });
     }
   }
 

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -163,6 +164,8 @@ function SceneInlineForm({ scene, onChange }) {
 }
 
 export default function Cenas({ projectId }) {
+  const { showToast } = useToast();
+
   const [scenes, setScenes] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -182,13 +185,18 @@ export default function Cenas({ projectId }) {
         setScenes(res.data || []);
       } catch (err) {
         console.error('Erro ao buscar cenas:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar as cenas.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchScenes();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // Cálculo da barra de progresso global baseado nos tópicos preenchidos
   const totalPossibleTopics = scenes.length * (sceneFields.length + 1); // +1 referente ao Título
@@ -209,7 +217,17 @@ export default function Cenas({ projectId }) {
 
   // Criar nova cena no PostgreSQL
   async function handleCreateScene() {
-    if (!newTitle.trim() || !projectId) return;
+    if (!newTitle.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, informe o título da nova cena.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
+
     setSavingStatus('Salvando...');
 
     try {
@@ -222,10 +240,20 @@ export default function Cenas({ projectId }) {
       setIsCreating(false);
       setNewTitle('');
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Cena Criada',
+        message: `A cena "${created.title || payload.title}" foi criada com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao criar cena:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Não foi possível criar a cena.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível criar a cena.'
+      });
     }
   }
 
@@ -265,10 +293,20 @@ export default function Cenas({ projectId }) {
       setScenes((prev) => prev.filter((item) => item.id !== id));
       if (expandedScene === id) setExpandedScene(null);
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Cena Excluída',
+        message: 'A cena foi removida com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir cena:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Erro ao excluir a cena.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir a cena.'
+      });
     }
   }
 

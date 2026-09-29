@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -189,6 +190,8 @@ function MysteryInlineForm({ mystery, onChange }) {
 }
 
 export default function Misterios({ projectId }) {
+  const { showToast } = useToast();
+
   const [mysteries, setMysteries] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [draft, setDraft] = useState(blankMystery());
@@ -207,13 +210,18 @@ export default function Misterios({ projectId }) {
         setMysteries(res.data || []);
       } catch (err) {
         console.error('Erro ao buscar mistérios:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os mistérios.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchMysteries();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // Cálculo da barra de progresso (7 tópicos por mistério)
   const totalPossibleTopics = mysteries.length * mysteryFields.length;
@@ -238,7 +246,17 @@ export default function Misterios({ projectId }) {
 
   // Criar mistério no banco
   async function saveMystery() {
-    if (!draft.title.trim() || !projectId) return;
+    if (!draft.title.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, informe o título do mistério.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
+
     setSavingStatus('Salvando...');
 
     try {
@@ -248,10 +266,20 @@ export default function Misterios({ projectId }) {
       setIsCreating(false);
       setDraft(blankMystery());
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Mistério Criado',
+        message: `O mistério "${res.data.title || draft.title}" foi criado com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao criar mistério:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Não foi possível criar o mistério.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível criar o mistério.'
+      });
     }
   }
 
@@ -291,10 +319,20 @@ export default function Misterios({ projectId }) {
       setMysteries((prev) => prev.filter((m) => m.id !== id));
       if (expandedId === id) setExpandedId(null);
       setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Mistério Excluído',
+        message: 'O mistério foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir mistério:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Erro ao excluir o mistério.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir o mistério.'
+      });
     }
   }
 

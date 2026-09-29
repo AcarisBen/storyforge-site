@@ -1,7 +1,6 @@
 // src/App.jsx
-// Aplicação StoryForge com Sidebar Liquid Glass (Com cabeçalho e títulos limpos, sem contornos desnecessários)
-
 import React, { useState, useEffect } from 'react';
+import { ToastProvider } from './hooks/useToast';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ConfirmEmail from './pages/ConfirmEmail';
@@ -133,7 +132,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         gap: '16px'
       }}
     >
-      {/* Filete vertical brilhante de refração no lado direito (Vidro Líquido) */}
       <div 
         style={{
           position: 'absolute',
@@ -148,7 +146,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         }}
       />
 
-      {/* Marca & Botão de Colapsar */}
       <div className="flex items-center justify-between px-2 pt-1">
         {!isCollapsed && (
           <div className="flex items-center gap-1">
@@ -167,7 +164,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         </button>
       </div>
 
-      {/* Meus Projetos (Limpo, sem contorno de card) */}
       <button 
         type="button" 
         onClick={onBackToProjects} 
@@ -180,7 +176,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         )}
       </button>
 
-      {/* Título do Projeto Selecionado (Limpo, sem contorno de card nem seta) */}
       {!isCollapsed && (
         <div className="px-2 py-1">
           <h2 className="text-xl font-bold text-white leading-tight drop-shadow-sm">
@@ -192,7 +187,6 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
         </div>
       )}
 
-      {/* Itens de Navegação */}
       <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
         {NAVIGATION_ITEMS.map((section) => (
           <div key={section.title} className="space-y-1.5 pt-2 border-t border-white/10 first:border-0 first:pt-0">
@@ -303,136 +297,142 @@ export default function App() {
     return <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center text-gray-400">Carregando StoryForge...</div>;
   }
 
-  if (confirmToken) {
-    return (
-      <ConfirmEmail 
-        token={confirmToken} 
-        onNavigateToLogin={clearUrlTokens} 
-      />
-    );
-  }
-
-  if (resetToken) {
-    return (
-      <ResetPassword 
-        token={resetToken} 
-        onNavigateToLogin={clearUrlTokens} 
-      />
-    );
-  }
-
-  if (deleteToken) {
-    return (
-      <ConfirmDelete 
-        token={deleteToken} 
-        onNavigateToLogin={() => {
-          setCurrentUser(null);
-          clearUrlTokens();
-        }} 
-      />
-    );
-  }
-
-  if (!currentUser) {
-    if (authScreen === 'register') {
-      return (
-        <Register 
-          onNavigateToLogin={() => setAuthScreen('login')}
-        />
-      );
-    }
-
-    if (authScreen === 'forgot-password') {
-      return (
-        <ForgotPassword 
-          onNavigateToLogin={() => setAuthScreen('login')}
-        />
-      );
-    }
-
-    return (
-      <Login 
-        onLoginSuccess={handleLoginSuccess}
-        onNavigateToRegister={() => setAuthScreen('register')}
-        onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
-      />
-    );
-  }
-
-  if (!currentProject) {
-    return (
-      <Home 
-        onSelectProject={handleSelectProject} 
-        currentUser={currentUser}
-        setCurrentUser={setCurrentUser}
-      />
-    );
-  }
-
-  const renderPage = () => {
-    switch (activePage) {
-      case 'dashboard':
-        return (
-          <Dashboard 
-            projectId={currentProject.id} 
-            onNavigate={setActivePage}
-            currentProject={currentProject}
-          />
-        );
-      case 'identidade':
-        return <Identidade projectId={currentProject.id} currentUser={currentUser} />;
-      case 'essencia':
-        return <Essencia projectId={currentProject.id} />;
-      case 'engenharia':
-        return <Engenharia projectId={currentProject.id} />;
-      case 'estrutura':
-        return <EstruturaDramatica projectId={currentProject.id} />;
-      case 'ritmo':
-        return <RitmoTimeline projectId={currentProject.id} />;
-      case 'personagens':
-        return <Personagens projectId={currentProject.id} />;
-      case 'mundo':
-        return <Mundo projectId={currentProject.id} />;
-      case 'cenas':
-        return <Cenas projectId={currentProject.id} />;
-      case 'dialogos':
-        return <DialogEngine projectId={currentProject.id} />;
-      case 'relacoes':
-        return <Relacoes projectId={currentProject.id} />;
-      case 'misterios':
-        return <Misterios projectId={currentProject.id} />;
-      case 'plot-twists':
-        return <PlotTwists projectId={currentProject.id} />;
-      case 'mapa-emocional': 
-        return <MapaEmocional projectId={currentProject.id} />;
-      case 'storyboard':
-        return <Storyboard projectId={currentProject.id} />;
-      case 'checklist':
-        return <Checklist projectId={currentProject.id} />;
-      case 'story-bible':
-        return (
-          <StoryBible 
-            projectId={currentProject.id} 
-            project={currentProject} 
-            currentUser={currentUser} 
-          />
-        );
-      case 'escrita':
-        return <Escrita projectId={currentProject.id} onNavigate={setActivePage} />;
-      default:
-        return <div className="coming-soon">Esta página será adicionada em breve.</div>;
-    }
-  };
-
   return (
-    <div className="app-shell flex h-screen w-screen overflow-hidden bg-[#0a0814]">
-      <Sidebar 
-        activePage={activePage} 
-        onNavigate={setActivePage} 
-        onBackToProjects={handleBackToProjects}
-        currentProject={currentProject}
-      />
-      <div className="page-content flex-1 overflow-y-auto">{renderPage()}</div>
-    </div>
+    <ToastProvider>
+      {(() => {
+        if (confirmToken) {
+          return (
+            <ConfirmEmail 
+              token={confirmToken} 
+              onNavigateToLogin={clearUrlTokens} 
+            />
+          );
+        }
+
+        if (resetToken) {
+          return (
+            <ResetPassword 
+              token={resetToken} 
+              onNavigateToLogin={clearUrlTokens} 
+            />
+          );
+        }
+
+        if (deleteToken) {
+          return (
+            <ConfirmDelete 
+              token={deleteToken} 
+              onNavigateToLogin={() => {
+                setCurrentUser(null);
+                clearUrlTokens();
+              }} 
+            />
+          );
+        }
+
+        if (!currentUser) {
+          if (authScreen === 'register') {
+            return (
+              <Register 
+                onNavigateToLogin={() => setAuthScreen('login')}
+              />
+            );
+          }
+
+          if (authScreen === 'forgot-password') {
+            return (
+              <ForgotPassword 
+                onNavigateToLogin={() => setAuthScreen('login')}
+              />
+            );
+          }
+
+          return (
+            <Login 
+              onLoginSuccess={handleLoginSuccess}
+              onNavigateToRegister={() => setAuthScreen('register')}
+              onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+            />
+          );
+        }
+
+        if (!currentProject) {
+          return (
+            <Home 
+              onSelectProject={handleSelectProject} 
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+            />
+          );
+        }
+
+        const renderPage = () => {
+          switch (activePage) {
+            case 'dashboard':
+              return (
+                <Dashboard 
+                  projectId={currentProject.id} 
+                  onNavigate={setActivePage}
+                  currentProject={currentProject}
+                />
+              );
+            case 'identidade':
+              return <Identidade projectId={currentProject.id} currentUser={currentUser} />;
+            case 'essencia':
+              return <Essencia projectId={currentProject.id} />;
+            case 'engenharia':
+              return <Engenharia projectId={currentProject.id} />;
+            case 'estrutura':
+              return <EstruturaDramatica projectId={currentProject.id} />;
+            case 'ritmo':
+              return <RitmoTimeline projectId={currentProject.id} />;
+            case 'personagens':
+              return <Personagens projectId={currentProject.id} />;
+            case 'mundo':
+              return <Mundo projectId={currentProject.id} />;
+            case 'cenas':
+              return <Cenas projectId={currentProject.id} />;
+            case 'dialogos':
+              return <DialogEngine projectId={currentProject.id} />;
+            case 'relacoes':
+              return <Relacoes projectId={currentProject.id} />;
+            case 'misterios':
+              return <Misterios projectId={currentProject.id} />;
+            case 'plot-twists':
+              return <PlotTwists projectId={currentProject.id} />;
+            case 'mapa-emocional': 
+              return <MapaEmocional projectId={currentProject.id} />;
+            case 'storyboard':
+              return <Storyboard projectId={currentProject.id} />;
+            case 'checklist':
+              return <Checklist projectId={currentProject.id} />;
+            case 'story-bible':
+              return (
+                <StoryBible 
+                  projectId={currentProject.id} 
+                  project={currentProject} 
+                  currentUser={currentUser} 
+                />
+              );
+            case 'escrita':
+              return <Escrita projectId={currentProject.id} onNavigate={setActivePage} />;
+            default:
+              return <div className="coming-soon">Esta página será adicionada em breve.</div>;
+          }
+        };
+
+        return (
+          <div className="app-shell flex h-screen w-screen overflow-hidden bg-[#0a0814]">
+            <Sidebar 
+              activePage={activePage} 
+              onNavigate={setActivePage} 
+              onBackToProjects={handleBackToProjects}
+              currentProject={currentProject}
+            />
+            <div className="page-content flex-1 overflow-y-auto">{renderPage()}</div>
+          </div>
+        );
+      })()}
+    </ToastProvider>
   );
 }

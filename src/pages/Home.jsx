@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import Configuracoes from './Configuracoes';
+import { useToast } from '../hooks/useToast';
 
 const ESSENCIA_FIELDS = [
   'O que torna a história única?',
@@ -20,6 +21,8 @@ const ESSENCIA_FIELDS = [
 ];
 
 export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
+  const { showToast } = useToast();
+
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -167,6 +170,11 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     } catch (err) {
       console.error('Erro ao buscar projetos:', err);
       setProjects([]);
+      showToast({
+        type: 'error',
+        title: 'Erro de Conexão',
+        message: 'Não foi possível carregar seus projetos. Verifique sua conexão.'
+      });
     } finally {
       setLoading(false);
     }
@@ -175,12 +183,24 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   const handleCopyPix = () => {
     navigator.clipboard.writeText(PIX_KEY);
     setCopiedPix(true);
+    showToast({
+      type: 'success',
+      title: 'Chave Pix Copiada',
+      message: 'A chave foi copiada para sua área de transferência.'
+    });
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    if (!newProject.title.trim()) return;
+    if (!newProject.title.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Informe um título para o novo projeto.'
+      });
+      return;
+    }
 
     try {
       const res = await apiClient.post('/entities/projects', {
@@ -196,10 +216,20 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
       setIsModalOpen(false);
       setNewProject({ title: '', format: 'Romance / Livro' });
 
+      showToast({
+        type: 'success',
+        title: 'Projeto Criado',
+        message: `O projeto "${created.title || newProject.title}" foi criado com sucesso!`
+      });
+
       if (onSelectProject) onSelectProject(created);
     } catch (err) {
       console.error('Erro ao criar projeto:', err);
-      alert('Não foi possível conectar ao servidor para criar o projeto.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Conexão',
+        message: 'Não foi possível conectar ao servidor para criar o projeto.'
+      });
     }
   };
 
@@ -219,9 +249,18 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     try {
       await apiClient.delete(`/entities/projects/${projectId}`);
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      showToast({
+        type: 'success',
+        title: 'Projeto Excluído',
+        message: `O projeto "${projectTitle}" foi removido com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao excluir projeto:', err);
-      alert('Não foi possível excluir o projeto. Tente novamente.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: 'Não foi possível excluir o projeto. Tente novamente.'
+      });
     }
   };
 
@@ -425,6 +464,11 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         await fetchProjects();
         setImportStatus('success');
         setImportDetails(['Todas as páginas e seus campos foram sincronizados com sucesso!']);
+        showToast({
+          type: 'success',
+          title: 'Importação Concluída',
+          message: 'O projeto foi importado com sucesso.'
+        });
 
       } catch (err) {
         console.error('Erro crítico na importação:', err);
@@ -434,12 +478,22 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
           : err.message || 'Erro de conexão com o servidor.';
         
         setImportDetails([`Travado em ${currentStageProgress}%: ${errorMsg}`]);
+        showToast({
+          type: 'error',
+          title: 'Erro na Importação',
+          message: errorMsg
+        });
       }
     };
 
     reader.onerror = () => {
       setImportStatus('error');
       setImportDetails(['Falha ao ler o arquivo local.']);
+      showToast({
+        type: 'error',
+        title: 'Erro de Leitura',
+        message: 'Não foi possível ler o arquivo selecionado.'
+      });
     };
 
     reader.readAsText(file);
@@ -867,4 +921,3 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     </div>
   );
 }
-

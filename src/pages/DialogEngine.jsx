@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -122,6 +123,8 @@ function DialogEngineGuide() {
 }
 
 export default function DialogEngine({ projectId }) {
+  const { showToast } = useToast();
+
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState('Salvo');
 
@@ -205,13 +208,18 @@ export default function DialogEngine({ projectId }) {
         if (scenes.length >= 1) setSelectedSceneId(String(scenes[0].id));
       } catch (err) {
         console.error('Erro ao carregar dados do projeto:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os dados de diálogos do projeto.'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchProjectData();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   // Helpers
   const getCharObject = (id) => projectChars.find((c) => String(c.id) === String(id));
@@ -245,6 +253,11 @@ export default function DialogEngine({ projectId }) {
     setSoundOptions([...soundOptions, newSound]);
     setSelectedSound(newSound);
     setCustomSoundInput('');
+    showToast({
+      type: 'info',
+      title: 'Camada Sonora',
+      message: 'Nova camada sonora personalizada adicionada.'
+    });
   };
 
   const resetForm = () => {
@@ -262,6 +275,16 @@ export default function DialogEngine({ projectId }) {
 
   // Salvar / Editar Diálogo
   const handleSaveDialogue = async () => {
+    const hasText = dialogueLines.some((l) => l.text.trim().length > 0);
+    if (!hasText) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Preencha ao menos uma fala do diálogo antes de salvar.'
+      });
+      return;
+    }
+
     setSavingStatus('Salvando...');
     const titleText = currentScene ? `Diálogo: ${currentScene.title || currentScene.nome}` : 'Diálogo sem cena';
 
@@ -290,6 +313,11 @@ export default function DialogEngine({ projectId }) {
         }
         const updatedCard = res.data;
         setSavedDialogues(savedDialogues.map((d) => (d.id === editingCardId ? updatedCard : d)));
+        showToast({
+          type: 'success',
+          title: 'Diálogo Atualizado',
+          message: 'As alterações no diálogo foram salvas com sucesso.'
+        });
       } else {
         let res;
         try {
@@ -300,6 +328,11 @@ export default function DialogEngine({ projectId }) {
         const createdCard = res.data;
         setSavedDialogues([createdCard, ...savedDialogues]);
         setOpenCards((prev) => ({ ...prev, [createdCard.id]: true }));
+        showToast({
+          type: 'success',
+          title: 'Diálogo Salvo',
+          message: 'Novo card de diálogo foi salvo no projeto.'
+        });
       }
 
       setSavingStatus('Salvo');
@@ -307,7 +340,11 @@ export default function DialogEngine({ projectId }) {
     } catch (err) {
       console.error('Erro ao salvar diálogo:', err);
       setSavingStatus('Erro ao salvar');
-      alert('Erro ao salvar no servidor. Certifique-se de ter reiniciado o servidor após adicionar as rotas no backend.');
+      showToast({
+        type: 'error',
+        title: 'Erro de Salvamento',
+        message: err.response?.data?.error || 'Não foi possível salvar o diálogo no servidor.'
+      });
     }
   };
 
@@ -353,9 +390,16 @@ export default function DialogEngine({ projectId }) {
     navigator.clipboard.writeText(fullContent);
     setCopyStatus(card.id);
     setTimeout(() => setCopyStatus(null), 2000);
+    showToast({
+      type: 'success',
+      title: 'Copiado',
+      message: 'Diálogo copiado para a área de transferência!'
+    });
   };
 
   const handleDeleteCard = async (cardId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este diálogo?')) return;
+
     setSavingStatus('Salvando...');
     try {
       await apiClient.delete(`/dialogues/${cardId}`).catch(() => 
@@ -364,9 +408,19 @@ export default function DialogEngine({ projectId }) {
       setSavedDialogues(savedDialogues.filter((d) => d.id !== cardId));
       if (editingCardId === cardId) resetForm();
       setSavingStatus('Salvo');
+      showToast({
+        type: 'success',
+        title: 'Diálogo Excluído',
+        message: 'O diálogo foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao deletar diálogo:', err);
       setSavingStatus('Erro ao salvar');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Não foi possível excluir o diálogo.'
+      });
     }
   };
 

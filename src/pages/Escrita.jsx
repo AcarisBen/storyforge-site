@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
 import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
+import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -227,6 +228,8 @@ function EscritaGuide() {
 }
 
 export default function Escrita({ projectId, onNavigate }) {
+  const { showToast } = useToast();
+
   const [chapters, setChapters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -358,14 +361,19 @@ export default function Escrita({ projectId, onNavigate }) {
           })),
         });
       } catch (err) {
-        console.error('Erro ao carregar dados do manuscrito:', err);
-      } font-medium; {
+        console.error('Erro ao carregar dados da escrita:', err);
+        showToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível carregar os dados de escrita do projeto.'
+        });
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [projectId]);
+  }, [projectId, showToast]);
 
   const selectedChapter = chapters.find((c) => c.id === selectedId);
 
@@ -779,10 +787,27 @@ export default function Escrita({ projectId, onNavigate }) {
     navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+
+    showToast({
+      type: 'success',
+      title: 'Conteúdo Copiado',
+      message: `O capítulo "${selectedChapter.title}" foi copiado para a área de transferência.`
+    });
   };
 
   async function handleAddChapter() {
-    if (!newTitle.trim() || !projectId) return;
+    if (!newTitle.trim()) {
+      showToast({
+        type: 'warning',
+        title: 'Campo Obrigatório',
+        message: 'Por favor, informe o título do capítulo.'
+      });
+      return;
+    }
+
+    if (!projectId) return;
+
+    setSavingStatus('Salvando...');
 
     try {
       const payload = {
@@ -803,13 +828,26 @@ export default function Escrita({ projectId, onNavigate }) {
       setNewTitle('');
       setNewType('Capítulo');
       setIsCreating(false);
+      setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Capítulo Criado',
+        message: `O capítulo "${created.title}" foi criado com sucesso.`
+      });
     } catch (err) {
       console.error('Erro ao criar capítulo:', err);
-      alert('Não foi possível criar o capítulo.');
+      setSavingStatus('Erro ao salvar');
+      showToast({
+        type: 'error',
+        title: 'Erro de Criação',
+        message: err.response?.data?.error || 'Não foi possível criar o capítulo.'
+      });
     }
   }
 
   function updateSelectedChapter(key, value) {
+    setSavingStatus('Salvando...');
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
     );
@@ -833,8 +871,14 @@ export default function Escrita({ projectId, onNavigate }) {
 
           apiClient
             .put(`/entities/chapters/${selectedId}`, payload)
-            .then(() => console.log('Capítulo salvo no backend com sucesso.'))
-            .catch((err) => console.error('Erro ao salvar no backend:', err));
+            .then(() => {
+              console.log('Capítulo salvo no backend com sucesso.');
+              setSavingStatus('Salvo');
+            })
+            .catch((err) => {
+              console.error('Erro ao salvar no backend:', err);
+              setSavingStatus('Erro ao salvar');
+            });
         }
 
         return latestChapters;
@@ -846,6 +890,8 @@ export default function Escrita({ projectId, onNavigate }) {
     event.stopPropagation();
     if (!window.confirm('Deseja excluir este capítulo?')) return;
 
+    setSavingStatus('Salvando...');
+
     try {
       await apiClient.delete(`/entities/chapters/${id}`);
       setChapters((prev) => prev.filter((c) => c.id !== id));
@@ -853,9 +899,21 @@ export default function Escrita({ projectId, onNavigate }) {
         const remaining = chapters.filter((c) => c.id !== id);
         setSelectedId(remaining.length > 0 ? remaining[0].id : null);
       }
+      setSavingStatus('Salvo');
+
+      showToast({
+        type: 'success',
+        title: 'Capítulo Excluído',
+        message: 'O capítulo foi removido com sucesso.'
+      });
     } catch (err) {
       console.error('Erro ao excluir capítulo:', err);
-      alert('Erro ao excluir o capítulo.');
+      setSavingStatus('Erro ao salvar');
+      showToast({
+        type: 'error',
+        title: 'Erro de Exclusão',
+        message: err.response?.data?.error || 'Erro ao excluir o capítulo.'
+      });
     }
   }
 
@@ -947,7 +1005,7 @@ export default function Escrita({ projectId, onNavigate }) {
 
       <header className="module-header flex justify-between items-center">
         <div>
-          <h1>Escrita & Manuscrito</h1>
+          <h1>Escrita</h1>
           <p>Escreva capítulos e consulte seus elementos criados em tempo real.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -1015,7 +1073,7 @@ export default function Escrita({ projectId, onNavigate }) {
           )}
 
           {loading ? (
-            <div className="text-center py-6 text-gray-500 text-xs">Carregando manuscrito...</div>
+            <div className="text-center py-6 text-gray-500 text-xs">Carregando escrita...</div>
           ) : chapters.length === 0 ? (
             <div className="bg-[#14141e] border border-gray-800/80 rounded-xl p-6 text-center text-gray-500 text-sm">
               Nenhum capítulo criado.
