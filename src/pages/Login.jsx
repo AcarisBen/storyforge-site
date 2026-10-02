@@ -1,14 +1,15 @@
 // src/pages/Login.jsx
-// Página de login do StoryForge
+// Página de login do StoryForge (Integrada com AuthContext e Cookies HttpOnly)
 
 import React, { useState } from 'react';
 import { 
   Feather, BookOpen, Layers, Mail, Lock, 
   LogIn, ShieldCheck, AlertCircle, Eye, EyeOff 
 } from 'lucide-react';
-import apiClient from '../api/apiClient';
+import { useAuth } from '../lib/AuthContext'; // 1. Importa o hook do AuthContext
 
 export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
+  const { login } = useAuth(); // 2. Extrai a função login do contexto global
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,17 +26,11 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
     setLoading(true);
 
     try {
-      const res = await apiClient.post('/auth/login', {
-        email: email.trim().toLowerCase(),
-        password,
-      });
-
-      if (res.data?.token) {
-        localStorage.setItem('storyforge_token', res.data.token);
-      }
+      // 3. Executa o login seguro (o backend define o cookie HttpOnly e o contexto atualiza o estado do usuário)
+      const data = await login(email.trim().toLowerCase(), password);
 
       if (onLoginSuccess) {
-        onLoginSuccess(res.data?.user || { email });
+        onLoginSuccess(data?.user || { email });
       }
     } catch (err) {
       console.error('Erro ao autenticar:', err);
