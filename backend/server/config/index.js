@@ -1,16 +1,17 @@
 // backend/server/config/index.js
-// Este arquivo configura o servidor Express, incluindo rotas, middleware e validações de segurança.
+// Este arquivo configura o servidor Express, incluindo rotas, middleware, limites de taxa e validações de segurança.
 
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import path from 'path'; // 1. Importação do módulo path necessária
+import path from 'path';
 
 import authRoutes from '../routes/auth.js';
 import entityRoutes from '../routes/entities.js';
 import grammarRoutes from '../routes/grammar.js';
 import uploadRoutes from '../routes/upload.js';
+import { authLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 dotenv.config();
 
@@ -28,8 +29,10 @@ if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
   process.exit(1);
 }
 
-// 2. Criação da instância do Express antes do uso dos middlewares
 const app = express();
+
+// Configuração recomendada caso o servidor rode atrás de um proxy reverso (Nginx, Cloudflare, Heroku, Render)
+app.set('trust proxy', 1);
 
 // Libera requisições de qualquer porta vinda do localhost
 app.use(cors({
@@ -49,8 +52,13 @@ app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
 // Servir pasta de uploads publicamente para acesso aos arquivos
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
-// Rotas da API
-app.use('/api/auth', authRoutes);
+// Aplicação do Rate Limiter Geral nas rotas genéricas da API
+app.use('/api', apiLimiter);
+
+// Aplicação do Rate Limiter Estrito nas rotas de autenticação
+app.use('/api/auth', authLimiter, authRoutes);
+
+// Demais rotas da API
 app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
