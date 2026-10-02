@@ -1,5 +1,5 @@
 // backend/server/routes/entities.js
-// Rotas para gerenciar entidades do projeto (Identidade, Essência, Engenharia, Estrutura Dramática, Ritmo & Timeline, Personagens, Mundo, Cenas, Mistérios, etc.)
+// Rotas para gerenciar entidades do projeto com proteção contra IDOR (Verificação de Propriedade)
 
 import express from 'express';
 import prisma from '../config/prisma.js';
@@ -17,7 +17,6 @@ try {
 } catch (e) {
   console.warn('Aviso: Não foi possível ler a versão do package.json, usando versão padrão:', e.message);
 }
-
 
 // ==========================================
 // MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
@@ -123,6 +122,14 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+// Middleware para validar propriedade do projeto em rotas com :projectId
+const verifyProjectOwner = async (projectId, userId) => {
+  if (!projectId || !userId) return null;
+  return await prisma.project.findFirst({
+    where: { id: String(projectId), userId: String(userId) }
+  });
+};
+
 // ==========================================
 // PROJETO(S) - ISOLAMENTO SEGURO POR USUÁRIO
 // ==========================================
@@ -148,7 +155,7 @@ const getProjectsHandler = async (req, res) => {
     res.json(formattedProjects);
   } catch (error) {
     console.error('Erro ao buscar projetos:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar projetos.' });
   }
 };
 
@@ -166,23 +173,6 @@ const createProjectHandler = async (req, res) => {
     const authorName = exportedBy || writerName || 'Autor StoryForge';
     const importDate = exportedAt || new Date().toLocaleDateString('pt-BR');
 
-    /*// Garantia de registro/atualização do usuário no banco
-    try {
-      await prisma.user.upsert({
-        where: { id: userId },
-        update: {},
-        create: {
-          id: userId,
-          email: `${userId}@storyforge.local`,
-          name: authorName,
-          password: 'hash_placeholder',
-        },
-      });
-    } catch (uErr) {
-      console.log('Aviso (User em memória):', uErr.message);
-    }
-    */
-
     const newProject = await prisma.project.create({
       data: {
         title: cleanTitle,
@@ -199,12 +189,11 @@ const createProjectHandler = async (req, res) => {
     return res.status(201).json({
       ...newProject,
       format: format || 'Romance / Livro',
-      //status: status || 'Desenvolvimento',
       progress: Number(progress) || 0,
     });
   } catch (error) {
     console.error('Erro ao criar/importar projeto no Prisma:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Erro interno ao criar projeto.' });
   }
 };
 
@@ -219,13 +208,13 @@ const deleteProjectHandler = async (req, res) => {
 
     const deleted = await prisma.project.deleteMany({
       where: {
-        id: id,
+        id: String(id),
         userId: userId,
       },
     });
 
     if (deleted.count === 0) {
-      return res.status(403).json({ error: 'Operação não permitida ou projeto não encontrado.' });
+      return res.status(404).json({ error: 'Operação não permitida ou projeto não encontrado.' });
     }
 
     res.json({ success: true, message: 'Projeto excluído com sucesso' });
@@ -240,11 +229,14 @@ router.post('/projects', createProjectHandler);
 router.delete('/projects/:id', deleteProjectHandler);
 
 // ==========================================
-// RELAÇÕES
+// RELAÇÕES DE PERSONAGENS
 // ==========================================
-router.get('/projects/:projectId/relations', async (req, res) => {
+router.get('/projects/:projectId/relations', requireAuth, async (req, res) => {
   const { projectId } = req.params;
   try {
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const relations = await prisma.characterRelation.findMany({
       where: { projectId: String(projectId) },
       orderBy: { id: 'asc' },
@@ -256,7 +248,7 @@ router.get('/projects/:projectId/relations', async (req, res) => {
   }
 });
 
-router.post('/relations', async (req, res) => {
+router.post('/relations', requireAuth, async (req, res) => {
   const { id, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
 
   if (!projectId || !charAId || !charBId) {
@@ -264,8 +256,16 @@ router.post('/relations', async (req, res) => {
   }
 
   try {
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     let savedRelation;
     if (id && !isNaN(Number(id))) {
+      const existing = await prisma.characterRelation.findFirst({
+        where: { id: Number(id), project: { userId: req.userId } }
+      });
+      if (!existing) return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
+
       savedRelation = await prisma.characterRelation.update({
         where: { id: Number(id) },
         data: {
@@ -297,9 +297,14 @@ router.post('/relations', async (req, res) => {
   }
 });
 
-router.delete('/relations/:id', async (req, res) => {
+router.delete('/relations/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
+    const existing = await prisma.characterRelation.findFirst({
+      where: { id: Number(id), project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
+
     await prisma.characterRelation.delete({ where: { id: Number(id) } });
     res.json({ success: true, message: 'Relação removida com sucesso' });
   } catch (err) {
@@ -311,98 +316,122 @@ router.delete('/relations/:id', async (req, res) => {
 // ==========================================
 // CONFIGURAÇÕES DO PROJETO (Identity, Essência, Engenharia)
 // ==========================================
-router.get('/projects/:projectId/identity', async (req, res) => {
+router.get('/projects/:projectId/identity', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'IDENTITY' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'IDENTITY' } });
     res.json(entity ? entity.data : {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar dados de identidade.' });
   }
 });
 
-router.post('/projects/:projectId/identity', async (req, res) => {
+router.post('/projects/:projectId/identity', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'IDENTITY' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const existing = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'IDENTITY' } });
     if (existing) {
       const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-    const created = await prisma.entity.create({ data: { projectId, type: 'IDENTITY', title: 'Identidade', data: req.body } });
+    const created = await prisma.entity.create({ data: { projectId: String(projectId), type: 'IDENTITY', title: 'Identidade', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar dados de identidade.' });
   }
 });
 
-router.get('/projects/:projectId/essencia', async (req, res) => {
+router.get('/projects/:projectId/essencia', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESSENCIA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ESSENCIA' } });
     res.json(entity ? entity.data : {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar dados de essência.' });
   }
 });
 
-router.post('/projects/:projectId/essencia', async (req, res) => {
+router.post('/projects/:projectId/essencia', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ESSENCIA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const existing = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ESSENCIA' } });
     if (existing) {
       const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-    const created = await prisma.entity.create({ data: { projectId, type: 'ESSENCIA', title: 'Essência', data: req.body } });
+    const created = await prisma.entity.create({ data: { projectId: String(projectId), type: 'ESSENCIA', title: 'Essência', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar dados de essência.' });
   }
 });
 
-router.get('/projects/:projectId/engenharia', async (req, res) => {
+router.get('/projects/:projectId/engenharia', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ENGENHARIA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ENGENHARIA' } });
     res.json(entity ? entity.data : {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar dados de engenharia.' });
   }
 });
 
-router.post('/projects/:projectId/engenharia', async (req, res) => {
+router.post('/projects/:projectId/engenharia', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ENGENHARIA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const existing = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ENGENHARIA' } });
     if (existing) {
       const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-    const created = await prisma.entity.create({ data: { projectId, type: 'ENGENHARIA', title: 'Engenharia', data: req.body } });
+    const created = await prisma.entity.create({ data: { projectId: String(projectId), type: 'ENGENHARIA', title: 'Engenharia', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar dados de engenharia.' });
   }
 });
 
 // ==========================================
 // ESTRUTURA DRAMÁTICA
 // ==========================================
-router.get('/projects/:projectId/estrutura-dramatica', async (req, res) => {
+router.get('/projects/:projectId/estrutura-dramatica', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ESTRUTURA_DRAMATICA' } });
     res.json(entity ? entity.data : { selectedFrameworks: [], values: {} });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar estrutura dramática.' });
   }
 });
 
-router.get('/projects/:projectId/estrutura-dramatica/cards', async (req, res) => {
+router.get('/projects/:projectId/estrutura-dramatica/cards', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ESTRUTURA_DRAMATICA' } });
     if (!entity || !entity.data) return res.json([]);
 
     const { values = {} } = entity.data;
@@ -433,42 +462,51 @@ router.get('/projects/:projectId/estrutura-dramatica/cards', async (req, res) =>
 
     res.json(cards);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar cards da estrutura.' });
   }
 });
 
-router.post('/projects/:projectId/estrutura-dramatica', async (req, res) => {
+router.post('/projects/:projectId/estrutura-dramatica', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'ESTRUTURA_DRAMATICA' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const existing = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'ESTRUTURA_DRAMATICA' } });
     if (existing) {
       const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-    const created = await prisma.entity.create({ data: { projectId, type: 'ESTRUTURA_DRAMATICA', title: 'Estrutura Dramática', data: req.body } });
+    const created = await prisma.entity.create({ data: { projectId: String(projectId), type: 'ESTRUTURA_DRAMATICA', title: 'Estrutura Dramática', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar estrutura dramática.' });
   }
 });
 
 // ==========================================
 // RITMO & TIMELINE
 // ==========================================
-router.get('/projects/:projectId/ritmo-timeline', async (req, res) => {
+router.get('/projects/:projectId/ritmo-timeline', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'RITMO_TIMELINE' } });
     res.json(entity ? entity.data : {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar dados de ritmo e timeline.' });
   }
 });
 
-router.get('/projects/:projectId/ritmo-timeline/cards', async (req, res) => {
+router.get('/projects/:projectId/ritmo-timeline/cards', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const entity = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const entity = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'RITMO_TIMELINE' } });
     if (!entity || !entity.data) return res.json([]);
 
     const timelineData = entity.data;
@@ -491,33 +529,39 @@ router.get('/projects/:projectId/ritmo-timeline/cards', async (req, res) => {
 
     res.json(cards);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar eventos da timeline.' });
   }
 });
 
-router.post('/projects/:projectId/ritmo-timeline', async (req, res) => {
+router.post('/projects/:projectId/ritmo-timeline', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await prisma.entity.findFirst({ where: { projectId, type: 'RITMO_TIMELINE' } });
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    const existing = await prisma.entity.findFirst({ where: { projectId: String(projectId), type: 'RITMO_TIMELINE' } });
     if (existing) {
       const updated = await prisma.entity.update({ where: { id: existing.id }, data: { data: req.body } });
       return res.json(updated.data);
     }
-    const created = await prisma.entity.create({ data: { projectId, type: 'RITMO_TIMELINE', title: 'Ritmo & Timeline', data: req.body } });
+    const created = await prisma.entity.create({ data: { projectId: String(projectId), type: 'RITMO_TIMELINE', title: 'Ritmo & Timeline', data: req.body } });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar ritmo e timeline.' });
   }
 });
 
 // ==========================================
 // PERSONAGENS
 // ==========================================
-router.get('/projects/:projectId/characters', async (req, res) => {
+router.get('/projects/:projectId/characters', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const characters = await prisma.character.findMany({
-      where: { projectId },
+      where: { projectId: String(projectId) },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -531,21 +575,24 @@ router.get('/projects/:projectId/characters', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar personagens:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao carregar personagens.' });
   }
 });
 
-router.post('/projects/:projectId/characters', async (req, res) => {
+router.post('/projects/:projectId/characters', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, type, details } = req.body;
+
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
 
     const newChar = await prisma.character.create({
       data: {
         name: name || 'Novo personagem',
         role: type || 'protagonista',
         details: details || {},
-        projectId,
+        projectId: String(projectId),
       },
     });
 
@@ -557,17 +604,22 @@ router.post('/projects/:projectId/characters', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar personagem:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar personagem.' });
   }
 });
 
-router.put('/characters/:id', async (req, res) => {
+router.put('/characters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, details } = req.body;
 
+    const existing = await prisma.character.findFirst({
+      where: { id: String(id), project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
+
     const updatedChar = await prisma.character.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         name: name || 'Personagem sem nome',
         role: type || 'protagonista',
@@ -583,29 +635,38 @@ router.put('/characters/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar personagem:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar personagem.' });
   }
 });
 
-router.delete('/characters/:id', async (req, res) => {
+router.delete('/characters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.character.delete({ where: { id } });
+
+    const existing = await prisma.character.findFirst({
+      where: { id: String(id), project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
+
+    await prisma.character.delete({ where: { id: String(id) } });
     res.json({ message: 'Personagem excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar personagem:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir personagem.' });
   }
 });
 
 // ==========================================
 // MUNDO
 // ==========================================
-router.get('/projects/:projectId/world', async (req, res) => {
+router.get('/projects/:projectId/world', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const elements = await prisma.entity.findMany({
-      where: { projectId, type: 'WORLD_ELEMENT' },
+      where: { projectId: String(projectId), type: 'WORLD_ELEMENT' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -620,19 +681,23 @@ router.get('/projects/:projectId/world', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar elementos do mundo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar elementos do mundo.' });
   }
 });
 
-router.post('/projects/:projectId/world', async (req, res) => {
+router.post('/projects/:projectId/world', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, type, customType, description } = req.body;
+
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
     const newElement = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'WORLD_ELEMENT',
         title: name || 'Sem nome',
         data: { 
@@ -652,18 +717,24 @@ router.post('/projects/:projectId/world', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar elemento do mundo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar elemento do mundo.' });
   }
 });
 
-router.put('/world/:id', async (req, res) => {
+router.put('/world/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, customType, description } = req.body;
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'WORLD_ELEMENT', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
+
     const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: name || 'Sem nome',
         data: { 
@@ -683,29 +754,38 @@ router.put('/world/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar elemento do mundo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar elemento do mundo.' });
   }
 });
 
-router.delete('/world/:id', async (req, res) => {
+router.delete('/world/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'WORLD_ELEMENT', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Elemento excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar elemento do mundo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir elemento do mundo.' });
   }
 });
 
 // ==========================================
 // CENAS
 // ==========================================
-router.get('/projects/:projectId/scenes', async (req, res) => {
+router.get('/projects/:projectId/scenes', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const scenes = await prisma.entity.findMany({
-      where: { projectId, type: 'SCENE' },
+      where: { projectId: String(projectId), type: 'SCENE' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -718,18 +798,21 @@ router.get('/projects/:projectId/scenes', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar cenas:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar cenas.' });
   }
 });
 
-router.post('/projects/:projectId/scenes', async (req, res) => {
+router.post('/projects/:projectId/scenes', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, ...restData } = req.body;
 
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'SCENE',
         title: title || 'Cena sem título',
         data: restData || {},
@@ -743,17 +826,22 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar cena:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar cena.' });
   }
 });
 
-router.put('/scenes/:id', async (req, res) => {
+router.put('/scenes/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'SCENE', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
+
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: title || 'Cena sem título',
         data: restData || {},
@@ -767,29 +855,38 @@ router.put('/scenes/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar cena:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar cena.' });
   }
 });
 
-router.delete('/scenes/:id', async (req, res) => {
+router.delete('/scenes/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'SCENE', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Cena excluída com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir cena:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir cena.' });
   }
 });
 
 // ==========================================
 // MISTÉRIOS
 // ==========================================
-router.get('/projects/:projectId/mysteries', async (req, res) => {
+router.get('/projects/:projectId/mysteries', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const mysteries = await prisma.entity.findMany({
-      where: { projectId, type: 'MYSTERY' },
+      where: { projectId: String(projectId), type: 'MYSTERY' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -802,18 +899,21 @@ router.get('/projects/:projectId/mysteries', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar mistérios:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar mistérios.' });
   }
 });
 
-router.post('/projects/:projectId/mysteries', async (req, res) => {
+router.post('/projects/:projectId/mysteries', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, ...restData } = req.body;
 
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'MYSTERY',
         title: title || 'Mistério sem nome',
         data: restData || {},
@@ -827,17 +927,22 @@ router.post('/projects/:projectId/mysteries', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar mistério:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar mistério.' });
   }
 });
 
-router.put('/mysteries/:id', async (req, res) => {
+router.put('/mysteries/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'MYSTERY', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
+
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: title || 'Mistério sem nome',
         data: restData || {},
@@ -851,29 +956,38 @@ router.put('/mysteries/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar mistério:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar mistério.' });
   }
 });
 
-router.delete('/mysteries/:id', async (req, res) => {
+router.delete('/mysteries/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'MYSTERY', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Mistério excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar mistério:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir mistério.' });
   }
 });
 
 // ==========================================
 // PLOT TWISTS
 // ==========================================
-router.get('/projects/:projectId/twists', async (req, res) => {
+router.get('/projects/:projectId/twists', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const twists = await prisma.entity.findMany({
-      where: { projectId, type: 'PLOT_TWIST' },
+      where: { projectId: String(projectId), type: 'PLOT_TWIST' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -886,18 +1000,21 @@ router.get('/projects/:projectId/twists', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar plot twists:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar plot twists.' });
   }
 });
 
-router.post('/projects/:projectId/twists', async (req, res) => {
+router.post('/projects/:projectId/twists', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, ...restData } = req.body;
 
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'PLOT_TWIST',
         title: title || 'Plot Twist sem título',
         data: restData || {},
@@ -911,17 +1028,22 @@ router.post('/projects/:projectId/twists', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar plot twist:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar plot twist.' });
   }
 });
 
-router.put('/twists/:id', async (req, res) => {
+router.put('/twists/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'PLOT_TWIST', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
+
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: title || 'Plot Twist sem título',
         data: restData || {},
@@ -935,29 +1057,38 @@ router.put('/twists/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar plot twist:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar plot twist.' });
   }
 });
 
-router.delete('/twists/:id', async (req, res) => {
+router.delete('/twists/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'PLOT_TWIST', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Plot twist excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar plot twist:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir plot twist.' });
   }
 });
 
 // ==========================================
 // ESCRITA / CAPÍTULOS
 // ==========================================
-router.get('/projects/:projectId/chapters', async (req, res) => {
+router.get('/projects/:projectId/chapters', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const chapters = await prisma.entity.findMany({
-      where: { projectId, type: 'CHAPTER' },
+      where: { projectId: String(projectId), type: 'CHAPTER' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -971,18 +1102,21 @@ router.get('/projects/:projectId/chapters', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar capítulos:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar capítulos.' });
   }
 });
 
-router.post('/projects/:projectId/chapters', async (req, res) => {
+router.post('/projects/:projectId/chapters', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, type, content } = req.body;
 
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'CHAPTER',
         title: title || 'Novo Capítulo',
         data: { chapterType: type || 'Capítulo', content: content || '' },
@@ -997,17 +1131,22 @@ router.post('/projects/:projectId/chapters', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar capítulo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar capítulo.' });
   }
 });
 
-router.put('/chapters/:id', async (req, res) => {
+router.put('/chapters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, type, content } = req.body;
 
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'CHAPTER', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
+
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: title || 'Novo Capítulo',
         data: { chapterType: type || 'Capítulo', content: content || '' },
@@ -1022,41 +1161,53 @@ router.put('/chapters/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar capítulo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar capítulo.' });
   }
 });
 
-router.delete('/chapters/:id', async (req, res) => {
+router.delete('/chapters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'CHAPTER', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Capítulo excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar capítulo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir capítulo.' });
   }
 });
 
 // ==========================================
 // CHECKLIST
 // ==========================================
-router.get('/projects/:projectId/checklist', async (req, res) => {
+router.get('/projects/:projectId/checklist', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const entity = await prisma.entity.findFirst({
-      where: { projectId, type: 'CHECKLIST' },
+      where: { projectId: String(projectId), type: 'CHECKLIST' },
     });
     res.json(entity ? entity.data : {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar checklist.' });
   }
 });
 
-router.post('/projects/:projectId/checklist', async (req, res) => {
+router.post('/projects/:projectId/checklist', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const existing = await prisma.entity.findFirst({
-      where: { projectId, type: 'CHECKLIST' },
+      where: { projectId: String(projectId), type: 'CHECKLIST' },
     });
 
     if (existing) {
@@ -1069,7 +1220,7 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
 
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'CHECKLIST',
         title: 'Checklist de Desenvolvimento',
         data: req.body,
@@ -1077,30 +1228,36 @@ router.post('/projects/:projectId/checklist', async (req, res) => {
     });
     res.status(201).json(created.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar checklist.' });
   }
 });
 
 // ==========================================
 // STORYBOARD (PERSISTÊNCIA DE DIAGRAMA)
 // ==========================================
-router.get('/projects/:projectId/storyboard', async (req, res) => {
+router.get('/projects/:projectId/storyboard', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const entity = await prisma.entity.findFirst({
       where: { projectId: String(projectId), type: 'STORYBOARD' },
     });
     res.json(entity ? entity.data : { nodes: [], edges: [] });
   } catch (error) {
     console.error('Erro ao buscar Storyboard:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao carregar storyboard.' });
   }
 });
 
-router.post('/projects/:projectId/storyboard', async (req, res) => {
+router.post('/projects/:projectId/storyboard', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { nodes = [], edges = [] } = req.body;
+
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
 
     const existing = await prisma.entity.findFirst({
       where: { projectId: String(projectId), type: 'STORYBOARD' },
@@ -1126,30 +1283,36 @@ router.post('/projects/:projectId/storyboard', async (req, res) => {
     res.status(201).json(created.data);
   } catch (error) {
     console.error('Erro ao salvar Storyboard:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar storyboard.' });
   }
 });
 
 // ==========================================
 // MAPA EMOCIONAL (PERSISTÊNCIA DE PONTOS)
 // ==========================================
-router.get('/projects/:projectId/mapa-emocional', async (req, res) => {
+router.get('/projects/:projectId/mapa-emocional', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const entity = await prisma.entity.findFirst({
       where: { projectId: String(projectId), type: 'MAPA_EMOCIONAL' },
     });
     res.json(entity ? entity.data : []);
   } catch (error) {
     console.error('Erro ao buscar Mapa Emocional:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao carregar mapa emocional.' });
   }
 });
 
-router.post('/projects/:projectId/mapa-emocional', async (req, res) => {
+router.post('/projects/:projectId/mapa-emocional', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const points = req.body;
+
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
 
     const existing = await prisma.entity.findFirst({
       where: { projectId: String(projectId), type: 'MAPA_EMOCIONAL' },
@@ -1175,18 +1338,21 @@ router.post('/projects/:projectId/mapa-emocional', async (req, res) => {
     res.status(201).json(created.data);
   } catch (error) {
     console.error('Erro ao salvar Mapa Emocional:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao salvar mapa emocional.' });
   }
 });
 
 // ==========================================
 // DIÁLOGOS
 // ==========================================
-router.get('/projects/:projectId/dialogues', async (req, res) => {
+router.get('/projects/:projectId/dialogues', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const dialogues = await prisma.entity.findMany({
-      where: { projectId, type: 'DIALOGUE' },
+      where: { projectId: String(projectId), type: 'DIALOGUE' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -1199,18 +1365,21 @@ router.get('/projects/:projectId/dialogues', async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Erro ao buscar diálogos:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao buscar diálogos.' });
   }
 });
 
-router.post('/projects/:projectId/dialogues', async (req, res) => {
+router.post('/projects/:projectId/dialogues', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { title, ...restData } = req.body;
 
+    const project = await verifyProjectOwner(projectId, req.userId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
     const created = await prisma.entity.create({
       data: {
-        projectId,
+        projectId: String(projectId),
         type: 'DIALOGUE',
         title: title || 'Diálogo sem título',
         data: restData || {},
@@ -1224,17 +1393,22 @@ router.post('/projects/:projectId/dialogues', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao criar diálogo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao criar diálogo.' });
   }
 });
 
-router.put('/dialogues/:id', async (req, res) => {
+router.put('/dialogues/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'DIALOGUE', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
+
     const updated = await prisma.entity.update({
-      where: { id },
+      where: { id: String(id) },
       data: {
         title: title || 'Diálogo sem título',
         data: restData || {},
@@ -1248,30 +1422,36 @@ router.put('/dialogues/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao atualizar diálogo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao atualizar diálogo.' });
   }
 });
 
-router.delete('/dialogues/:id', async (req, res) => {
+router.delete('/dialogues/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.entity.delete({ where: { id } });
+
+    const existing = await prisma.entity.findFirst({
+      where: { id: String(id), type: 'DIALOGUE', project: { userId: req.userId } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
+
+    await prisma.entity.delete({ where: { id: String(id) } });
     res.json({ message: 'Diálogo excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir diálogo:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro interno ao excluir diálogo.' });
   }
 });
 
 // ==========================================
 // EXPORTAÇÃO SEGURA DO PROJETO (.STFG)
 // ==========================================
-router.get('/projects/:projectId/export-stfg', async (req, res) => {
+router.get('/projects/:projectId/export-stfg', requireAuth, async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const project = await prisma.project.findFirst({
+      where: { id: String(projectId), userId: req.userId },
       include: {
         user: {
           select: { writerName: true, fullName: true, name: true }
@@ -1280,16 +1460,15 @@ router.get('/projects/:projectId/export-stfg', async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Projeto não encontrado.' });
+      return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
     }
 
-    const entities = await prisma.entity.findMany({ where: { projectId } });
-    const characters = await prisma.character.findMany({ where: { projectId } });
-    const relations = await prisma.characterRelation.findMany({ where: { projectId } });
+    const entities = await prisma.entity.findMany({ where: { projectId: project.id } });
+    const characters = await prisma.character.findMany({ where: { projectId: project.id } });
+    const relations = await prisma.characterRelation.findMany({ where: { projectId: project.id } });
 
     const authorName = project.user?.writerName || project.user?.fullName || project.user?.name || 'Autor StoryForge';
 
-    // 1. Dados e metadados cifrados juntos no payload
     const payloadToEncrypt = {
       version: APP_VERSION,
       exportedAt: new Date().toISOString(),
@@ -1305,10 +1484,8 @@ router.get('/projects/:projectId/export-stfg', async (req, res) => {
       relations,
     };
 
-    // 2. Criptografa todo o objeto
     const cryptoResult = encryptStorybible(payloadToEncrypt);
 
-    // 3. Envelope final limpo (somente os hashes de criptografia)
     const exportPackage = {
       iv: cryptoResult.iv,
       authTag: cryptoResult.authTag,
@@ -1329,13 +1506,8 @@ router.get('/projects/:projectId/export-stfg', async (req, res) => {
 // ==========================================
 // IMPORTAÇÃO SEGURA DE PROJETO (.STFG)
 // ==========================================
-router.post('/projects/import-stfg', async (req, res) => {
+router.post('/projects/import-stfg', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromReq(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
-    }
-
     const envelope = req.body;
 
     let payload;
@@ -1355,7 +1527,6 @@ router.post('/projects/import-stfg', async (req, res) => {
     const rawTitle = project.title || project.name || 'Projeto Importado';
     const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
 
-    // Extrai o autor e a data do payload descriptografado
     const exportAuthor = payload.exportedBy || envelope.exportedBy || project.writerName || 'Autor Desconhecido';
     const rawDate = payload.exportedAt || envelope.exportedAt;
     const exportDate = rawDate ? new Date(rawDate).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
@@ -1367,7 +1538,7 @@ router.post('/projects/import-stfg', async (req, res) => {
         isImported: true,
         exportedBy: exportAuthor,
         exportedAt: String(exportDate),
-        userId: userId,
+        userId: req.userId,
       }
     });
 
@@ -1425,14 +1596,12 @@ router.post('/projects/import-stfg', async (req, res) => {
     return res.status(201).json({
       ...newProject,
       format: project.format || 'Romance / Livro',
-      //status: project.status || 'Desenvolvimento',
       progress: 0,
     });
   } catch (error) {
     console.error('Erro na importação .stfg:', error);
-    return res.status(500).json({ error: error.message || 'Erro ao processar ficheiro de importação.' });
+    return res.status(500).json({ error: 'Erro ao processar ficheiro de importação.' });
   }
 });
-
 
 export default router;
