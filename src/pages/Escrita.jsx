@@ -229,6 +229,8 @@ function EscritaGuide() {
 
 /**
  * Função utilitária estrita para localizar a posição DOM exata baseada em OFFSET + LENGTH.
+ * Função para localizar a posição DOM exata baseada em OFFSET + LENGTH.
+ * Mapeia quebras de parágrafos como espaços para manter sincronia 1:1 com o texto analisado.
  * Protege contra erros de marcação em palavras anteriores que possuam a mesma letra/subtermo.
  */
 function getRangeForSuggestion(editorElem, sug) {
@@ -240,23 +242,42 @@ function getRangeForSuggestion(editorElem, sug) {
   const targetOffset = typeof sug.offset === 'number' ? sug.offset : -1;
   const targetLen = sug.length || targetText.length;
 
-  const walker = document.createTreeWalker(editorElem, NodeFilter.SHOW_TEXT, null, false);
-  const textNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
-
-  if (textNodes.length === 0) return null;
+  const walker = document.createTreeWalker(
+    editorElem,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
 
   let fullTextContent = '';
   const nodeRanges = [];
-  for (const n of textNodes) {
+  let node;
+  let lastParentBlock = null;
+
+  const isBlock = (el) => el && /^(P|DIV|H[1-6]|LI|BLOCKQUOTE|BR)$/i.test(el.tagName);
+
+  while ((node = walker.nextNode())) {
+    let parentBlock = node.parentElement;
+    while (parentBlock && parentBlock !== editorElem && !isBlock(parentBlock)) {
+      parentBlock = parentBlock.parentElement;
+    }
+
+    // Insere espaço virtual na transição de bloco de parágrafo para alinhar offsets com innerText
+    if (lastParentBlock && parentBlock !== lastParentBlock) {
+      if (fullTextContent.length > 0 && !/\s$/.test(fullTextContent)) {
+        fullTextContent += ' ';
+      }
+    }
+    lastParentBlock = parentBlock;
+
     const start = fullTextContent.length;
-    fullTextContent += n.nodeValue;
+    fullTextContent += node.nodeValue;
     const end = fullTextContent.length;
-    nodeRanges.push({ node: n, start, end });
+
+    nodeRanges.push({ node, start, end });
   }
+
+  if (nodeRanges.length === 0) return null;
 
   const createRangeFromIndices = (startIndex, endIndex) => {
     let startNode = null, startOff = 0;
@@ -265,11 +286,11 @@ function getRangeForSuggestion(editorElem, sug) {
     for (const nr of nodeRanges) {
       if (!startNode && startIndex >= nr.start && startIndex <= nr.end) {
         startNode = nr.node;
-        startOff = startIndex - nr.start;
+        startOff = Math.max(0, startIndex - nr.start);
       }
       if (endIndex >= nr.start && endIndex <= nr.end) {
         endNode = nr.node;
-        endOff = endIndex - nr.start;
+        endOff = Math.min(nr.node.nodeValue.length, endIndex - nr.start);
         break;
       }
     }
@@ -287,7 +308,7 @@ function getRangeForSuggestion(editorElem, sug) {
     return null;
   };
 
-  // 1. Prioridade Máxima: Checagem estrita no offset absoluto retornado
+  // 1. Checagem direta pelo offset exato
   if (targetOffset >= 0 && targetOffset + targetLen <= fullTextContent.length) {
     const sub = fullTextContent.substring(targetOffset, targetOffset + targetLen);
     if (sub === targetText) {
@@ -296,7 +317,7 @@ function getRangeForSuggestion(editorElem, sug) {
     }
   }
 
-  // 2. Fallback de Segurança: Se houver pequeno desvio por quebra de linha HTML, encontra o índice mais próximo do offset real
+  // 2. Busca pela ocorrência mais próxima do offset em caso de pequenas variações
   const occurrences = [];
   let idx = fullTextContent.indexOf(targetText);
   while (idx !== -1) {
@@ -618,65 +639,67 @@ export default function Escrita({ projectId, onNavigate }) {
     }
   };
 
-  const handleCardClick = (e, sug) => {
-    if (
-      e.target.closest('button') ||
-      e.target.closest('select') ||
-      e.target.closest('option')
-    ) {
-      return;
-    }
-
-    highlightCorrectionInEditor(sug);
-
-    setTimeout(() => {
-      const mark = editorRef.current?.querySelector('#active-correction-mark');
-      const editor = editorRef.current;
-
-      if (mark && editor) {
-        const editorRect = editor.getBoundingClientRect();
-        const markRect = mark.getBoundingClientRect();
-
-        const offsetTop = markRect.top - editorRect.top;
-        const targetScrollTop = editor.scrollTop + offsetTop - (editor.clientHeight / 2) + (markRect.height / 2);
-
-        editor.scrollTo({
-          top: Math.max(0, targetScrollTop),
-          behavior: 'smooth',
-        });
-      }
-    }, 50);
-  };
-
-  const handleEditorInput = () => {
+    const handleEditorInput = () => {
     if (editorRef.current) {
       updateSelectedChapter('content', editorRef.current.innerHTML);
     }
     checkActiveFormats();
   };
 
-  // Destaque não-destrutivo no DOM (impede a criação de parágrafos extras ao passar o mouse)
-  const highlightCorrectionInEditor = (sug) => {
-    if (!editorRef.current || !sug) return;
-    removeHighlightFromEditor();
+  // Destaque de correção resiliente no DOM
+const highlightCorrectionInEditor = (sug) => {
+  if (!editorRef.current || !sug) return;
+  removeHighlightFromEditor();
 
-    const range = getRangeForSuggestion(editorRef.current, sug);
+  const range = getRangeForSuggestion(editorRef.current, sug);
 
-    if (range) {
-      try {
-        if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
-          const mark = document.createElement('mark');
-          mark.id = 'active-correction-mark';
-          mark.style.cssText =
-            'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; display: inline;';
+  if (range) {
+    try {
+      const mark = document.createElement('mark');
+      mark.id = 'active-correction-mark';
+      mark.style.cssText =
+        'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; display: inline;';
 
-          range.surroundContents(mark);
+      const extracted = range.extractContents();
+      mark.appendChild(extracted);
+      range.insertNode(mark);
+    } catch (e) {
+      console.error('Erro ao grifar trecho no editor:', e);
+    }
+  }
+};
+
+// Clique no card com rolagem suave automática garantida
+const handleCardClick = (e, sug) => {
+  if (
+    e.target.closest('button') ||
+    e.target.closest('select') ||
+    e.target.closest('option')
+  ) {
+    return;
+  }
+
+  highlightCorrectionInEditor(sug);
+
+  setTimeout(() => {
+    const mark = editorRef.current?.querySelector('#active-correction-mark');
+    if (mark) {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    } else {
+      // Fallback: Rola até o parágrafo do elemento caso o destaque falhe
+      const range = getRangeForSuggestion(editorRef.current, sug);
+      if (range) {
+        const container =
+          range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? range.startContainer
+            : range.startContainer.parentElement;
+        if (container) {
+          container.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-      } catch (e) {
-        console.error('Erro ao destacar trecho no editor:', e);
       }
     }
-  };
+  }, 50);
+};
 
   const removeHighlightFromEditor = () => {
     if (!editorRef.current) return;
