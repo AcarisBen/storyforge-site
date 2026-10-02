@@ -2,6 +2,7 @@
 // Página de Escrita do Projeto com Ícone de Exclamação no Guia do Módulo e Proteção de Offset de Correção
 
 import React, { useState, useEffect, useRef } from 'react';
+
 import apiClient from '../api/apiClient';
 import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
 import { useToast } from '../hooks/useToast';
@@ -58,6 +59,94 @@ const guideTabs = {
     </ul>
   ),
 };
+
+function getStyleForSuggestion(sug) {
+  const existingBadge = sug.badgeStyle || '';
+  const label = (sug.label || '').toLowerCase();
+  const catId = (sug.rule?.category?.id || sug.rule?.category?.name || sug.category || '').toUpperCase();
+  const ruleId = (sug.rule?.id || '').toUpperCase();
+  const issueType = (sug.rule?.issueType || '').toLowerCase();
+
+  let color = 'purple'; // Padrão para Gramática Geral, Wikipédia, Estilo, Sintaxe, etc.
+
+  // 1. Se a sugestão já veio com cor explícita na badge (regras customizadas)
+  if (existingBadge.includes('lime')) color = 'lime';
+  else if (existingBadge.includes('amber') || existingBadge.includes('orange')) color = 'amber';
+  else if (existingBadge.includes('emerald') || existingBadge.includes('green')) color = 'emerald';
+  else if (existingBadge.includes('red')) color = 'red';
+  else if (existingBadge.includes('purple')) color = 'purple';
+  else {
+    // 2. Mapeamento inteligente para categorias do LanguageTool
+    if (
+      label.includes('hifen') ||
+      label.includes('prefix') ||
+      catId.includes('HYPHEN') ||
+      catId.includes('COMPOUNDING') ||
+      ruleId.includes('PORTUGUESE_HIFEN')
+    ) {
+      color = 'lime';
+    } else if (
+      label.includes('pontua') ||
+      label.includes('virgula') ||
+      catId.includes('PUNCTUATION')
+    ) {
+      color = 'amber';
+    } else if (
+      label.includes('concord') ||
+      catId.includes('AGREEMENT')
+    ) {
+      color = 'emerald';
+    } else if (
+      label.includes('ortograf') ||
+      label.includes('escrita') ||
+      catId.includes('TYPOS') ||
+      catId.includes('SPELLING') ||
+      ruleId.includes('HUNSPELL') ||
+      issueType === 'misspelling'
+    ) {
+      color = 'red';
+    } else {
+      color = 'purple';
+    }
+  }
+
+  const stylesMap = {
+    lime: {
+      defaultLabel: 'Hifenização / Prefixos',
+      badgeStyle: 'bg-lime-900/60 text-lime-300 border-lime-500/50',
+      highlightStyle: 'bg-lime-500/20 text-lime-200 border-b-2 border-lime-500 border-dashed rounded px-0.5 cursor-pointer',
+    },
+    amber: {
+      defaultLabel: 'Pontuação',
+      badgeStyle: 'bg-amber-900/60 text-amber-300 border-amber-500/50',
+      highlightStyle: 'bg-amber-500/20 text-amber-200 border-b-2 border-amber-500 border-dashed rounded px-0.5 cursor-pointer',
+    },
+    emerald: {
+      defaultLabel: 'Concordância',
+      badgeStyle: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50',
+      highlightStyle: 'bg-emerald-500/20 text-emerald-200 border-b-2 border-emerald-500 border-dashed rounded px-0.5 cursor-pointer',
+    },
+    red: {
+      defaultLabel: 'Erro Ortográfico',
+      badgeStyle: 'bg-red-900/60 text-red-300 border-red-500/50',
+      highlightStyle: 'bg-red-500/20 text-red-200 border-b-2 border-red-500 border-dashed rounded px-0.5 cursor-pointer',
+    },
+    purple: {
+      defaultLabel: 'Gramática Geral',
+      badgeStyle: 'bg-purple-900/60 text-purple-300 border-purple-500/50',
+      highlightStyle: 'bg-purple-500/20 text-purple-200 border-b-2 border-purple-500 border-dashed rounded px-0.5 cursor-pointer',
+    },
+  };
+
+  const selectedStyle = stylesMap[color] || stylesMap.purple;
+
+  return {
+    label: sug.label || selectedStyle.defaultLabel,
+    badgeStyle: selectedStyle.badgeStyle,
+    highlightStyle: selectedStyle.highlightStyle,
+  };
+}
+
 
 function getWorldTheme(type = '') {
   const norm = String(type).toLowerCase().trim();
@@ -229,7 +318,6 @@ function EscritaGuide() {
 
 /**
  * Função utilitária estrita para localizar a posição DOM exata baseada em OFFSET + LENGTH.
- * Função para localizar a posição DOM exata baseada em OFFSET + LENGTH.
  * Mapeia quebras de parágrafos como espaços para manter sincronia 1:1 com o texto analisado.
  * Protege contra erros de marcação em palavras anteriores que possuam a mesma letra/subtermo.
  */
@@ -262,7 +350,6 @@ function getRangeForSuggestion(editorElem, sug) {
       parentBlock = parentBlock.parentElement;
     }
 
-    // Insere espaço virtual na transição de bloco de parágrafo para alinhar offsets com innerText
     if (lastParentBlock && parentBlock !== lastParentBlock) {
       if (fullTextContent.length > 0 && !/\s$/.test(fullTextContent)) {
         fullTextContent += ' ';
@@ -340,6 +427,24 @@ function getRangeForSuggestion(editorElem, sug) {
   }
 
   return createRangeFromIndices(bestIdx, bestIdx + targetText.length);
+}
+
+function createGrammarDecorations(doc, suggestions) {
+  const decorations = [];
+
+  suggestions.forEach((suggestion) => {
+    const from = suggestion.offset;
+    const to = suggestion.offset + suggestion.length;
+
+    decorations.push(
+      Decoration.inline(from, to, {
+        class: suggestion.highlightStyle || 'border-b-2 border-purple-500 border-dashed',
+        'data-suggestion-id': suggestion.id,
+      })
+    );
+  });
+
+  return DecorationSet.create(doc, decorations);
 }
 
 export default function Escrita({ projectId, onNavigate }) {
@@ -500,8 +605,8 @@ export default function Escrita({ projectId, onNavigate }) {
     }
   }, [selectedId]);
 
-  // Extração segura de texto para o corretor (garante espaço entre parágrafos para não colá-los)
-  useEffect(() => {
+  // Extração segura de texto para o corretor (garante espaço entre parágrafos)
+useEffect(() => {
     if (!editorRef.current) return;
 
     const rawText = editorRef.current.innerText.replace(/[\r\n]+/g, ' ');
@@ -515,22 +620,65 @@ export default function Escrita({ projectId, onNavigate }) {
 
     grammarTimeoutRef.current = setTimeout(async () => {
       let ltSuggestions = [];
+
+      // 1. PRIMÁRIO: Executa primeiro o LanguageTool
       try {
         const response = await apiClient.post('/entities/grammar-check', { text: rawText });
         const rawLt = response.data || [];
 
-        ltSuggestions = rawLt.filter((s) => {
-          const isWhitespaceRule =
-            s.rule?.id === 'WHITESPACE_RULE' ||
-            (s.message && s.message.toLowerCase().includes('espaço em branco'));
-          return !isWhitespaceRule;
-        });
+        ltSuggestions = rawLt
+          .filter((s) => {
+            const isWhitespaceRule =
+              s.rule?.id === 'WHITESPACE_RULE' ||
+              (s.message && s.message.toLowerCase().includes('espaço em branco'));
+            return !isWhitespaceRule;
+          })
+          .map((sug) => {
+            const style = getStyleForSuggestion(sug);
+            return {
+              ...sug,
+              label: style.label,
+              badgeStyle: style.badgeStyle,
+              highlightStyle: style.highlightStyle,
+            };
+          });
       } catch (err) {
-        console.warn('LanguageTool indisponível:', err.message);
+        console.warn('LanguageTool indisponível (usando apenas regras de suporte):', err.message);
       }
 
-      const customSuggestions = analyzeCustomGrammarRules(rawText, ltSuggestions);
-      const allSuggestions = [...ltSuggestions, ...customSuggestions];
+      // Mapeia regiões no texto já marcadas pelo LanguageTool
+      const ltOccupiedRanges = ltSuggestions.map((s) => ({
+        start: s.offset,
+        end: s.offset + (s.length || s.original?.length || 0),
+      }));
+
+      // 2. SUPORTE: Executa as regras customizadas APENAS para trechos NÃO cobertos pelo LanguageTool
+      const customSuggestionsRaw = analyzeCustomGrammarRules(rawText, ltSuggestions);
+
+      const supportCustomSuggestions = customSuggestionsRaw
+        .filter((cSug) => {
+          const cStart = cSug.offset;
+          const cEnd = cSug.offset + (cSug.length || cSug.original?.length || 0);
+
+          // Se o LanguageTool já apontou um erro nesse trecho, a regra customizada cede lugar ao LT
+          const isOverlappedByLT = ltOccupiedRanges.some(
+            (r) => Math.max(cStart, r.start) < Math.min(cEnd, r.end)
+          );
+
+          return !isOverlappedByLT;
+        })
+        .map((cSug) => {
+          const style = getStyleForSuggestion(cSug);
+          return {
+            ...cSug,
+            label: cSug.label,
+            badgeStyle: style.badgeStyle,
+            highlightStyle: style.highlightStyle,
+          };
+        });
+
+      // Une os alertas: LanguageTool primeiro + Regras Customizadas de Suporte
+      const allSuggestions = [...ltSuggestions, ...supportCustomSuggestions];
 
       const now = Date.now();
       const validSuggestions = allSuggestions.filter((sug) => {
@@ -639,15 +787,15 @@ export default function Escrita({ projectId, onNavigate }) {
     }
   };
 
-    const handleEditorInput = () => {
+  const handleEditorInput = () => {
     if (editorRef.current) {
       updateSelectedChapter('content', editorRef.current.innerHTML);
     }
     checkActiveFormats();
   };
 
-  // Destaque de correção resiliente no DOM
-const highlightCorrectionInEditor = (sug) => {
+  // Destaque de correção dinâmico baseado na cor da categoria
+  const highlightCorrectionInEditor = (sug) => {
   if (!editorRef.current || !sug) return;
   removeHighlightFromEditor();
 
@@ -657,8 +805,9 @@ const highlightCorrectionInEditor = (sug) => {
     try {
       const mark = document.createElement('mark');
       mark.id = 'active-correction-mark';
-      mark.style.cssText =
-        'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; display: inline;';
+      
+      // Aplica dinamicamente a classe Tailwind correspondente à cor da regra (Lime, Red, Orange, etc.)
+      mark.className = sug.highlightStyle || 'bg-purple-500/30 text-purple-200 border-b-2 border-purple-500 border-dashed rounded px-0.5';
 
       const extracted = range.extractContents();
       mark.appendChild(extracted);
@@ -669,8 +818,8 @@ const highlightCorrectionInEditor = (sug) => {
   }
 };
 
-// Clique no card com rolagem suave automática garantida
-const handleCardClick = (e, sug) => {
+  // Clique no card com rolagem suave automática
+  const handleCardClick = (e, sug) => {
   if (
     e.target.closest('button') ||
     e.target.closest('select') ||
@@ -683,20 +832,23 @@ const handleCardClick = (e, sug) => {
 
   setTimeout(() => {
     const mark = editorRef.current?.querySelector('#active-correction-mark');
-    if (mark) {
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    } else {
-      // Fallback: Rola até o parágrafo do elemento caso o destaque falhe
-      const range = getRangeForSuggestion(editorRef.current, sug);
-      if (range) {
-        const container =
-          range.startContainer.nodeType === Node.ELEMENT_NODE
-            ? range.startContainer
-            : range.startContainer.parentElement;
-        if (container) {
-          container.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
+    const editor = editorRef.current;
+
+    if (mark && editor) {
+      const markRect = mark.getBoundingClientRect();
+      const editorRect = editor.getBoundingClientRect();
+
+      // Cálculo de posição relativa real entre o grifo e a janela do editor
+      const targetScrollTop =
+        editor.scrollTop +
+        (markRect.top - editorRect.top) -
+        editorRect.height / 2 +
+        markRect.height / 2;
+
+      editor.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: 'smooth',
+      });
     }
   }, 50);
 };

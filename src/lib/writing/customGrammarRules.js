@@ -1,22 +1,58 @@
 // src/lib/writing/customGrammarRules.js
-// Base unificada, avançada e categorizada por cores de regras gramaticais e ortográficas.
+// Base unificada, avançada e categorizada por cores de alto contraste para tema escuro.
 
 /**
- * PALETA DE CORES DOS BADGES POR CATEGORIA
+ * PALETA DE CORES COM BADGE E HIGHLIGHT CORRESPONDENTES
  */
-const BADGE_STYLES = {
-  RED: 'bg-red-950/80 text-red-300 border-red-700/60',         // Erros Ortográficos / Grafia Incorreta
-  ORANGE: 'bg-orange-950/80 text-orange-300 border-orange-700/60', // Acentuação e Pontuação
-  GREEN: 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60', // Concordância (Verbal / Nominal)
-  INDIGO: 'bg-indigo-950/80 text-indigo-300 border-indigo-700/60',   // Regência e Sintaxe
-  SKY: 'bg-sky-950/80 text-sky-300 border-sky-700/60',         // Crase e Semântica (Onde/Aonde)
-  AMBER: 'bg-amber-950/80 text-amber-300 border-amber-700/60',   // Parônimos, Maiúsculas e Expressões
-  PURPLE: 'bg-purple-950/80 text-purple-300 border-purple-700/60', // Linguagem Formal, Estilo e Vícios
+const COLOR_PALETTE = {
+  RED: {
+    badge: 'bg-red-500/20 text-red-300 border border-red-500/50',
+    highlight: 'border-b-2 border-red-500 border-dashed bg-red-500/10 text-red-200 cursor-pointer',
+  },
+  ORANGE: {
+    badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/50',
+    highlight: 'border-b-2 border-orange-500 border-dashed bg-orange-500/10 text-orange-200 cursor-pointer',
+  },
+  AMBER: {
+    badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/50',
+    highlight: 'border-b-2 border-amber-500 border-dashed bg-amber-500/10 text-amber-200 cursor-pointer',
+  },
+  GREEN: {
+    badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50',
+    highlight: 'border-b-2 border-emerald-500 border-dashed bg-emerald-500/10 text-emerald-200 cursor-pointer',
+  },
+  CYAN: {
+    badge: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50',
+    highlight: 'border-b-2 border-cyan-500 border-dashed bg-cyan-500/10 text-cyan-200 cursor-pointer',
+  },
+  SKY: {
+    badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/50',
+    highlight: 'border-b-2 border-sky-500 border-dashed bg-sky-500/10 text-sky-200 cursor-pointer',
+  },
+  INDIGO: {
+    badge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50',
+    highlight: 'border-b-2 border-indigo-500 border-dashed bg-indigo-500/10 text-indigo-200 cursor-pointer',
+  },
+  PURPLE: {
+    badge: 'bg-purple-500/20 text-purple-300 border border-purple-500/50',
+    highlight: 'border-b-2 border-purple-500 border-dashed bg-purple-500/10 text-purple-200 cursor-pointer',
+  },
+  PINK: {
+    badge: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/50',
+    highlight: 'border-b-2 border-fuchsia-500 border-dashed bg-fuchsia-500/10 text-fuchsia-200 cursor-pointer',
+  },
+  LIME: {
+    badge: 'bg-lime-500/20 text-lime-300 border border-lime-500/50',
+    highlight: 'border-b-2 border-lime-500 border-dashed bg-lime-500/10 text-lime-200 cursor-pointer',
+  },
 };
+
+// Mapeia BADGE_STYLES para COLOR_PALETTE para manter compatibilidade com as regras existentes
+const BADGE_STYLES = COLOR_PALETTE;
 
 export const customRulesDatabase = [
   // ==========================================
-  // 1. INFORMALIDADE E LINGUAGEM FORMAL (ROXO)
+  // 1. INFORMALIDADE, ESTILO E VÍCIOS (ROXO)
   // ==========================================
   {
     id: 'rule-fix-pro-pra-estrito',
@@ -35,7 +71,7 @@ export const customRulesDatabase = [
     category: 'Estilo / Vício de Linguagem',
     pattern: /\b(e|onde|no\s+qual|na\s+qual)\s+o\s+mesmo\s+(foi|estava|tinha|disse|fez|ficou)\b/gi,
     replacementFn: (match, prep, verb) => `${prep} ele ${verb}`,
-    message: 'Evite utilizar "o mesmo" para substituir pessoas ou objetos. Dê preferência a pronomes pessoais ("ele", "este") ou à omissão do sujeito.',
+    message: 'Evite utilizar "o mesmo" para substituir pessoas ou objetos. Dê preferência a pronomes pessoais ("ele", "este").',
     badgeStyle: BADGE_STYLES.PURPLE,
   },
   {
@@ -45,11 +81,7 @@ export const customRulesDatabase = [
     replacementFn: (match, aux, gerundio) => {
       const infinitivo = gerundio.replace(/ndo$/i, 'r');
       const auxLower = aux.toLowerCase();
-
-      if (auxLower === 'ia' || auxLower === 'iam') {
-        return [`${infinitivo}ia`, `${auxLower} ${infinitivo}`];
-      }
-      return [`vai ${infinitivo}`];
+      return auxLower === 'ia' || auxLower === 'iam' ? [`${infinitivo}ia`, `${auxLower} ${infinitivo}`] : [`vai ${infinitivo}`];
     },
     message: 'Evite o gerundismo. Dê preferência a formas mais diretas e elegantes (ex: "vai limpar").',
     badgeStyle: BADGE_STYLES.PURPLE,
@@ -72,7 +104,102 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 2. REGÊNCIA VERBAL E SINTAXE (ANIL / ÍNDIGO)
+  // 2. PLEONASMOS E REDUNDÂNCIAS (PINK / MAGENTA VIBRANTE)
+  // ==========================================
+  {
+    id: 'rule-ha-anos-atras',
+    category: 'Pleonasmo / Redundância',
+    pattern: /\bhá\s+([^,.!?]+?)\s+atrás\b/gi,
+    replacementFn: (match, tempo) => `há ${tempo}`,
+    message: 'Redundância temporal. O verbo "há" já indica tempo decorrido, tornando o uso de "atrás" pleonástico (ex: "há três anos").',
+    badgeStyle: BADGE_STYLES.PINK,
+  },
+  {
+    id: 'rule-subir-para-cima-descer-baixo',
+    category: 'Pleonasmo / Redundância',
+    pattern: /\b(subir\s+para\s+cima|descer\s+para\s+baixo|entrar\s+para\s+dentro|sair\s+para\s+fora)\b/gi,
+    replacementFn: (match) => match.split(' ')[0],
+    message: 'Pleonasmo vicioso. Verbos de direção já trazem o sentido do movimento.',
+    badgeStyle: BADGE_STYLES.PINK,
+  },
+  {
+    id: 'rule-elo-de-ligacao',
+    category: 'Pleonasmo / Redundância',
+    pattern: /\belo\s+de\s+ligação\b/gi,
+    replacementFn: () => 'elo',
+    message: 'Redundância. Todo "elo" já é por definição uma ligação.',
+    badgeStyle: BADGE_STYLES.PINK,
+  },
+  {
+    id: 'rule-encarar-de-frente',
+    category: 'Pleonasmo / Redundância',
+    pattern: /\b(encarar|encarou|encarava)\s+de\s+frente\b/gi,
+    replacementFn: (match, verb) => `${verb}`,
+    message: 'Redundância. O verbo "encarar" já significa olhar/enfrentar de frente.',
+    badgeStyle: BADGE_STYLES.PINK,
+  },
+
+  // ==========================================
+  // 3. CACOFONIA E SONORIDADE (CIANO ELÉTRICO)
+  // ==========================================
+  {
+    id: 'rule-cacofonia-vi-ela',
+    category: 'Cacofonia / Fluidez Sonora',
+    pattern: /\bvi\s+ela\b/gi,
+    replacementFn: () => 'a vi',
+    message: 'Cacofonia sonora ("viela"). Dê preferência ao pronome oblíquo: "a vi" ou "vi-a".',
+    badgeStyle: BADGE_STYLES.CYAN,
+  },
+  {
+    id: 'rule-cacofonia-por-cada',
+    category: 'Cacofonia / Fluidez Sonora',
+    pattern: /\bpor\s+cada\b/gi,
+    replacementFn: () => 'para cada',
+    message: 'Sonoridade truncada em textos formais/literários. Prefira utilizar "para cada" ou "por".',
+    badgeStyle: BADGE_STYLES.CYAN,
+  },
+  {
+    id: 'rule-cacofonia-uma-mao',
+    category: 'Cacofonia / Fluidez Sonora',
+    pattern: /\buma\s+mão\b/gi,
+    replacementFn: () => 'uma das mãos',
+    message: 'Atenção ao efeito sonoro de cacofonia ("mamão"). Considere reformular para "uma das mãos" ou "a mão".',
+    badgeStyle: BADGE_STYLES.CYAN,
+  },
+
+  // ==========================================
+  // 4. PREFIXOS, HÍFEN E CONJUNÇÕES (VERDE LIMA)
+  // ==========================================
+  {
+    id: 'rule-senao-condicional-se-nao',
+    category: 'Sintaxe / Se não vs Senão',
+    pattern: /\bsenão\s+(chover|for|puder|quiser|fizer|tiver|houver|estiver)\b/gi,
+    replacementFn: (match, verb) => `se não ${verb}`,
+    message: 'Para exprimir condição ("caso não"), escreve-se separado: "se não". "Senão" significa "caso contrário" ou "a não ser".',
+    badgeStyle: BADGE_STYLES.LIME,
+  },
+  {
+    id: 'rule-prefixo-pos-pre-sem-hifen',
+    category: 'Hifenização / Prefixos',
+    pattern: /\b(pos|pre|pro)\s+(graduação|graduado|requisito|conceito|existente|ocupado|moderno)\b/gi,
+    replacementFn: (match, pref, subst) => {
+      const map = { pos: 'pós', pre: 'pré', pro: 'pró' };
+      return `${map[pref.toLowerCase()] || pref}-${subst}`;
+    },
+    message: 'Prefixos tónicos com acento (pós, pré, pró) exigem hífen antes do segundo elemento (ex: "pós-graduação").',
+    badgeStyle: BADGE_STYLES.LIME,
+  },
+  {
+    id: 'rule-crase-proibida-antes-de-todos',
+    category: 'Crase Proibida',
+    pattern: /\bà\s+(todos|todas)\b/gi,
+    replacementFn: (match, pr) => `a ${pr}`,
+    message: 'Não se usa crase antes de pronomes indefinidos no masculino ou plural ("a todos").',
+    badgeStyle: BADGE_STYLES.LIME,
+  },
+
+  // ==========================================
+  // 5. REGÊNCIA VERBAL E SINTAXE (ANIL / ÍNDIGO)
   // ==========================================
   {
     id: 'rule-fix-vai-infinitive-a',
@@ -179,7 +306,7 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 3. PONTUAÇÃO E ACENTUAÇÃO (LARANJA)
+  // 6. PONTUAÇÃO E ACENTUAÇÃO (LARANJA)
   // ==========================================
   {
     id: 'rule-virgula-adjunto-adverbial-inicio',
@@ -203,7 +330,7 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 4. CONCORDÂNCIA VERBAL E NOMINAL (VERDE)
+  // 7. CONCORDÂNCIA VERBAL E NOMINAL (VERDE ESMERALDA)
   // ==========================================
   {
     id: 'rule-mais-de-um-singular',
@@ -252,7 +379,7 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 5. ERROS ORTOGRÁFICOS E TEMPO INADEQUADO (VERMELHO)
+  // 8. ERROS ORTOGRÁFICOS E TEMPO INADEQUADO (VERMELHO VIVO)
   // ==========================================
   {
     id: 'rule-passou-mal-vs-mau',
@@ -349,7 +476,7 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 6. CRASE E SEMÂNTICA (AZUL / SKY)
+  // 9. CRASE E SEMÂNTICA (AZUL CÉU)
   // ==========================================
   {
     id: 'rule-onde-vs-aonde-movimento',
@@ -380,7 +507,7 @@ export const customRulesDatabase = [
   },
 
   // ==========================================
-  // 7. PARÔNIMOS, MAIÚSCULAS E LEXICAL (ÂMBAR / AMARELO)
+  // 10. PARÔNIMOS, MAIÚSCULAS E LEXICAL (AMARELO DOURADO)
   // ==========================================
   {
     id: 'rule-afim-de-separado',
@@ -444,17 +571,13 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
   if (!text || text.trim().length < 3) return [];
 
   const customSuggestions = [];
-
   const occupiedRanges = existingSuggestions.map((s) => ({
     start: s.offset,
     end: s.offset + (s.length || s.original?.length || 0),
   }));
 
-  const isRangeOccupied = (start, end) => {
-    return occupiedRanges.some(
-      (range) => (start >= range.start && start < range.end) || (end > range.start && end <= range.end)
-    );
-  };
+  const isRangeOccupied = (start, end) =>
+    occupiedRanges.some((range) => (start >= range.start && start < range.end) || (end > range.start && end <= range.end));
 
   customRulesDatabase.forEach((rule) => {
     let match;
@@ -465,9 +588,7 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
       const matchLength = match[0].length;
       const matchEnd = matchStart + matchLength;
 
-      if (isRangeOccupied(matchStart, matchEnd)) {
-        continue;
-      }
+      if (isRangeOccupied(matchStart, matchEnd)) continue;
 
       const repResult = rule.replacementFn
         ? rule.replacementFn(match[0], match[1], match[2], match[3], match[4], match[5], match[6])
@@ -476,9 +597,11 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
       const replacements = Array.isArray(repResult) ? repResult : [repResult];
       const replacement = replacements[0];
 
-      if (replacement === match[0]) {
-        continue;
-      }
+      if (replacement === match[0]) continue;
+
+      // Suporte a objetos com { badge, highlight } ou string direta
+      const badgeStyle = typeof rule.badgeStyle === 'object' ? rule.badgeStyle.badge : rule.badgeStyle;
+      const highlightStyle = typeof rule.badgeStyle === 'object' ? rule.badgeStyle.highlight : 'border-b-2 border-purple-500 border-dashed';
 
       customSuggestions.push({
         id: `custom-${rule.id}-${matchStart}`,
@@ -489,7 +612,8 @@ export function analyzeCustomGrammarRules(text, existingSuggestions = []) {
         replacement: replacement,
         replacements: replacements,
         message: rule.message,
-        badgeStyle: rule.badgeStyle,
+        badgeStyle: badgeStyle,
+        highlightStyle: highlightStyle,
       });
     }
   });
