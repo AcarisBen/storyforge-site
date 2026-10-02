@@ -1,4 +1,6 @@
 // backend/server/routes/grammar.js
+// Este arquivo contém rotas para análise gramatical e ortográfica de textos em português, utilizando o motor LanguageTool. Ele fornece endpoints para verificar a gramática, ortografia e estilo de escrita, retornando sugestões de correção e melhorias.
+
 import express from 'express';
 import axios from 'axios';
 

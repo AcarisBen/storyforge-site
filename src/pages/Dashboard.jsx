@@ -331,7 +331,7 @@ export default function Dashboard({ projectId, onNavigate, currentProject }) {
             {currentProject?.format || 'Romance / Livro'}
           </span>
           <span className="px-3 py-1 bg-amber-950/40 text-xs text-amber-400 border border-amber-800/50 rounded-full font-bold">
-            {currentProject?.status || 'Desenvolvimento'}
+            {/*currentProject?.status || 'Desenvolvimento'*/}
           </span>
           <span className="px-3 py-1 bg-[#181824] text-xs text-gray-400 border border-gray-800 rounded-full font-medium">
             {currentProject?.genre || 'Fantasia'}

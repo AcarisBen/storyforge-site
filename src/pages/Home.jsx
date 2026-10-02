@@ -1,7 +1,8 @@
 // src/pages/Home.jsx
-// Página inicial do StoryForge, exibindo a lista de projetos do usuário, opções de busca, criação e importação de projetos, além de modais para suporte e configurações.
+// Página inicial do StoryForge, exibindo a lista de projetos do usuário, opções de busca, criação e importação de projetos, além de modais para suporte, configurações e exclusão de projetos.
 
 import React, { useState, useEffect, useRef } from 'react';
+
 import { 
   Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
   AlertTriangle, CheckCircle, XCircle, Trash2, Heart, 
@@ -28,6 +29,9 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', format: 'Romance / Livro' });
   const [loading, setLoading] = useState(true);
+
+  // Estado do Modal de Exclusão
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   // Estados dos Modais
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -206,7 +210,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
       const res = await apiClient.post('/entities/projects', {
         title: newProject.title,
         format: newProject.format,
-        status: 'Desenvolvimento',
         progress: 0,
         writerName: currentUser?.writerName || currentUser?.fullName || currentUser?.name || 'Autor StoryForge',
       });
@@ -239,20 +242,24 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     window.location.reload();
   };
 
-  const handleDeleteProject = async (e, projectId, projectTitle) => {
+  // Abre o modal de confirmação customizado de exclusão
+  const handleOpenDeleteModal = (e, projectId, projectTitle) => {
     e.stopPropagation();
+    setProjectToDelete({ id: projectId, title: projectTitle });
+  };
 
-    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${projectTitle}"? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+  // Executa a exclusão após o usuário confirmar no modal
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    const { id, title } = projectToDelete;
 
     try {
-      await apiClient.delete(`/entities/projects/${projectId}`);
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      await apiClient.delete(`/entities/projects/${id}`);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
       showToast({
         type: 'success',
         title: 'Projeto Excluído',
-        message: `O projeto "${projectTitle}" foi removido com sucesso.`
+        message: `O projeto "${title}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir projeto:', err);
@@ -261,6 +268,8 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         title: 'Erro de Exclusão',
         message: 'Não foi possível excluir o projeto. Tente novamente.'
       });
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -275,209 +284,34 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
 
   const processImport = async (file) => {
     setIsImporting(true);
-    setImportProgress(10);
+    setImportProgress(20);
     setImportStatus(null);
     setImportDetails([]);
 
     const reader = new FileReader();
 
     reader.onload = async (event) => {
-      let currentStageProgress = 10;
-
       try {
-        currentStageProgress = 20;
-        setImportProgress(currentStageProgress);
+        setImportProgress(50);
+        const fileContent = JSON.parse(event.target.result);
 
-        const importedJson = JSON.parse(event.target.result);
-        if (!importedJson.projectData) {
-          throw new Error('O arquivo JSON não possui a estrutura "projectData" válida.');
-        }
-
-        const meta = importedJson.exportMeta || {};
-        const pData = importedJson.projectData;
-
-        const rawTitle = pData.identity?.['Título'] || pData.identity?.['title'] || pData.title || 'Projeto Importado';
-        const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
-        const exportAuthor = meta.exportedBy || pData.identity?.['Autor'] || 'Autor Desconhecido';
-        const exportDate = meta.exportedAt ? new Date(meta.exportedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-
-        const projectPayload = {
-          title: cleanTitle,
-          format: pData.format || 'Romance / Livro',
-          status: pData.status || 'Desenvolvimento',
-          progress: 0,
-          isImported: true,
-          writerName: exportAuthor,
-          exportedBy: exportAuthor,
-          exportedAt: exportDate,
-        };
-
-        const resProj = await apiClient.post('/entities/projects', projectPayload);
-        const newProjId = resProj.data?.id;
-
-        if (!newProjId) {
-          throw new Error('Servidor não retornou um ID válido para o projeto.');
-        }
-
-        const characterIdMap = {};
-        const sceneIdMap = {};
-
-        if (Array.isArray(pData.characters)) {
-          for (const char of pData.characters) {
-            const oldId = char.id;
-            const charPayload = { ...char, projectId: newProjId };
-            delete charPayload.id;
-
-            try {
-              const res = await apiClient.post(`/entities/projects/${newProjId}/characters`, charPayload);
-              if (oldId && res.data?.id) {
-                characterIdMap[oldId] = res.data.id;
-              }
-            } catch (err) {
-              console.warn('Aviso: Falha ao importar um personagem:', err);
-            }
-          }
-        }
-
-        if (Array.isArray(pData.scenes)) {
-          for (const scene of pData.scenes) {
-            const oldId = scene.id;
-            const scenePayload = { ...scene, projectId: newProjId };
-            delete scenePayload.id;
-
-            try {
-              const res = await apiClient.post(`/entities/projects/${newProjId}/scenes`, scenePayload);
-              if (oldId && res.data?.id) {
-                sceneIdMap[oldId] = res.data.id;
-              }
-            } catch (err) {
-              console.warn('Aviso: Falha ao importar uma cena:', err);
-            }
-          }
-        }
-
-        const rawCards = pData.structureCards || [];
-        const structureValues = {
-          acts: {},
-          sequences: {},
-          hero: {},
-          storyCircle: {},
-          saveTheCat: {},
-          freytag: {}
-        };
-
-        rawCards.forEach((card) => {
-          if (!card.framework || !card.title) return;
-          const fw = card.framework.toLowerCase();
-          const desc = card.descricao || card.description || '';
-
-          if (fw.includes('3 atos')) structureValues.acts[card.title] = desc;
-          else if (fw.includes('8 sequências') || fw.includes('sequencias')) structureValues.sequences[card.title] = desc;
-          else if (fw.includes('jornada')) structureValues.hero[card.title] = desc;
-          else if (fw.includes('story circle')) structureValues.storyCircle[card.title] = desc;
-          else if (fw.includes('save the cat')) structureValues.saveTheCat[card.title] = desc;
-          else if (fw.includes('freytag')) structureValues.freytag[card.title] = desc;
-        });
-
-        const allPages = [
-          { name: 'Identidade', endpoint: `/entities/projects/${newProjId}/identity`, data: pData.identity, type: 'object' },
-          { name: 'Essência', endpoint: `/entities/projects/${newProjId}/essencia`, data: pData.essencia, type: 'object' },
-          { name: 'Engenharia', endpoint: `/entities/projects/${newProjId}/engenharia`, data: pData.engenharia, type: 'object' },
-          { 
-            name: 'Estrutura Dramática', 
-            endpoint: `/entities/projects/${newProjId}/estrutura-dramatica`, 
-            data: { selectedFrameworks: pData.structureFrameworks || [], values: structureValues }, 
-            type: 'object' 
-          },
-          { 
-            name: 'Ritmo & Timeline', 
-            endpoint: `/entities/projects/${newProjId}/ritmo-timeline`, 
-            data: pData.timelineEvents || {}, 
-            type: 'object' 
-          },
-          { name: 'Mundo', endpoint: `/entities/projects/${newProjId}/world`, data: pData.world, type: 'array_items' },
-          { name: 'Diálogos', endpoint: `/entities/projects/${newProjId}/dialogues`, data: pData.dialogues, type: 'array_items' },
-          { 
-            name: 'Relações', 
-            endpoint: `/entities/relations`, 
-            data: pData.relations, 
-            type: 'relations_remapped' 
-          },
-          { name: 'Mistérios', endpoint: `/entities/projects/${newProjId}/mysteries`, data: pData.mysteries, type: 'array_items' },
-          { name: 'Plot Twists', endpoint: `/entities/projects/${newProjId}/twists`, data: pData.twists, type: 'array_items' },
-          { name: 'Escrita & Capítulo', endpoint: `/entities/projects/${newProjId}/chapters`, data: pData.chapters, type: 'array_items' },
-          { 
-            name: 'Mapa Emocional', 
-            endpoint: `/entities/projects/${newProjId}/mapa-emocional`, 
-            data: pData.emotionalPoints || [], 
-            type: 'object' 
-          },
-          { name: 'Checklist de Desenvolvimento', endpoint: `/entities/projects/${newProjId}/checklist`, data: pData.checklist, type: 'object' }
-        ];
-
-        const totalPages = allPages.length;
-
-        for (let i = 0; i < totalPages; i++) {
-          const page = allPages[i];
-          currentStageProgress = Math.round(50 + ((i + 1) / totalPages) * 50);
-
-          if (page.data && (Object.keys(page.data).length > 0 || (Array.isArray(page.data) && page.data.length > 0))) {
-            try {
-              if (page.type === 'object') {
-                await apiClient.post(page.endpoint, page.data);
-              } else if (page.type === 'array_items') {
-                for (const item of page.data) {
-                  const itemPayload = { ...item };
-                  delete itemPayload.id;
-                  await apiClient.post(page.endpoint, itemPayload);
-                }
-              } else if (page.type === 'relations_remapped') {
-                for (const rel of page.data) {
-                  const mappedCharA = characterIdMap[rel.charAId] || rel.charAId;
-                  const mappedCharB = characterIdMap[rel.charBId] || rel.charBId;
-                  const mappedScene = sceneIdMap[rel.sceneId] || rel.sceneId || null;
-
-                  if (mappedCharA && mappedCharB) {
-                    await apiClient.post(`/entities/relations`, {
-                      projectId: newProjId,
-                      charAId: mappedCharA,
-                      charBId: mappedCharB,
-                      type: rel.type || 'Amizade',
-                      intensity: rel.intensity || 6,
-                      sceneId: mappedScene,
-                      description: rel.description || ''
-                    });
-                  }
-                }
-              }
-            } catch (pageErr) {
-              console.error(`Erro ao importar ${page.name}:`, pageErr);
-              const failedField = pageErr.response?.data?.error || pageErr.message || 'Erro de resposta na API';
-              throw new Error(`Falha na página "${page.name}": ${failedField}`);
-            }
-          }
-
-          setImportProgress(currentStageProgress);
-        }
-
+        const response = await apiClient.post('/entities/projects/import-stfg', fileContent);
+        
         setImportProgress(100);
         await fetchProjects();
         setImportStatus('success');
-        setImportDetails(['Todas as páginas e seus campos foram sincronizados com sucesso!']);
+        setImportDetails(['Projeto importado e sincronizado com sucesso!']);
+        
         showToast({
           type: 'success',
           title: 'Importação Concluída',
-          message: 'O projeto foi importado com sucesso.'
+          message: `O projeto "${response.data?.title || 'Importado'}" foi restaurado com sucesso.`
         });
-
       } catch (err) {
-        console.error('Erro crítico na importação:', err);
+        console.error('Erro ao importar projeto:', err);
         setImportStatus('error');
-        const errorMsg = err.response?.status === 404 
-          ? `Rota não encontrada no servidor (Erro 404). Ocorreu em ${currentStageProgress}% do processo.`
-          : err.message || 'Erro de conexão com o servidor.';
-        
-        setImportDetails([`Travado em ${currentStageProgress}%: ${errorMsg}`]);
+        const errorMsg = err.response?.data?.error || err.message || 'Erro ao processar o arquivo no servidor.';
+        setImportDetails([errorMsg]);
         showToast({
           type: 'error',
           title: 'Erro na Importação',
@@ -575,14 +409,22 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
             />
           </div>
 
-          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".json" className="hidden" />
+          {/* INPUT DE ARQUIVOS (OCULTO) */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            accept=".stfg,.json" 
+            className="hidden" 
+          />
 
+          {/* BOTÃO DE IMPORTAR */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#181824] hover:bg-[#222232] border border-purple-800/50 hover:border-purple-600 text-purple-300 text-sm font-medium rounded-xl transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Upload size={18} /> Importar Projeto (.json)
+            <Upload size={18} /> Importar Projeto (.stfg)
           </button>
 
           <button
@@ -648,7 +490,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
                         <button
                           type="button"
                           title="Excluir projeto"
-                          onClick={(e) => handleDeleteProject(e, project.id, cleanTitle)}
+                          onClick={(e) => handleOpenDeleteModal(e, project.id, cleanTitle)}
                           className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={16} />
@@ -661,7 +503,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
                   <div>
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 rounded-full font-medium">
-                        {project.status || 'Desenvolvimento'}
+                        {/*project.status || 'Desenvolvimento'*/}
                       </span>
                       <span className="text-white font-bold">{project.progress || 0}%</span>
                     </div>
@@ -705,12 +547,11 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
         </div>
       )}
 
-      {/* MODAL DE APOIO (ESTILO GLASSMORPHISM) */}
+      {/* MODAL DE APOIO */}
       {showSupportModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-[#12111d]/90 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-[0_0_50px_rgba(168,85,247,0.2)] space-y-6 relative max-h-[90vh] overflow-y-auto text-gray-200">
             
-            {/* BOTÃO FECHAR */}
             <button
               type="button"
               onClick={() => setShowSupportModal(false)}
@@ -719,7 +560,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               <X size={18} />
             </button>
 
-            {/* CABEÇALHO */}
             <div className="flex items-center gap-4 border-b border-white/10 pb-5">
               <div className="p-3.5 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-purple-500/30 shrink-0">
                 <Coffee size={28} />
@@ -734,7 +574,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* ABERTURA */}
             <div className="space-y-2 text-sm text-gray-300 leading-relaxed">
               <p className="font-semibold text-purple-200 text-base">
                 Olá, escritores! Antes de tudo, muito obrigado por estar aqui.
@@ -744,7 +583,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </p>
             </div>
 
-            {/* AVISO SOBRE INDEPENDÊNCIA */}
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 text-xs text-amber-200/90 leading-relaxed">
               <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
               <div>
@@ -753,14 +591,12 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* PROPOSTA E FORMAS DE AJUDA */}
             <div className="space-y-3">
               <p className="text-xs md:text-sm font-semibold text-purple-200">
                 A ideia é manter o StoryForge gratuito para sempre. Como você pode ajudar a manter esse sonho vivo?
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-                {/* CARTÃO 1: CONTRIBUIÇÃO FINANCEIRA */}
                 <div className="p-4 bg-purple-950/40 border border-purple-500/20 rounded-2xl space-y-1.5 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-purple-300 font-bold text-xs md:text-sm">
                     <span>💜</span> Contribuição Financeira
@@ -770,7 +606,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
                   </p>
                 </div>
 
-                {/* CARTÃO 2: DIVULGAÇÃO & COMUNIDADE */}
                 <div className="p-4 bg-indigo-950/40 border border-indigo-500/20 rounded-2xl space-y-1.5 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs md:text-sm">
                     <span>✨</span> Divulgação & Comunidade
@@ -782,7 +617,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* SESSÃO DO PIX */}
             <div className="p-4 md:p-5 bg-white/5 border border-white/10 rounded-2xl space-y-3 backdrop-blur-md">
               <span className="text-xs font-bold text-purple-300 block uppercase tracking-wider">
                 Chave Pix para contribuição rápida:
@@ -805,7 +639,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* AGRADECIMENTO FINAL */}
             <div className="text-center pt-2 border-t border-white/10">
               <p className="text-xs md:text-sm font-medium text-purple-300/90 italic">
                 Muito obrigado por fazer parte disso. Bora escrever juntos! ✍️
@@ -878,6 +711,41 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE PROJETO */}
+      {projectToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#13131a] border border-red-900/40 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-5 text-center relative animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 bg-red-950/80 border border-red-800/60 rounded-2xl flex items-center justify-center mx-auto text-red-400 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">Excluir Projeto</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Tem certeza que deseja excluir o projeto <strong className="text-white">"{projectToDelete.title}"</strong>? Esta ação é irreversível e excluirá todos os dados e cenas vinculadas.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setProjectToDelete(null)}
+                className="flex-1 py-2.5 bg-[#1a1a24] hover:bg-[#222230] text-gray-300 font-bold text-xs rounded-xl border border-gray-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteProject}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
           </div>
         </div>
       )}

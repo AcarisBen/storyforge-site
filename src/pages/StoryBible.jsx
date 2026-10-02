@@ -492,11 +492,10 @@ export default function StoryBible({ projectId, project, currentUser }) {
     setConfirmModalOpen(true);
   };
 
-  const handleStartExport = async () => {
+ const handleStartExport = async () => {
     setConfirmModalOpen(false);
 
     const title = data.identity?.['Título'] || data.identity?.['title'] || project?.title || 'StoryBible';
-    const dateStr = exportDate;
 
     try {
       if (exportFormat === 'pdf') {
@@ -510,29 +509,28 @@ export default function StoryBible({ projectId, project, currentUser }) {
           checklist: true,
           manuscrito: true,
         });
+        setTimeout(() => { window.print(); }, 800);
 
-        setTimeout(() => {
-          window.print();
-        }, 800);
+      } else if (exportFormat === 'json' || exportFormat === 'stfg') {
+        // Chamada para a API do backend
+        const response = await apiClient.get(`/entities/projects/${projectId}/export-stfg`, {
+          responseType: 'blob',
+        });
 
-      } else if (exportFormat === 'json') {
-        const jsonContent = {
-          exportMeta: {
-            exportedBy: authorName,
-            exportedAt: new Date().toISOString(),
-            appVersion: '1.0',
-          },
-          projectData: data,
-        };
-        downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.json`, JSON.stringify(jsonContent, null, 2), 'application/json');
-
-      } else if (exportFormat === 'md') {
-        let md = `# ${title}\n\n`;
-        md += `> **Autor:** ${authorName} | **Data:** ${dateStr}\n\n`;
-        downloadFile(`${title.replace(/\s+/g, '_')}_StoryBible.md`, md, 'text/markdown');
+        // Criação e disparo automático do download no navegador
+        const blob = new Blob([response.data], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${title.replace(/\s+/g, '_')}.stfg`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
       }
     } catch (err) {
-      console.error('Erro na exportação:', err);
+      console.error('Erro na exportação segura:', err);
+      alert('Erro ao exportar o arquivo .stfg. Verifique se o servidor backend está rodando.');
     }
   };
 

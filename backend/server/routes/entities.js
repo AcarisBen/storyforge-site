@@ -3,8 +3,21 @@
 
 import express from 'express';
 import prisma from '../config/prisma.js';
+import { encryptStorybible, decryptStorybible } from './utils/cryptoStorybible.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
+
+let APP_VERSION = '1.0.0';
+try {
+  const packagePath = path.resolve(process.cwd(), 'package.json');
+  const packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+  APP_VERSION = packageData.version || '1.0.0';
+} catch (e) {
+  console.warn('Aviso: Não foi possível ler a versão do package.json, usando versão padrão:', e.message);
+}
+
 
 // ==========================================
 // MIDDLEWARE DE REESCRITA DE ROTA (PREVENÇÃO DE 404)
@@ -95,9 +108,10 @@ router.post('/grammar-check', async (req, res) => {
 // EXTRAIR E VALIDAR USUÁRIO LOGADO VIA TOKEN
 // ==========================================
 const getUserIdFromReq = (req) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return null;
-  return token.replace('token_seguro_', '');
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+  return token.replace('token_seguro_', '').trim();
 };
 
 const requireAuth = (req, res, next) => {
@@ -152,7 +166,7 @@ const createProjectHandler = async (req, res) => {
     const authorName = exportedBy || writerName || 'Autor StoryForge';
     const importDate = exportedAt || new Date().toLocaleDateString('pt-BR');
 
-    // Garantia de registro/atualização do usuário no banco
+    /*// Garantia de registro/atualização do usuário no banco
     try {
       await prisma.user.upsert({
         where: { id: userId },
@@ -167,6 +181,7 @@ const createProjectHandler = async (req, res) => {
     } catch (uErr) {
       console.log('Aviso (User em memória):', uErr.message);
     }
+    */
 
     const newProject = await prisma.project.create({
       data: {
@@ -184,7 +199,7 @@ const createProjectHandler = async (req, res) => {
     return res.status(201).json({
       ...newProject,
       format: format || 'Romance / Livro',
-      status: status || 'Desenvolvimento',
+      //status: status || 'Desenvolvimento',
       progress: Number(progress) || 0,
     });
   } catch (error) {
@@ -1247,5 +1262,177 @@ router.delete('/dialogues/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ==========================================
+// EXPORTAÇÃO SEGURA DO PROJETO (.STFG)
+// ==========================================
+router.get('/projects/:projectId/export-stfg', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        user: {
+          select: { writerName: true, fullName: true, name: true }
+        }
+      }
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: 'Projeto não encontrado.' });
+    }
+
+    const entities = await prisma.entity.findMany({ where: { projectId } });
+    const characters = await prisma.character.findMany({ where: { projectId } });
+    const relations = await prisma.characterRelation.findMany({ where: { projectId } });
+
+    const authorName = project.user?.writerName || project.user?.fullName || project.user?.name || 'Autor StoryForge';
+
+    // 1. Dados e metadados cifrados juntos no payload
+    const payloadToEncrypt = {
+      version: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      exportedBy: authorName,
+      project: {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        createdAt: project.createdAt,
+      },
+      entities,
+      characters,
+      relations,
+    };
+
+    // 2. Criptografa todo o objeto
+    const cryptoResult = encryptStorybible(payloadToEncrypt);
+
+    // 3. Envelope final limpo (somente os hashes de criptografia)
+    const exportPackage = {
+      iv: cryptoResult.iv,
+      authTag: cryptoResult.authTag,
+      encryptedData: cryptoResult.encryptedData,
+    };
+
+    const fileName = `${project.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.stfg`;
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return res.status(200).send(JSON.stringify(exportPackage, null, 2));
+  } catch (error) {
+    console.error('Erro ao exportar projeto .stfg:', error);
+    return res.status(500).json({ error: 'Erro ao gerar arquivo de exportação criptografado.' });
+  }
+});
+
+// ==========================================
+// IMPORTAÇÃO SEGURA DE PROJETO (.STFG)
+// ==========================================
+router.post('/projects/import-stfg', async (req, res) => {
+  try {
+    const userId = getUserIdFromReq(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
+    }
+
+    const envelope = req.body;
+
+    let payload;
+    if (envelope.encryptedData && envelope.iv && envelope.authTag) {
+      payload = decryptStorybible(envelope);
+    } else if (envelope.projectData) {
+      payload = envelope.projectData;
+    } else {
+      payload = envelope;
+    }
+
+    const project = payload.project || payload;
+    const entities = payload.entities || [];
+    const characters = payload.characters || [];
+    const relations = payload.relations || [];
+
+    const rawTitle = project.title || project.name || 'Projeto Importado';
+    const cleanTitle = rawTitle.replace(/\s*\(Importado\)\s*/gi, '').trim();
+
+    // Extrai o autor e a data do payload descriptografado
+    const exportAuthor = payload.exportedBy || envelope.exportedBy || project.writerName || 'Autor Desconhecido';
+    const rawDate = payload.exportedAt || envelope.exportedAt;
+    const exportDate = rawDate ? new Date(rawDate).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+
+    const newProject = await prisma.project.create({
+      data: {
+        title: cleanTitle,
+        description: `Projeto importado em ${exportDate} por ${exportAuthor}`,
+        isImported: true,
+        exportedBy: exportAuthor,
+        exportedAt: String(exportDate),
+        userId: userId,
+      }
+    });
+
+    const characterIdMap = {};
+    const sceneIdMap = {};
+
+    for (const char of characters) {
+      const oldId = char.id;
+      const createdChar = await prisma.character.create({
+        data: {
+          name: char.name || char.nome || 'Personagem sem nome',
+          role: char.role || char.type || char.papel || 'protagonista',
+          details: char.details || {},
+          projectId: newProject.id
+        }
+      });
+      if (oldId) characterIdMap[oldId] = createdChar.id;
+    }
+
+    for (const ent of entities) {
+      const oldId = ent.id;
+      const createdEnt = await prisma.entity.create({
+        data: {
+          type: ent.type || 'IDENTITY',
+          title: ent.title || '',
+          data: ent.data || {},
+          projectId: newProject.id
+        }
+      });
+      if (oldId && ent.type === 'SCENE') {
+        sceneIdMap[oldId] = createdEnt.id;
+      }
+    }
+
+    for (const rel of relations) {
+      const mappedCharA = characterIdMap[rel.charAId] || rel.charAId;
+      const mappedCharB = characterIdMap[rel.charBId] || rel.charBId;
+      const mappedScene = sceneIdMap[rel.sceneId] || rel.sceneId || null;
+
+      if (mappedCharA && mappedCharB) {
+        await prisma.characterRelation.create({
+          data: {
+            projectId: newProject.id,
+            charAId: String(mappedCharA),
+            charBId: String(mappedCharB),
+            type: rel.type || 'Amizade',
+            intensity: Number(rel.intensity) || 6,
+            sceneId: mappedScene ? String(mappedScene) : null,
+            description: rel.description || rel.descricao || ''
+          }
+        });
+      }
+    }
+
+    return res.status(201).json({
+      ...newProject,
+      format: project.format || 'Romance / Livro',
+      //status: project.status || 'Desenvolvimento',
+      progress: 0,
+    });
+  } catch (error) {
+    console.error('Erro na importação .stfg:', error);
+    return res.status(500).json({ error: error.message || 'Erro ao processar ficheiro de importação.' });
+  }
+});
+
 
 export default router;

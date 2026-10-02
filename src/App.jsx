@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { ToastProvider } from './hooks/useToast';
 import Login from './pages/Login';
@@ -34,19 +33,6 @@ import {
   Network, Search, Zap, HeartHandshake, PenTool, LayoutGrid, 
   CheckSquare, BookOpen, Menu, FolderKanban 
 } from 'lucide-react';
-
-const MOCK_USER = {
-  id: 'dev-user-123',
-  name: 'Desenvolvedor',
-  writerName: 'Autor Teste',
-  email: 'dev@storyforge.com',
-};
-
-const MOCK_PROJECT = {
-  id: 'projeto-teste-123',
-  title: 'Projeto de Teste',
-  format: 'Romance / Livro'
-};
 
 const NAVIGATION_ITEMS = [
   { title: 'VISÃO GERAL', items: [['Dashboard', 'dashboard', LayoutDashboard]] },
@@ -230,8 +216,8 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(MOCK_USER); 
-  const [currentProject, setCurrentProject] = useState(MOCK_PROJECT);
+  const [currentUser, setCurrentUser] = useState(null); 
+  const [currentProject, setCurrentProject] = useState(null); 
   const [activePage, setActivePage] = useState('escrita');
 
   const [authScreen, setAuthScreen] = useState('login');

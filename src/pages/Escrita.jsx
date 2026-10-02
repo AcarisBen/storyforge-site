@@ -1,5 +1,5 @@
 // src/pages/Escrita.jsx
-// Página de Escrita do Projeto com Ícone de Exclamação no Guia do Módulo
+// Página de Escrita do Projeto com Ícone de Exclamação no Guia do Módulo e Proteção de Offset de Correção
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
@@ -227,6 +227,100 @@ function EscritaGuide() {
   );
 }
 
+/**
+ * Função utilitária estrita para localizar a posição DOM exata baseada em OFFSET + LENGTH.
+ * Protege contra erros de marcação em palavras anteriores que possuam a mesma letra/subtermo.
+ */
+function getRangeForSuggestion(editorElem, sug) {
+  if (!editorElem || !sug || !sug.original) return null;
+
+  editorElem.normalize();
+
+  const targetText = sug.original;
+  const targetOffset = typeof sug.offset === 'number' ? sug.offset : -1;
+  const targetLen = sug.length || targetText.length;
+
+  const walker = document.createTreeWalker(editorElem, NodeFilter.SHOW_TEXT, null, false);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    textNodes.push(node);
+  }
+
+  if (textNodes.length === 0) return null;
+
+  let fullTextContent = '';
+  const nodeRanges = [];
+  for (const n of textNodes) {
+    const start = fullTextContent.length;
+    fullTextContent += n.nodeValue;
+    const end = fullTextContent.length;
+    nodeRanges.push({ node: n, start, end });
+  }
+
+  const createRangeFromIndices = (startIndex, endIndex) => {
+    let startNode = null, startOff = 0;
+    let endNode = null, endOff = 0;
+
+    for (const nr of nodeRanges) {
+      if (!startNode && startIndex >= nr.start && startIndex <= nr.end) {
+        startNode = nr.node;
+        startOff = startIndex - nr.start;
+      }
+      if (endIndex >= nr.start && endIndex <= nr.end) {
+        endNode = nr.node;
+        endOff = endIndex - nr.start;
+        break;
+      }
+    }
+
+    if (startNode && endNode) {
+      try {
+        const range = document.createRange();
+        range.setStart(startNode, Math.min(startOff, startNode.nodeValue.length));
+        range.setEnd(endNode, Math.min(endOff, endNode.nodeValue.length));
+        return range;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // 1. Prioridade Máxima: Checagem estrita no offset absoluto retornado
+  if (targetOffset >= 0 && targetOffset + targetLen <= fullTextContent.length) {
+    const sub = fullTextContent.substring(targetOffset, targetOffset + targetLen);
+    if (sub === targetText) {
+      const range = createRangeFromIndices(targetOffset, targetOffset + targetLen);
+      if (range) return range;
+    }
+  }
+
+  // 2. Fallback de Segurança: Se houver pequeno desvio por quebra de linha HTML, encontra o índice mais próximo do offset real
+  const occurrences = [];
+  let idx = fullTextContent.indexOf(targetText);
+  while (idx !== -1) {
+    occurrences.push(idx);
+    idx = fullTextContent.indexOf(targetText, idx + 1);
+  }
+
+  if (occurrences.length === 0) return null;
+
+  let bestIdx = occurrences[0];
+  if (targetOffset >= 0) {
+    let minDiff = Infinity;
+    for (const pos of occurrences) {
+      const diff = Math.abs(pos - targetOffset);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIdx = pos;
+      }
+    }
+  }
+
+  return createRangeFromIndices(bestIdx, bestIdx + targetText.length);
+}
+
 export default function Escrita({ projectId, onNavigate }) {
   const { showToast } = useToast();
 
@@ -385,21 +479,21 @@ export default function Escrita({ projectId, onNavigate }) {
     }
   }, [selectedId]);
 
+  // Extração segura de texto para o corretor (garante espaço entre parágrafos para não colá-los)
   useEffect(() => {
-    const rawText = editorRef.current ? editorRef.current.innerText : (selectedChapter?.content || '');
+    if (!editorRef.current) return;
+
+    const rawText = editorRef.current.innerText.replace(/[\r\n]+/g, ' ');
 
     if (!rawText || rawText.trim().length < 3) {
       setTextSuggestions([]);
       return;
     }
 
-    if (grammarTimeoutRef.current) {
-      clearTimeout(grammarTimeoutRef.current);
-    }
+    if (grammarTimeoutRef.current) clearTimeout(grammarTimeoutRef.current);
 
     grammarTimeoutRef.current = setTimeout(async () => {
       let ltSuggestions = [];
-
       try {
         const response = await apiClient.post('/entities/grammar-check', { text: rawText });
         const rawLt = response.data || [];
@@ -421,10 +515,7 @@ export default function Escrita({ projectId, onNavigate }) {
       const validSuggestions = allSuggestions.filter((sug) => {
         const key = getSugKey(sug);
         const expireTime = ignoredSuggestionsRef.current.get(key);
-        if (expireTime && now < expireTime) {
-          return false;
-        }
-        return true;
+        return !(expireTime && now < expireTime);
       });
 
       setTextSuggestions(validSuggestions);
@@ -564,82 +655,25 @@ export default function Escrita({ projectId, onNavigate }) {
     checkActiveFormats();
   };
 
+  // Destaque não-destrutivo no DOM (impede a criação de parágrafos extras ao passar o mouse)
   const highlightCorrectionInEditor = (sug) => {
-    if (!editorRef.current || !sug || !sug.original) return;
+    if (!editorRef.current || !sug) return;
     removeHighlightFromEditor();
 
-    editorRef.current.normalize();
+    const range = getRangeForSuggestion(editorRef.current, sug);
 
-    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
-    const targetText = sug.original;
-    if (!targetText) return;
-
-    const occurrences = [];
-    let idx = fullText.indexOf(targetText);
-    while (idx !== -1) {
-      occurrences.push(idx);
-      idx = fullText.indexOf(targetText, idx + 1);
-    }
-
-    if (occurrences.length === 0) return;
-
-    let bestStartIndex = occurrences[0];
-    if (typeof sug.offset === 'number' && sug.offset >= 0) {
-      let minDiff = Infinity;
-      for (const pos of occurrences) {
-        const diff = Math.abs(pos - sug.offset);
-        if (diff < minDiff) {
-          minDiff = diff;
-          bestStartIndex = pos;
-        }
-      }
-    }
-
-    const bestEndIndex = bestStartIndex + targetText.length;
-
-    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-    let charCount = 0;
-    let startNode = null;
-    let startOffsetInNode = 0;
-    let endNode = null;
-    let endOffsetInNode = 0;
-
-    let node;
-    while ((node = walker.nextNode())) {
-      const nodeLen = node.nodeValue.length;
-      const nodeStart = charCount;
-      const nodeEnd = charCount + nodeLen;
-
-      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
-        startNode = node;
-        startOffsetInNode = bestStartIndex - nodeStart;
-      }
-
-      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
-        endNode = node;
-        endOffsetInNode = bestEndIndex - nodeStart;
-        break;
-      }
-
-      charCount += nodeLen;
-    }
-
-    if (startNode && endNode) {
+    if (range) {
       try {
-        const range = document.createRange();
-        range.setStart(startNode, startOffsetInNode);
-        range.setEnd(endNode, endOffsetInNode);
+        if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+          const mark = document.createElement('mark');
+          mark.id = 'active-correction-mark';
+          mark.style.cssText =
+            'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; display: inline;';
 
-        const mark = document.createElement('mark');
-        mark.id = 'active-correction-mark';
-        mark.style.cssText =
-          'background-color: rgba(168, 85, 247, 0.45) !important; color: inherit !important; border: 1px solid #a855f7; border-radius: 4px; padding: 0 2px; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);';
-
-        const extracted = range.extractContents();
-        mark.appendChild(extracted);
-        range.insertNode(mark);
+          range.surroundContents(mark);
+        }
       } catch (e) {
-        console.error('Erro ao grifar elemento no DOM:', e);
+        console.error('Erro ao destacar trecho no editor:', e);
       }
     }
   };
@@ -661,86 +695,27 @@ export default function Escrita({ projectId, onNavigate }) {
     if (!selectedChapter || !editorRef.current) return;
 
     removeHighlightFromEditor();
-    editorRef.current.normalize();
 
     const replacementToUse = chosenReplacement || suggestion.replacement;
     if (!replacementToUse || !suggestion.original) return;
 
-    const fullText = editorRef.current.textContent || editorRef.current.innerText || '';
-    const targetText = suggestion.original;
+    const range = getRangeForSuggestion(editorRef.current, suggestion);
 
-    const occurrences = [];
-    let idx = fullText.indexOf(targetText);
-    while (idx !== -1) {
-      occurrences.push(idx);
-      idx = fullText.indexOf(targetText, idx + 1);
-    }
-
-    if (occurrences.length === 0) return;
-
-    let bestStartIndex = occurrences[0];
-    if (typeof suggestion.offset === 'number' && suggestion.offset >= 0) {
-      let minDiff = Infinity;
-      for (const pos of occurrences) {
-        const diff = Math.abs(pos - suggestion.offset);
-        if (diff < minDiff) {
-          minDiff = diff;
-          bestStartIndex = pos;
-        }
-      }
-    }
-
-    const bestEndIndex = bestStartIndex + targetText.length;
-
-    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false);
-    let charCount = 0;
-    let startNode = null;
-    let startOffsetInNode = 0;
-    let endNode = null;
-    let endOffsetInNode = 0;
-
-    let node;
-    while ((node = walker.nextNode())) {
-      const nodeLen = node.nodeValue.length;
-      const nodeStart = charCount;
-      const nodeEnd = charCount + nodeLen;
-
-      if (!startNode && bestStartIndex >= nodeStart && bestStartIndex < nodeEnd) {
-        startNode = node;
-        startOffsetInNode = bestStartIndex - nodeStart;
-      }
-
-      if (bestEndIndex > nodeStart && bestEndIndex <= nodeEnd) {
-        endNode = node;
-        endOffsetInNode = bestEndIndex - nodeStart;
-        break;
-      }
-
-      charCount += nodeLen;
-    }
-
-    if (startNode && endNode) {
+    if (range) {
       try {
-        const range = document.createRange();
-        range.setStart(startNode, startOffsetInNode);
-        range.setEnd(endNode, endOffsetInNode);
-
         range.deleteContents();
         const newTextNode = document.createTextNode(replacementToUse);
         range.insertNode(newTextNode);
       } catch (e) {
         console.error('Erro na substituição do DOM:', e);
-        if (startNode === endNode) {
-          const val = startNode.nodeValue;
-          startNode.nodeValue =
-            val.substring(0, startOffsetInNode) +
-            replacementToUse +
-            val.substring(endOffsetInNode);
-        }
+        editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
+          suggestion.original,
+          replacementToUse
+        );
       }
     } else {
       editorRef.current.innerHTML = editorRef.current.innerHTML.replace(
-        targetText,
+        suggestion.original,
         replacementToUse
       );
     }
