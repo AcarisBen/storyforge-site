@@ -1,5 +1,5 @@
 // backend/server/routes/entities.js
-// Rotas para gerenciar entidades do projeto com proteção contra IDOR (Verificação de Propriedade)
+// Rotas para gerenciar entidades do projeto com proteção contra IDOR e autenticação via Cookie HttpOnly / Token
 
 import express from 'express';
 import prisma from '../config/prisma.js';
@@ -104,9 +104,15 @@ router.post('/grammar-check', async (req, res) => {
 });
 
 // ==========================================
-// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA TOKEN
+// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
 // ==========================================
 const getUserIdFromReq = (req) => {
+  // 1. Tenta extrair o token do Cookie HttpOnly seguro
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token.replace('token_seguro_', '').trim();
+  }
+
+  // 2. Fallback: Cabeçalho Authorization
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
@@ -135,7 +141,7 @@ const verifyProjectOwner = async (projectId, userId) => {
 // ==========================================
 const getProjectsHandler = async (req, res) => {
   try {
-    const userId = getUserIdFromReq(req);
+    const userId = req.userId || getUserIdFromReq(req);
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
@@ -162,7 +168,7 @@ const getProjectsHandler = async (req, res) => {
 const createProjectHandler = async (req, res) => {
   try {
     const { title, format, status, progress, writerName, isImported, exportedAt, exportedBy } = req.body;
-    const userId = getUserIdFromReq(req);
+    const userId = req.userId || getUserIdFromReq(req);
 
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
@@ -199,7 +205,7 @@ const createProjectHandler = async (req, res) => {
 
 const deleteProjectHandler = async (req, res) => {
   try {
-    const userId = getUserIdFromReq(req);
+    const userId = req.userId || getUserIdFromReq(req);
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
@@ -224,9 +230,9 @@ const deleteProjectHandler = async (req, res) => {
   }
 };
 
-router.get('/projects', getProjectsHandler);
-router.post('/projects', createProjectHandler);
-router.delete('/projects/:id', deleteProjectHandler);
+router.get('/projects', requireAuth, getProjectsHandler);
+router.post('/projects', requireAuth, createProjectHandler);
+router.delete('/projects/:id', requireAuth, deleteProjectHandler);
 
 // ==========================================
 // RELAÇÕES DE PERSONAGENS

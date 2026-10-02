@@ -3,6 +3,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 import authRoutes from '../routes/auth.js';
@@ -36,10 +37,11 @@ app.use(cors({
       callback(new Error('Bloqueado pelo CORS'));
     }
   },
-  credentials: true
+  credentials: true // Permite o envio e recebimento de cookies HTTP-Only
 }));
 
 app.use(express.json());
+app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
 
 app.use('/api/auth', authRoutes);
 app.use('/api', entityRoutes);

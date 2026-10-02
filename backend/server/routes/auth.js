@@ -1,5 +1,5 @@
 // backend/server/routes/auth.js
-// Rotas de Autenticação, Validação MX e Disparo de E-mails
+// Rotas de Autenticação, Validação MX, Cookies HttpOnly e Disparo de E-mails
 
 import express from 'express';
 import crypto from 'crypto';
@@ -14,6 +14,29 @@ import {
 
 const router = express.Router();
 const dnsPromises = dns.promises;
+
+// ==========================================
+// CONFIGURAÇÕES DE SEGURANÇA DE COOKIE
+// ==========================================
+const COOKIE_OPTIONS = {
+  httpOnly: true, // Bloqueia acesso via JavaScript (XSS Protection)
+  secure: process.env.NODE_ENV === 'production', // Exige HTTPS em produção
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Proteção anti-CSRF
+  maxAge: 7 * 24 * 60 * 60 * 1000, // Validade de 7 dias
+};
+
+// Helper: Extrair ID do Usuário (Prioriza Cookie HttpOnly -> Fallback: Header)
+const extractUserId = (req) => {
+  let token = req.cookies?.token;
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+    }
+  }
+  if (!token) return null;
+  return token.replace('token_seguro_', '').trim();
+};
 
 // Transporter do Nodemailer
 const transporter = nodemailer.createTransport({
@@ -170,7 +193,7 @@ router.post('/confirm-email', async (req, res) => {
   }
 });
 
-// 3. POST /api/auth/login
+// 3. POST /api/auth/login (Autenticação e envio de Cookie HttpOnly)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -189,6 +212,10 @@ router.post('/login', async (req, res) => {
     }
 
     const token = `token_seguro_${user.id}`;
+
+    // Define o cookie HttpOnly seguro no cabeçalho Set-Cookie da resposta
+    res.cookie('token', token, COOKIE_OPTIONS);
+
     const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
 
     return res.status(200).json({ token, user: userClean });
@@ -198,14 +225,17 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 4. GET /api/auth/me (Sessão)
+// 4. POST /api/auth/logout (Destruição da Sessão / Cookie)
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', COOKIE_OPTIONS);
+  return res.status(200).json({ message: 'Sessão encerrada com sucesso.' });
+});
+
+// 5. GET /api/auth/me (Sessão)
 router.get('/me', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'Não autorizado' });
-
-    const token = authHeader.split(' ')[1];
-    const userId = token?.replace('token_seguro_', '');
+    const userId = extractUserId(req);
+    if (!userId) return res.status(401).json({ message: 'Não autorizado' });
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(401).json({ message: 'Sessão inválida' });
@@ -217,7 +247,7 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// 5. POST /api/auth/forgot-password (Solicitação de Redefinição)
+// 6. POST /api/auth/forgot-password (Solicitação de Redefinição)
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -257,7 +287,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// 6. POST /api/auth/reset-password (Confirmação da Nova Senha - Deslogado)
+// 7. POST /api/auth/reset-password (Confirmação da Nova Senha - Deslogado)
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -300,14 +330,11 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// 7. PUT /api/auth/change-password (Alteração de Senha - Logado em Configurações)
+// 8. PUT /api/auth/change-password (Alteração de Senha - Logado em Configurações)
 router.put('/change-password', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'Não autorizado.' });
-
-    const token = authHeader.split(' ')[1];
-    const userId = token?.replace('token_seguro_', '');
+    const userId = extractUserId(req);
+    if (!userId) return res.status(401).json({ message: 'Não autorizado.' });
 
     const { currentPassword, newPassword } = req.body;
 
@@ -340,14 +367,11 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
-// 8. POST /api/auth/request-delete (Solicitação de Exclusão)
+// 9. POST /api/auth/request-delete (Solicitação de Exclusão)
 router.post('/request-delete', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'Não autorizado.' });
-
-    const token = authHeader.split(' ')[1];
-    const userId = token?.replace('token_seguro_', '');
+    const userId = extractUserId(req);
+    if (!userId) return res.status(401).json({ message: 'Não autorizado.' });
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
@@ -379,7 +403,7 @@ router.post('/request-delete', async (req, res) => {
   }
 });
 
-// 9. POST /api/auth/confirm-delete (Exclusão Definitiva)
+// 10. POST /api/auth/confirm-delete (Exclusão Definitiva)
 router.post('/confirm-delete', async (req, res) => {
   try {
     const { token } = req.body;
@@ -400,6 +424,9 @@ router.post('/confirm-delete', async (req, res) => {
 
     await prisma.user.delete({ where: { id: user.id } });
 
+    // Limpa o cookie de sessão do usuário deletado
+    res.clearCookie('token', COOKIE_OPTIONS);
+
     return res.status(200).json({ message: 'Sua conta e todos os seus projetos foram excluídos permanentemente.' });
   } catch (err) {
     console.error('Erro no confirm-delete:', err);
@@ -407,14 +434,12 @@ router.post('/confirm-delete', async (req, res) => {
   }
 });
 
-// 10. PUT /api/auth/profile (Atualização do Pseudônimo)
+// 11. PUT /api/auth/profile (Atualização do Pseudônimo)
 router.put('/profile', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
+    const userId = extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Não autorizado' });
 
-    const token = authHeader.split(' ')[1];
-    const userId = token?.replace('token_seguro_', '');
     const { name } = req.body;
 
     if (!name || !name.trim()) {
