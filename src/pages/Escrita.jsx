@@ -3,9 +3,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-import apiClient from '../api/apiClient';
-import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
-import { useToast } from '../hooks/useToast';
 
 import { 
   Target, 
@@ -32,6 +29,20 @@ import {
   X,
   Plus
 } from 'lucide-react';
+
+import apiClient from '../api/apiClient';
+import { analyzeCustomGrammarRules } from '../lib/writing/customGrammarRules';
+import { useToast } from '../hooks/useToast';
+import { sanitizeHtml } from '../lib/sanitize';
+
+export function ContentPreview({ htmlContent }) {
+  return (
+    <div 
+      className="prose prose-invert max-w-none text-gray-200"
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }} 
+    />
+  );
+}
 
 const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo'];
 
