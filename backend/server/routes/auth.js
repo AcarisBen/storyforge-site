@@ -1,10 +1,12 @@
 // backend/server/routes/auth.js
-// Rotas de Autenticação, Validação MX, Cookies HttpOnly e Disparo de E-mails
+// Rotas de Autenticação com Hashing Bcrypt, JWT Assinado, Cookies HttpOnly e Validação MX
 
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 import { 
   getConfirmationEmailHTML, 
@@ -15,17 +17,21 @@ import {
 const router = express.Router();
 const dnsPromises = dns.promises;
 
+// URL base e Chave Secreta JWT
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const JWT_SECRET = process.env.JWT_SECRET || 'storyforge_jwt_secret_key_mestra_ultra_segura_2026';
+
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA DE COOKIE
 // ==========================================
 const COOKIE_OPTIONS = {
-  httpOnly: true, // Bloqueia acesso via JavaScript (XSS Protection)
-  secure: process.env.NODE_ENV === 'production', // Exige HTTPS em produção
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Proteção anti-CSRF
-  maxAge: 7 * 24 * 60 * 60 * 1000, // Validade de 7 dias
+  httpOnly: true, // Proteção contra XSS
+  secure: process.env.NODE_ENV === 'production', // Requer HTTPS em produção
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
 };
 
-// Helper: Extrair ID do Usuário (Prioriza Cookie HttpOnly -> Fallback: Header)
+// Helper: Extrair e verificar JWT assinado (Cookie HttpOnly ou Header Authorization)
 const extractUserId = (req) => {
   let token = req.cookies?.token;
   if (!token) {
@@ -35,7 +41,13 @@ const extractUserId = (req) => {
     }
   }
   if (!token) return null;
-  return token.replace('token_seguro_', '').trim();
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded.userId;
+  } catch (err) {
+    return null; // Token inválido, adulterado ou expirado
+  }
 };
 
 // Transporter do Nodemailer
@@ -53,7 +65,7 @@ const transporter = nodemailer.createTransport({
 function isStrongPassword(password) {
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
-  const hasSpecialChar = /[^A-Za-z0-9]/.test(password); // Verifica caracteres especiais
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
   const isLongEnough = password && password.length >= 8;
 
   return isLongEnough && hasUppercase && hasLowercase && hasSpecialChar;
@@ -79,7 +91,7 @@ async function validateEmailAddress(email) {
   return { valid: true };
 }
 
-// 1. POST /api/auth/register (Cadastro & Envio de Confirmação)
+// 1. POST /api/auth/register (Cadastro & Envio de Confirmação com Hash de Senha)
 router.post('/register', async (req, res) => {
   try {
     const { fullName, writerName, email, password } = req.body;
@@ -107,6 +119,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login.' });
     }
 
+    // Gera hash BCRYPT da senha
+    const hashedPassword = await bcrypt.hash(password, 10);
     const confirmToken = crypto.randomBytes(32).toString('hex');
     const tokenExp = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -117,7 +131,7 @@ router.post('/register', async (req, res) => {
           fullName,
           writerName,
           name: writerName,
-          password,
+          password: hashedPassword,
           isVerified: false,
           verificationToken: confirmToken,
           verificationTokenExp: tokenExp,
@@ -130,15 +144,14 @@ router.post('/register', async (req, res) => {
           fullName,
           writerName,
           name: writerName,
-          password,
+          password: hashedPassword,
           verificationToken: confirmToken,
           verificationTokenExp: tokenExp,
         },
       });
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const confirmationLink = `${frontendUrl}/?confirmToken=${confirmToken}`;
+    const confirmationLink = `${FRONTEND_URL}/?confirmToken=${confirmToken}`;
 
     const mailOptions = {
       from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
@@ -158,11 +171,10 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// 2. POST /api/auth/confirm-email (Ativação de Conta)
+// 2. POST /api/auth/confirm-email
 router.post('/confirm-email', async (req, res) => {
   try {
     const { token } = req.body;
-
     if (!token) return res.status(400).json({ message: 'Token de verificação ausente.' });
 
     const user = await prisma.user.findFirst({
@@ -193,15 +205,22 @@ router.post('/confirm-email', async (req, res) => {
   }
 });
 
-// 3. POST /api/auth/login (Autenticação e envio de Cookie HttpOnly)
+// 3. POST /api/auth/login (Autenticação Bcrypt e Emissão de JWT)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const cleanEmail = email?.toLowerCase().trim();
 
+    if (!cleanEmail || !password) {
+      return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
+    }
+
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    if (!user || user.password !== password) {
+    // Verificação de senha com Bcrypt
+    const isPasswordValid = user ? await bcrypt.compare(password, user.password) : false;
+
+    if (!user || !isPasswordValid) {
       return res.status(401).json({ message: 'E-mail ou senha incorretos.' });
     }
 
@@ -211,9 +230,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const token = `token_seguro_${user.id}`;
+    // Geração de JWT assinado
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
 
-    // Define o cookie HttpOnly seguro no cabeçalho Set-Cookie da resposta
     res.cookie('token', token, COOKIE_OPTIONS);
 
     const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
@@ -225,13 +244,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 4. POST /api/auth/logout (Destruição da Sessão / Cookie)
+// 4. POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie('token', COOKIE_OPTIONS);
   return res.status(200).json({ message: 'Sessão encerrada com sucesso.' });
 });
 
-// 5. GET /api/auth/me (Sessão)
+// 5. GET /api/auth/me
 router.get('/me', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -247,7 +266,7 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// 6. POST /api/auth/forgot-password (Solicitação de Redefinição)
+// 6. POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -261,20 +280,19 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+    const resetTokenExp = new Date(Date.now() + 30 * 60 * 1000);
 
     await prisma.user.update({
       where: { id: user.id },
       data: { resetToken, resetTokenExp },
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetLink = `${frontendUrl}/?resetToken=${resetToken}`;
+    const resetLink = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
       from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
       to: cleanEmail,
-      subject: '🔨Redefinição de Senha — StoryForge',
+      subject: '🔨 Redefinição de Senha — StoryForge',
       html: getResetPasswordEmailHTML(user.writerName || user.fullName || user.name, resetLink),
     };
 
@@ -287,7 +305,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// 7. POST /api/auth/reset-password (Confirmação da Nova Senha - Deslogado)
+// 7. POST /api/auth/reset-password (Com Bcrypt)
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -314,10 +332,12 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'Este link de redefinição expirou. Solicite um novo.' });
     }
 
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: newPassword,
+        password: hashedPassword,
         resetToken: null,
         resetTokenExp: null,
       },
@@ -330,7 +350,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// 8. PUT /api/auth/change-password (Alteração de Senha - Logado em Configurações)
+// 8. PUT /api/auth/change-password (Com Bcrypt)
 router.put('/change-password', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -345,7 +365,8 @@ router.put('/change-password', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
-    if (user.password !== currentPassword) {
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
       return res.status(400).json({ message: 'A senha atual está incorreta.' });
     }
 
@@ -355,9 +376,11 @@ router.put('/change-password', async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: newPassword },
+      data: { password: hashedPassword },
     });
 
     return res.status(200).json({ message: 'Senha alterada com sucesso!' });
@@ -367,7 +390,7 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
-// 9. POST /api/auth/request-delete (Solicitação de Exclusão)
+// 9. POST /api/auth/request-delete
 router.post('/request-delete', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -384,8 +407,7 @@ router.post('/request-delete', async (req, res) => {
       data: { deleteToken, deleteTokenExp },
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const deleteLink = `${frontendUrl}/?deleteToken=${deleteToken}`;
+    const deleteLink = `${FRONTEND_URL}/?deleteToken=${deleteToken}`;
 
     const mailOptions = {
       from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
@@ -403,11 +425,10 @@ router.post('/request-delete', async (req, res) => {
   }
 });
 
-// 10. POST /api/auth/confirm-delete (Exclusão Definitiva)
+// 10. POST /api/auth/confirm-delete
 router.post('/confirm-delete', async (req, res) => {
   try {
     const { token } = req.body;
-
     if (!token) return res.status(400).json({ message: 'Token de exclusão ausente.' });
 
     const user = await prisma.user.findFirst({
@@ -424,7 +445,6 @@ router.post('/confirm-delete', async (req, res) => {
 
     await prisma.user.delete({ where: { id: user.id } });
 
-    // Limpa o cookie de sessão do usuário deletado
     res.clearCookie('token', COOKIE_OPTIONS);
 
     return res.status(200).json({ message: 'Sua conta e todos os seus projetos foram excluídos permanentemente.' });
@@ -434,7 +454,7 @@ router.post('/confirm-delete', async (req, res) => {
   }
 });
 
-// 11. PUT /api/auth/profile (Atualização do Pseudônimo)
+// 11. PUT /api/auth/profile
 router.put('/profile', async (req, res) => {
   try {
     const userId = extractUserId(req);

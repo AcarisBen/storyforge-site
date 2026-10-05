@@ -47,9 +47,43 @@ function generatePhoneticVariants(word) {
 }
 
 // ==========================================
+// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
+// ==========================================
+const getUserIdFromReq = (req) => {
+  // 1. Tenta extrair o token do Cookie HttpOnly seguro
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token.replace('token_seguro_', '').trim();
+  }
+
+  // 2. Fallback: Cabeçalho Authorization
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+  return token.replace('token_seguro_', '').trim();
+};
+
+const requireAuth = (req, res, next) => {
+  const userId = getUserIdFromReq(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
+  }
+  req.userId = userId;
+  next();
+};
+
+// Middleware para validar propriedade do projeto em rotas com :projectId
+const verifyProjectOwner = async (projectId, userId) => {
+  if (!projectId || !userId) return null;
+  return await prisma.project.findFirst({
+    where: { id: String(projectId), userId: String(userId) }
+  });
+};
+
+// ==========================================
 // PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
 // ==========================================
-router.post('/grammar-check', async (req, res) => {
+// CORREÇÃO: Adicionado o middleware requireAuth para proteger o endpoint
+router.post('/grammar-check', requireAuth, async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || text.trim().length < 3) return res.json([]);
@@ -102,39 +136,6 @@ router.post('/grammar-check', async (req, res) => {
     return res.json([]);
   }
 });
-
-// ==========================================
-// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
-// ==========================================
-const getUserIdFromReq = (req) => {
-  // 1. Tenta extrair o token do Cookie HttpOnly seguro
-  if (req.cookies && req.cookies.token) {
-    return req.cookies.token.replace('token_seguro_', '').trim();
-  }
-
-  // 2. Fallback: Cabeçalho Authorization
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
-  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
-  return token.replace('token_seguro_', '').trim();
-};
-
-const requireAuth = (req, res, next) => {
-  const userId = getUserIdFromReq(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
-  }
-  req.userId = userId;
-  next();
-};
-
-// Middleware para validar propriedade do projeto em rotas com :projectId
-const verifyProjectOwner = async (projectId, userId) => {
-  if (!projectId || !userId) return null;
-  return await prisma.project.findFirst({
-    where: { id: String(projectId), userId: String(userId) }
-  });
-};
 
 // ==========================================
 // PROJETO(S) - ISOLAMENTO SEGURO POR USUÁRIO
@@ -264,6 +265,18 @@ router.post('/relations', requireAuth, async (req, res) => {
   try {
     const project = await verifyProjectOwner(projectId, req.userId);
     if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+
+    // CORREÇÃO DE SEGURANÇA: Garantir que charAId e charBId pertençam a este projeto
+    const validChars = await prisma.character.count({
+      where: {
+        id: { in: [String(charAId), String(charBId)] },
+        projectId: String(projectId),
+      },
+    });
+
+    if (validChars < (charAId === charBId ? 1 : 2)) {
+      return res.status(400).json({ error: 'Um ou ambos os personagens não pertencem a este projeto.' });
+    }
 
     let savedRelation;
     if (id && !isNaN(Number(id))) {

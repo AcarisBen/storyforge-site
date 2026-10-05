@@ -1,5 +1,5 @@
 // backend/server/config/index.js
-// Este arquivo configura o servidor Express, incluindo rotas, middleware, limites de taxa e validações de segurança.
+// Configuração central do servidor Express, rotas, middlewares e segurança
 
 import express from 'express';
 import cors from 'cors';
@@ -31,34 +31,44 @@ if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
 
 const app = express();
 
-// Configuração recomendada caso o servidor rode atrás de um proxy reverso (Nginx, Cloudflare, Heroku, Render)
+// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare) para extração correta do IP real
 app.set('trust proxy', 1);
 
-// Libera requisições de qualquer porta vinda do localhost
+const FRONTEND_URL = process.env.FRONTEND_URL;
+
+// Configuração do CORS flexível para desenvolvimento e produção
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.startsWith('http://localhost:')) {
+    if (
+      !origin || 
+      origin.startsWith('http://localhost:') || 
+      (FRONTEND_URL && origin === FRONTEND_URL)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Bloqueado pelo CORS'));
     }
   },
-  credentials: true // Permite o envio e recebimento de cookies HTTP-Only
+  credentials: true // Permite o envio/recebimento de cookies HTTP-Only
 }));
 
 app.use(express.json());
 app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
 
-// Servir pasta de uploads publicamente para acesso aos arquivos
+// Servir pasta de uploads publicamente
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
-// Aplicação do Rate Limiter Geral nas rotas genéricas da API
+// 1. Aplicação do Rate Limiter Geral nas rotas genéricas da API
 app.use('/api', apiLimiter);
 
-// Aplicação do Rate Limiter Estrito nas rotas de autenticação
-app.use('/api/auth', authLimiter, authRoutes);
+// 2. Aplicação do Rate Limiter Estrito APENAS nas rotas de autenticação vulneráveis a Força Bruta
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
 
-// Demais rotas da API
+// 3. Montagem das Rotas da Aplicação
+app.use('/api/auth', authRoutes);
 app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
