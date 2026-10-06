@@ -3,11 +3,13 @@
 
 import express from 'express';
 import axios from 'axios';
+import { requireAuth } from '../middleware/auth.js';
+import { grammarLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Endpoint isolado para revisão gramatical
-router.post('/check', async (req, res) => {
+router.post('/check', requireAuth, grammarLimiter, async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || !text.trim()) {

@@ -5,6 +5,8 @@ import express from 'express';
 import prisma from '../config/prisma.js';
 import { promises as fsPromises } from 'fs';
 import { upload, validateMagicBytes } from '../middleware/upload.js';
+import { requireAuth } from '../middleware/auth.js';
+import { grammarLimiter } from '../middleware/rateLimiter.js';
 import { encryptStorybible, decryptStorybible } from './utils/cryptoStorybible.js';
 import fs from 'fs';
 import path from 'path';
@@ -51,26 +53,6 @@ function generatePhoneticVariants(word) {
 // ==========================================
 // EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
 // ==========================================
-const getUserIdFromReq = (req) => {
-  if (req.cookies && req.cookies.token) {
-    return req.cookies.token.replace('token_seguro_', '').trim();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
-  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
-  return token.replace('token_seguro_', '').trim();
-};
-
-const requireAuth = (req, res, next) => {
-  const userId = getUserIdFromReq(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
-  }
-  req.userId = userId;
-  next();
-};
-
 // Middleware para validar propriedade do projeto em rotas com :projectId
 const verifyProjectOwner = async (projectId, userId) => {
   if (!projectId || !userId) return null;
@@ -82,7 +64,7 @@ const verifyProjectOwner = async (projectId, userId) => {
 // ==========================================
 // PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
 // ==========================================
-router.post('/grammar-check', requireAuth, async (req, res) => {
+router.post('/grammar-check', requireAuth, grammarLimiter, async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || text.trim().length < 3) return res.json([]);
@@ -141,7 +123,7 @@ router.post('/grammar-check', requireAuth, async (req, res) => {
 // ==========================================
 const getProjectsHandler = async (req, res) => {
   try {
-    const userId = req.userId || getUserIdFromReq(req);
+    const userId = req.userId;
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }
@@ -168,7 +150,7 @@ const getProjectsHandler = async (req, res) => {
 const createProjectHandler = async (req, res) => {
   try {
     const { title, format, status, progress, writerName, isImported, exportedAt, exportedBy } = req.body;
-    const userId = req.userId || getUserIdFromReq(req);
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
@@ -205,7 +187,7 @@ const createProjectHandler = async (req, res) => {
 
 const deleteProjectHandler = async (req, res) => {
   try {
-    const userId = req.userId || getUserIdFromReq(req);
+    const userId = req.userId;
     if (!userId) {
       return res.status(401).json({ error: 'Sessão inválida ou não autorizada.' });
     }

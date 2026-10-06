@@ -22,6 +22,44 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Lê e unifica as preferências salvas no Local Storage (suporta JSON e chave simples do banner)
+  const getInitialCookiePreferences = () => {
+    try {
+      const savedPref = localStorage.getItem('storyforge_cookie_pref');
+      if (savedPref) {
+        return JSON.parse(savedPref);
+      }
+      
+      const consent = localStorage.getItem('cookie_consent');
+      if (consent === 'granted') {
+        return { essential: true, preferences: true, analytics: true };
+      } else if (consent === 'essential' || consent === 'denied') {
+        return { essential: true, preferences: false, analytics: false };
+      }
+    } catch (err) {
+      console.error('Erro ao ler preferências de cookies:', err);
+    }
+    return { essential: true, preferences: true, analytics: false };
+  };
+
+  const [cookiePreferences, setCookiePreferences] = useState(getInitialCookiePreferences);
+
+  // Escuta alterações do Local Storage e eventos do banner em tempo real
+  useEffect(() => {
+    const handleSyncCookies = () => {
+      setCookiePreferences(getInitialCookiePreferences());
+    };
+
+    window.addEventListener('cookie_pref_updated', handleSyncCookies);
+    window.addEventListener('storage', handleSyncCookies);
+
+    return () => {
+      window.removeEventListener('cookie_pref_updated', handleSyncCookies);
+      window.removeEventListener('storage', handleSyncCookies);
+    };
+  }, []);
 
   // Carrega prioritariamente o pseudônimo vindo do cadastro ou da API
   useEffect(() => {
@@ -57,7 +95,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
 
     setIsSaving(true);
     try {
-      const res = await apiClient.put('/auth/profile', { name: cleanName });
+      const res = await apiClient.put('/auth/profile', { name: cleanName, writerName: cleanName });
       const updatedUser = res.data?.user || {};
 
       if (setCurrentUser) {
@@ -180,12 +218,68 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     }
   };
 
-  const handleLogout = () => {
-    if (window.confirm('Deseja realmente encerrar a sessão neste dispositivo?')) {
-      localStorage.removeItem('storyforge_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  // 4. ALTERNÂNCIA DE COOKIES E SINCRONIZAÇÃO DUPLA NO LOCAL STORAGE
+  const handleToggleCookie = (key) => {
+    if (key === 'essential') return;
+
+    const updated = { ...cookiePreferences, [key]: !cookiePreferences[key] };
+    setCookiePreferences(updated);
+
+    try {
+      localStorage.setItem('storyforge_cookie_pref', JSON.stringify(updated));
+
+      const consentStatus = (updated.preferences || updated.analytics) ? 'granted' : 'essential';
+      localStorage.setItem('cookie_consent', consentStatus);
+
+      window.dispatchEvent(new Event('cookie_pref_updated'));
+
+      showToast({
+        type: 'success',
+        title: 'Preferências Atualizadas',
+        message: 'Suas preferências de cookies foram salvas.'
+      });
+    } catch (err) {
+      console.error('Erro ao salvar preferências de cookies:', err);
     }
+  };
+
+  // 5. LIMPEZA DE CACHE
+  const handleClearCache = () => {
+    try {
+      const token = localStorage.getItem('storyforge_token');
+      const user = localStorage.getItem('user');
+
+      localStorage.clear();
+
+      if (token) localStorage.setItem('storyforge_token', token);
+      if (user) localStorage.setItem('user', user);
+
+      const defaultPref = { essential: true, preferences: false, analytics: false };
+      localStorage.setItem('storyforge_cookie_pref', JSON.stringify(defaultPref));
+      localStorage.setItem('cookie_consent', 'essential');
+      
+      setCookiePreferences(defaultPref);
+      window.dispatchEvent(new Event('cookie_pref_updated'));
+
+      showToast({
+        type: 'info',
+        title: 'Cache Limpo',
+        message: 'Os dados temporários de cache local foram limpos.'
+      });
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Erro',
+        message: 'Falha ao limpar o cache local.'
+      });
+    }
+  };
+
+  // ENCERRAR SESSÃO
+  const executeLogout = () => {
+    localStorage.removeItem('storyforge_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   return (
@@ -318,20 +412,77 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
           <div className="space-y-6">
             <h2 className="text-base font-bold text-white border-b border-gray-800 pb-3">Privacidade & Sessão</h2>
 
-            <div className="p-4 bg-[#171724] rounded-xl border border-gray-800 space-y-2">
-              <h3 className="text-xs font-bold text-white flex items-center gap-2">
-                <Cookie size={16} className="text-amber-400" /> Política de Cookies e Armazenamento
-              </h3>
+            {/* GERENCIAMENTO DE COOKIES & ARMAZENAMENTO */}
+            <div className="p-5 bg-[#171724] rounded-xl border border-gray-800 space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
+                <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                  <Cookie size={16} className="text-amber-400" /> Política de Cookies e Armazenamento
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleClearCache}
+                  className="px-3 py-1 bg-[#12121a] hover:bg-gray-800 border border-gray-700 text-[11px] text-gray-300 font-bold rounded-lg transition-all cursor-pointer"
+                >
+                  Limpar Cache Local
+                </button>
+              </div>
+
               <p className="text-xs text-gray-300 leading-relaxed">
                 Utilizamos armazenamento local exclusivamente para manter sua sessão conectada com segurança. Nenhum dado ou texto da sua escrita é comercializado com terceiros.
               </p>
+
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between bg-[#12121a] p-3 rounded-lg border border-gray-800/60">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Cookies Essenciais e Autenticação</span>
+                    <span className="text-[11px] text-gray-400">Necessários para login e manutenção do token de segurança.</span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-purple-950/80 text-purple-300 px-2 py-1 rounded border border-purple-800/50">Obrigatório</span>
+                </div>
+
+                <div className="flex items-center justify-between bg-[#12121a] p-3 rounded-lg border border-gray-800/60">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Preferências de Interface</span>
+                    <span className="text-[11px] text-gray-400">Armazena abas ativas, tema e estado de navegação local.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCookie('preferences')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      cookiePreferences.preferences 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-800 text-gray-400'
+                    }`}
+                  >
+                    {cookiePreferences.preferences ? 'Ativado' : 'Desativado'}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between bg-[#12121a] p-3 rounded-lg border border-gray-800/60">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Métricas de Desempenho Local</span>
+                    <span className="text-[11px] text-gray-400">Registra logs de erros locais para diagnóstico técnico.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCookie('analytics')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      cookiePreferences.analytics 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-800 text-gray-400'
+                    }`}
+                  >
+                    {cookiePreferences.analytics ? 'Ativado' : 'Desativado'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="pt-2 space-y-3">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sessão</h3>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutModal(true)}
                 className="px-4 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer"
               >
                 <LogOut size={15} /> Encerrar Sessão neste Dispositivo
@@ -379,6 +530,41 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
           </div>
         )}
       </div>
+
+      {/* MODAL DE CONFIRMAÇÃO DE LOGOUT */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-950/50 border border-red-800/50 rounded-xl text-red-400">
+                <LogOut size={22} />
+              </div>
+              <h3 className="text-base font-bold text-white">Encerrar Sessão</h3>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Deseja realmente encerrar a sessão neste dispositivo?
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={executeLogout}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Sim, Sair
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA */}
       {showDeleteModal && (

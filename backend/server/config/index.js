@@ -1,10 +1,10 @@
 // backend/server/config/index.js
 // Configuração central do servidor Express, rotas, middlewares e segurança
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import path from 'path';
 import helmet from 'helmet';
 
@@ -15,11 +15,8 @@ import uploadRoutes from '../routes/upload.js';
 import { 
   apiLimiter, 
   authLimiter, 
-  passwordResetLimiter, 
-  grammarLimiter 
+  passwordResetLimiter
 } from '../middleware/rateLimiter.js';
-
-dotenv.config();
 
 // ==========================================
 // VALIDAÇÃO CRÍTICA DE SEGURANÇA (JWT_SECRET)
@@ -98,10 +95,6 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
 app.use('/api/auth/reset-password', passwordResetLimiter);
 
-// 4. Limite de Análise Gramatical (máximo 30 requisições por minuto por usuário/IP)
-app.use('/api/grammar-check', grammarLimiter);
-app.use('/api/grammar', grammarLimiter);
-
 // ==========================================
 // MONTAGEM DAS ROTAS DA APLICAÇÃO
 // ==========================================
@@ -110,4 +103,7 @@ app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});

@@ -48,12 +48,12 @@ const chapterTypes = ['Prólogo', 'Capítulo', 'Cena', 'Ato', 'Parte', 'Epílogo
 
 const guideTabs = {
   Objetivo: (
-    <p>Produzir o texto final da obra, capítulo por capítulo, com apoio do programa.</p>
+    <p>Produzir o texto final da obra, usando o Apoio Visual da sua obra como base.</p>
   ),
   Dicas: (
     <ul className="space-y-1.5 list-disc pl-4">
       <li>Use os elementos já criados (personagens, cenas, mundo) como base para a escrita.</li>
-      <li>Abra os itens de Apoio Visual na seção inferior para consultar suas ideias com espaço de sobra.</li>
+      <li>Navegue pelos itens do Apoio Visual na seção inferior para consultar suas ideias.</li>
     </ul>
   ),
   Exemplos: (

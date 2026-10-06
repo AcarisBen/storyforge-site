@@ -231,7 +231,7 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
       showToast({
         type: 'error',
         title: 'Erro de Conexão',
-        message: 'Não foi possível conectar ao servidor para criar o projeto.'
+        message: err.message || 'Não foi possível conectar ao servidor para criar o projeto.'
       });
     }
   };

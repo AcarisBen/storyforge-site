@@ -4,7 +4,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true, // Envia cookies HttpOnly automaticamente em todas as requisições
 });
 
@@ -21,6 +21,7 @@ apiClient.interceptors.response.use(
     );
     customError.status = error.response?.status;
     customError.data = error.response?.data;
+    customError.response = error.response;
     return Promise.reject(customError);
   }
 );

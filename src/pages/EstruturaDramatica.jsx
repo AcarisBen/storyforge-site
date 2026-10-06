@@ -27,9 +27,13 @@ const guideTabs = {
   ),
   Exemplos: (
     <ul className="space-y-1.5 list-disc pl-4">
-      <li>3 Atos: Setup, Confronto, Resolução.</li>
-      <li>Jornada do Herói: 12 estágios de Joseph Campbell.</li>
-      <li>Save the Cat: 15 beats de Blake Snyder.</li>
+      <li>3 Atos: Matrix (1999)</li>
+      <li>Jornada do Herói: Star Wars: Episódio IV – Uma Nova Esperança (1977)</li>
+      <li>Save the Cat: De Volta para o Futuro (1985)</li>
+      <li>8 Sequências: Toy Story (1995)</li>
+      <li>Story Circle: O Senhor dos Anéis: A Sociedade do Anel (2001)</li>
+      <li>Freytag: Romeu e Julieta (William Shakespeare)</li>
+    
     </ul>
   ),
   Perguntas: (
@@ -110,12 +114,12 @@ function EstruturaGuide() {
 }
 
 const frameworks = [
-  ['3 Atos', 'Setup, Confronto, Resolução', '3 beats', 'A estrutura clássica de três atos é a espinha dorsal da maioria das histórias ocidentais.'],
-  ['8 Sequências (Paul Gulino)', 'Oito blocos narrativos com pontos de virada', '8 beats', 'A estrutura de 8 Sequências divide cada ato em blocos menores autossustentáveis.'],
-  ['Jornada do Herói', '12 estágios de Joseph Campbell', '12 beats', 'Baseada no monomito de Joseph Campbell com doze estágios universais.'],
-  ['Story Circle (Dan Harmon)', '8 passos cíclicos', '8 beats', 'Simplificação circular da Jornada do Herói com oito passos.'],
-  ['Save the Cat (Blake Snyder)', '15 beats estruturais', '15 beats', 'Mapeia com precisão uma narrativa comercial eficiente em quinze beats.'],
-  ['Freytag (Pirâmide Dramática)', '5 atos clássicos', '5 beats', 'Apresenta cinco estágios: Exposição, Ação Ascendente, Clímax, Ação Descendente e Resolução.'],
+  ['3 Atos', '', 'Setup, Confronto, Resolução', 'A estrutura clássica de três atos é a espinha dorsal da maioria das histórias ocidentais'],
+  ['8 Sequências (Paul Gulino)', '', 'Blocos narrativos com pontos de virada', 'A estrutura de 8 Sequências divide cada ato em blocos menores autossustentáveis'],
+  ['Jornada do Herói', '', '12 estágios de Joseph Campbell', 'Baseada no monomito de Joseph Campbell com doze estágios universais'],
+  ['Story Circle (Dan Harmon)', '', '8 passos cíclicos', 'Simplificação circular da Jornada do Herói com oito passos'],
+  ['Save the Cat (Blake Snyder)', '', '15 beats estruturais', 'Mapeia com precisão uma narrativa comercial eficiente'],
+  ['Freytag (Pirâmide Dramática)', '', '5 atos clássicos', 'Exposição, Ação Ascendente, Clímax, Ação Descendente e Resolução'],
 ];
 
 const acts = [

@@ -13,6 +13,11 @@ let store;
 if (process.env.REDIS_URL) {
   try {
     const redisClient = createClient({ url: process.env.REDIS_URL });
+    
+    redisClient.on('error', (err) => {
+      console.error('[RATE LIMITER WARNING] Erro no cliente Redis:', err.message);
+    });
+
     redisClient.connect().catch((err) => {
       console.error('[RATE LIMITER WARNING] Falha ao conectar ao Redis, usando MemoryStore em fallback:', err.message);
     });
@@ -23,6 +28,7 @@ if (process.env.REDIS_URL) {
     console.log('[RATE LIMITER] Redis Store ativado com sucesso.');
   } catch (err) {
     console.warn('[RATE LIMITER WARNING] Erro na inicialização do Redis. Usando MemoryStore padrão.');
+    store = undefined;
   }
 }
 
@@ -30,6 +36,9 @@ if (process.env.REDIS_URL) {
 const userOrIpKeyGenerator = (req) => {
   return req.userId ? `user_${req.userId}` : req.ip;
 };
+
+// Desativa o aviso estrito de validação IPv6 do express-rate-limit v7+ para keyGenerators customizados
+const customKeyGenValidation = { keyGeneratorIpFallback: false };
 
 // ==========================================
 // 1. LIMITER DE AUTENTICAÇÃO (LOGIN E CADASTRO)
@@ -57,6 +66,7 @@ export const passwordResetLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: userOrIpKeyGenerator,
+  validate: customKeyGenValidation,
   message: {
     error: 'Limite de solicitações de redefinição de senha atingido. Aguarde 1 hora antes de tentar novamente.',
   },
@@ -68,13 +78,14 @@ export const passwordResetLimiter = rateLimit({
 // Máximo de 30 requisições por minuto por usuário autenticado (ou IP)
 export const grammarLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  limit: 30,               // Máximo de 30 requisições por minuto
+  limit: 120,              // Permite revisão contínua durante a digitação
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   store,
   keyGenerator: userOrIpKeyGenerator,
+  validate: customKeyGenValidation,
   message: {
-    error: 'Limite de checagens gramaticais atingido (máximo 30 por minuto). Aguarde um instante.',
+    error: 'Limite de checagens gramaticais atingido (máximo 120 por minuto). Aguarde um instante.',
   },
 });
 
@@ -88,6 +99,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   store,
+  skip: (req) => req.originalUrl.startsWith('/api/entities/grammar-check') || req.originalUrl.startsWith('/api/grammar/'),
   message: {
     error: 'Muitas requisições enviadas. Por favor, aguarde alguns minutos antes de tentar novamente.',
   },

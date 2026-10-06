@@ -18,7 +18,11 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.get('/auth/me');
       setUser(response.data.user);
     } catch (error) {
-      setUser(null);
+      if (error.status === 401) {
+        setUser(null);
+      } else {
+        console.error('Falha temporária ao validar a sessão:', error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -64,7 +68,13 @@ export const AuthProvider = ({ children }) => {
    * Atualiza os dados do perfil do usuário no estado local
    */
   const updateUser = (updatedUserData) => {
-    setUser((prev) => (prev ? { ...prev, ...updatedUserData } : null));
+    setUser((prev) => {
+      const updates = typeof updatedUserData === 'function'
+        ? updatedUserData(prev)
+        : updatedUserData;
+
+      return updates ? { ...prev, ...updates } : prev;
+    });
   };
 
   return (

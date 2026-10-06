@@ -3,7 +3,7 @@
 
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'storyforge_jwt_secret_key_mestra_ultra_segura_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export const requireAuth = (req, res, next) => {
   let token = req.cookies?.token;
