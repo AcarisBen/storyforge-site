@@ -1,15 +1,15 @@
 // src/pages/Login.jsx
-// Página de login do StoryForge (Integrada com AuthContext e Cookies HttpOnly)
+// Página de login do StoryForge (Integrada com AuthContext, Cookies HttpOnly e reset do Banner)
 
 import React, { useState } from 'react';
 import { 
   Feather, BookOpen, Layers, Mail, Lock, 
   LogIn, ShieldCheck, AlertCircle, Eye, EyeOff 
 } from 'lucide-react';
-import { useAuth } from '../lib/AuthContext'; // 1. Importa o hook do AuthContext
+import { useAuth } from '../lib/AuthContext';
 
 export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
-  const { login } = useAuth(); // 2. Extrai a função login do contexto global
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,8 +26,10 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
     setLoading(true);
 
     try {
-      // 3. Executa o login seguro (o backend define o cookie HttpOnly e o contexto atualiza o estado do usuário)
       const data = await login(email.trim().toLowerCase(), password);
+
+      // Reseta o indicador de sessão para exibir o banner de cookies no novo acesso
+      sessionStorage.removeItem('cookie_banner_dismissed');
 
       if (onLoginSuccess) {
         onLoginSuccess(data?.user || { email });
@@ -56,7 +58,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
         {/* LADO ESQUERDO: BRANDING E RECURSOS */}
         <div className="space-y-10 pr-0 lg:pr-8">
           
-          {/* CABEÇALHO COM A LOGO E GRADIENTE OFICIAL */}
+          {/* LOGO E IDENTIDADE VISUAL */}
           <div className="flex items-center gap-3">
             <img 
               src="/StoryForgeLOGO2.png" 
@@ -87,7 +89,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white">Escrita Estruturada</h3>
-                <p className="text-xs text-gray-400">Capítulos, cenas e escritas organizados</p>
+                <p className="text-xs text-gray-400">Capítulos, cenas e manuscritos organizados</p>
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 // src/components/CookieConsentBanner.jsx
-// Banner de Consentimento de Cookies e Analytics (LGPD Opt-in)
+// Banner Unificado de Consentimento de Cookies, Analytics (PostHog) e Preferências
 
 import React, { useState, useEffect } from 'react';
 import { Cookie, ShieldCheck, X } from 'lucide-react';
@@ -9,26 +9,57 @@ export default function CookieConsentBanner() {
   const [showBanner, setShowBanner] = useState(false);
   const posthog = usePostHog();
 
-  useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
-    if (!consent) {
+  // Reavalia a exibição com base na sessão atual
+  const checkBannerStatus = () => {
+    const dismissedInSession = sessionStorage.getItem('cookie_banner_dismissed');
+    if (!dismissedInSession) {
       setShowBanner(true);
+    } else {
+      setShowBanner(false);
     }
+  };
+
+  useEffect(() => {
+    checkBannerStatus();
+
+    window.addEventListener('cookie_pref_updated', checkBannerStatus);
+    window.addEventListener('storage', checkBannerStatus);
+
+    return () => {
+      window.removeEventListener('cookie_pref_updated', checkBannerStatus);
+      window.removeEventListener('storage', checkBannerStatus);
+    };
   }, []);
 
+  // Aceite Total: ativa Analytics no PostHog, salva preferências e atualiza as Configurações
   const handleAccept = () => {
+    const allEnabled = { essential: true, preferences: true, analytics: true };
+
     localStorage.setItem('cookie_consent', 'granted');
+    localStorage.setItem('storyforge_cookie_pref', JSON.stringify(allEnabled));
+    sessionStorage.setItem('cookie_banner_dismissed', 'true');
+
     if (posthog) {
       posthog.opt_in_capturing();
     }
+
+    window.dispatchEvent(new Event('cookie_pref_updated'));
     setShowBanner(false);
   };
 
+  // Apenas Essenciais: desativa Analytics no PostHog, desativa preferências secundárias
   const handleDecline = () => {
-    localStorage.setItem('cookie_consent', 'denied');
+    const essentialOnly = { essential: true, preferences: false, analytics: false };
+
+    localStorage.setItem('cookie_consent', 'essential');
+    localStorage.setItem('storyforge_cookie_pref', JSON.stringify(essentialOnly));
+    sessionStorage.setItem('cookie_banner_dismissed', 'true');
+
     if (posthog) {
       posthog.opt_out_capturing();
     }
+
+    window.dispatchEvent(new Event('cookie_pref_updated'));
     setShowBanner(false);
   };
 
