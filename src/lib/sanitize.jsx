@@ -1,4 +1,4 @@
-// src/lib/sanitize.js
+// src/lib/sanitize.jsx
 // Utilitário para prevenção de ataques XSS (Cross-Site Scripting) via HTML dinâmico
 
 import DOMPurify from 'dompurify';

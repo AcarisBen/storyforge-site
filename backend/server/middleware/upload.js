@@ -1,10 +1,11 @@
 // backend/server/middleware/upload.js
-// Middleware para upload seguro de arquivos com renomeação via UUID e verificação de Magic Bytes
+// Middleware para upload seguro focado EXCLUSIVAMENTE em arquivos JSON e .stfg
 
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import { promises as fsPromises } from 'fs';
 
 // Garante que o diretório de uploads exista
 const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
@@ -12,8 +13,16 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Extensões expressamente permitidas
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.json', '.stfg']);
+// Extensões estritamente permitidas
+const ALLOWED_EXTENSIONS = new Set(['.json', '.stfg']);
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return cb(new Error('Apenas arquivos de projeto (.json ou .stfg) são permitidos.'), false);
+  }
+  cb(null, true);
+};
 
 // Configuração do armazenamento seguro em disco
 const storage = multer.diskStorage({
@@ -36,61 +45,38 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
+  fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // Limite máximo de 5 MB por arquivo
-    files: 1,                  // Limite de 1 arquivo por requisição
+    fileSize: 5 * 1024 * 1024, // Limite máximo de 5 MB
+    files: 1,                  // Apenas 1 arquivo por requisição
   },
 });
 
 /**
- * Valida a assinatura binária (Magic Bytes) real do arquivo no disco
+ * Valida a integridade do arquivo de forma assíncrona (deve ser um JSON/STFG estruturalmente válido)
  */
 export const validateMagicBytes = async (req, res, next) => {
   if (!req.file) return next();
 
   const filePath = req.file.path;
-  const ext = path.extname(req.file.filename).toLowerCase();
 
   try {
-    const buffer = Buffer.alloc(260);
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buffer, 0, 260, 0);
-    fs.closeSync(fd);
-
-    let isValid = false;
-
-    // Tabela de assinaturas binárias (Magic Bytes)
-    if (ext === '.jpg' || ext === '.jpeg') {
-      isValid = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
-    } else if (ext === '.png') {
-      isValid = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
-    } else if (ext === '.gif') {
-      isValid = buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
-    } else if (ext === '.webp') {
-      isValid = buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
-    } else if (ext === '.json' || ext === '.stfg') {
-      // Para arquivos texto/JSON/.stfg, checa se o conteúdo é JSON válido
-      try {
-        const fullContent = fs.readFileSync(filePath, 'utf8');
-        JSON.parse(fullContent);
-        isValid = true;
-      } catch (e) {
-        isValid = false;
-      }
-    }
-
-    if (!isValid) {
-      // Remove arquivo adulterado imediatamente
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ error: 'Conteúdo do arquivo não corresponde à extensão declarada (Magic Bytes inválidos).' });
-    }
+    // Leitura assíncrona (fs.promises) para não travar a thread principal do Node.js
+    const fullContent = await fsPromises.readFile(filePath, 'utf8');
+    JSON.parse(fullContent);
 
     next();
   } catch (err) {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Apaga imediatamente qualquer arquivo malformado ou corrompido
+    try {
+      await fsPromises.unlink(filePath);
+    } catch (unlinkErr) {
+      // Ignora erro caso o arquivo já tenha sido removido
     }
-    return res.status(500).json({ error: 'Erro interno ao validar integridade do arquivo.' });
+
+    return res.status(400).json({
+      error: 'Conteúdo do arquivo é inválido ou está corrompido (deve ser um JSON estruturado).',
+    });
   }
 };
 

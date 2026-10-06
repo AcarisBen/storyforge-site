@@ -12,7 +12,12 @@ import authRoutes from '../routes/auth.js';
 import entityRoutes from '../routes/entities.js';
 import grammarRoutes from '../routes/grammar.js';
 import uploadRoutes from '../routes/upload.js';
-import { authLimiter, apiLimiter } from '../middleware/rateLimiter.js';
+import { 
+  apiLimiter, 
+  authLimiter, 
+  passwordResetLimiter, 
+  grammarLimiter 
+} from '../middleware/rateLimiter.js';
 
 dotenv.config();
 
@@ -32,7 +37,7 @@ if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
 
 const app = express();
 
-// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare)
+// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare) para extração do IP real
 app.set('trust proxy', 1);
 
 // ==========================================
@@ -56,7 +61,7 @@ app.use(
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
-// Configuração do CORS flexível para desenvolvimento e produção
+// Configuração de CORS para desenvolvimento e produção
 app.use(cors({
   origin: (origin, callback) => {
     if (
@@ -69,7 +74,7 @@ app.use(cors({
       callback(new Error('Bloqueado pelo CORS'));
     }
   },
-  credentials: true // Permite o envio/recebimento de cookies HTTP-Only
+  credentials: true // Permite envio/recebimento de cookies HttpOnly
 }));
 
 app.use(express.json());
@@ -78,22 +83,31 @@ app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
 // Servir pasta de uploads publicamente
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
-// 1. Aplicação do Rate Limiter Geral nas rotas genéricas da API
+// ==========================================
+// CONFIGURAÇÃO DOS RATE LIMITERS (PROTEÇÃO DOS)
+// ==========================================
+
+// 1. Limite geral da API (máximo 300 requisições por IP a cada 15 min)
 app.use('/api', apiLimiter);
 
-// 2. Aplicação do Rate Limiter Estrito nas rotas de autenticação
+// 2. Limite estrito de Login e Cadastro (máximo 5 tentativas a cada 15 min)
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/reset-password', authLimiter);
 
-// 3. Montagem das Rotas da Aplicação
+// 3. Limite estrito de Redefinição de Senha (máximo 3 solicitações por hora)
+app.use('/api/auth/forgot-password', passwordResetLimiter);
+app.use('/api/auth/reset-password', passwordResetLimiter);
+
+// 4. Limite de Análise Gramatical (máximo 30 requisições por minuto por usuário/IP)
+app.use('/api/grammar-check', grammarLimiter);
+app.use('/api/grammar', grammarLimiter);
+
+// ==========================================
+// MONTAGEM DAS ROTAS DA APLICAÇÃO
+// ==========================================
 app.use('/api/auth', authRoutes);
 app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+const PORT = process.env.PORT || 3000

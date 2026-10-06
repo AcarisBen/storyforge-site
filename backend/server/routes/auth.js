@@ -1,5 +1,5 @@
 // backend/server/routes/auth.js
-// Rotas de Autenticação com Hashing Bcrypt, JWT Assinado, Cookies HttpOnly e Validação MX
+// Rotas de Autenticação com Hashing Bcrypt, JWT Assinado, Cookies HttpOnly e Proteção contra Enumeração/Timing Attacks
 
 import express from 'express';
 import crypto from 'crypto';
@@ -16,6 +16,9 @@ import {
 
 const router = express.Router();
 const dnsPromises = dns.promises;
+
+// Hash BCRYPT fictício pré-calculado para mitigar Timing Attacks quando o usuário não for encontrado no banco
+const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 // URL base e Chave Secreta JWT
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -205,7 +208,7 @@ router.post('/confirm-email', async (req, res) => {
   }
 });
 
-// 3. POST /api/auth/login (Autenticação Bcrypt e Emissão de JWT)
+// 3. POST /api/auth/login (Protegido contra Enumeração de Usuários e Timing Attacks)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -215,13 +218,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
     }
 
+    // Busca o usuário no banco
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    // Verificação de senha com Bcrypt
-    const isPasswordValid = user ? await bcrypt.compare(password, user.password) : false;
+    // MITIGAÇÃO DE TIMING ATTACK:
+    // Se o usuário não existir, executa o bcrypt.compare contra o DUMMY_HASH.
+    // Isso garante tempo de execução constante (~100ms) independentemente da existência da conta.
+    const targetHash = user ? user.password : DUMMY_HASH;
+    const isPasswordValid = await bcrypt.compare(password, targetHash);
 
+    // MITIGAÇÃO DE ENUMERAÇÃO DE USUÁRIOS:
+    // Retorna a mesma mensagem genérica ("Credenciais inválidas.") se o usuário não for encontrado ou a senha estiver incorreta.
     if (!user || !isPasswordValid) {
-      return res.status(401).json({ message: 'E-mail ou senha incorretos.' });
+      return res.status(401).json({ message: 'Credenciais inválidas.' });
     }
 
     if (!user.isVerified) {
@@ -275,6 +284,7 @@ router.post('/forgot-password', async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
+    // Resposta idêntica independente de o e-mail existir para evitar enumeração no forgot-password
     if (!user) {
       return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, enviamos o link de redefinição.' });
     }

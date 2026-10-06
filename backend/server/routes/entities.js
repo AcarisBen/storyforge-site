@@ -3,6 +3,8 @@
 
 import express from 'express';
 import prisma from '../config/prisma.js';
+import { promises as fsPromises } from 'fs';
+import { upload, validateMagicBytes } from '../middleware/upload.js';
 import { encryptStorybible, decryptStorybible } from './utils/cryptoStorybible.js';
 import fs from 'fs';
 import path from 'path';
@@ -263,7 +265,6 @@ router.post('/relations', requireAuth, async (req, res) => {
     const project = await verifyProjectOwner(projectId, req.userId);
     if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
 
-    // CORREÇÃO DE SEGURANÇA 1: Validar se os personagens pertencem a este projeto
     const validChars = await prisma.character.count({
       where: {
         id: { in: [String(charAId), String(charBId)] },
@@ -275,7 +276,6 @@ router.post('/relations', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Um ou ambos os personagens não pertencem a este projeto.' });
     }
 
-    // CORREÇÃO DE SEGURANÇA 2: Validar se a cena informada pertence a este projeto
     if (sceneId) {
       const validScene = await prisma.entity.findFirst({
         where: {
@@ -292,7 +292,6 @@ router.post('/relations', requireAuth, async (req, res) => {
 
     let savedRelation;
     if (id && !isNaN(Number(id))) {
-      // CORREÇÃO DE SEGURANÇA 3: Garantir validação dupla (projectId + userId)
       const existing = await prisma.characterRelation.findFirst({
         where: { 
           id: Number(id), 
@@ -654,7 +653,6 @@ router.put('/characters/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, type, details } = req.body;
 
-    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
     const updated = await prisma.character.updateMany({
       where: {
         id: String(id),
@@ -687,7 +685,6 @@ router.delete('/characters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
     const deleted = await prisma.character.deleteMany({
       where: {
         id: String(id),
@@ -778,7 +775,6 @@ router.put('/world/:id', requireAuth, async (req, res) => {
 
     const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
-    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -816,7 +812,6 @@ router.delete('/world/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -896,7 +891,6 @@ router.put('/scenes/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -928,7 +922,6 @@ router.delete('/scenes/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -1008,7 +1001,6 @@ router.put('/mysteries/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    // OPERAÇÃO ATÔMICA: garante que a alteração ocorra apenas se o recurso pertencer ao usuário logado
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -1040,7 +1032,6 @@ router.delete('/mysteries/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: deleta apenas se a entidade pertencer ao usuário autenticado
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -1120,7 +1111,6 @@ router.put('/twists/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    // OPERAÇÃO ATÔMICA: atualiza somente se o recurso pertencer ao usuário
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -1152,7 +1142,6 @@ router.delete('/twists/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: exclusão restrita ao dono do projeto
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -1234,7 +1223,6 @@ router.put('/chapters/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, type, content } = req.body;
 
-    // OPERAÇÃO ATÔMICA: atualiza somente se o capítulo pertence ao usuário
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -1267,7 +1255,6 @@ router.delete('/chapters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: deleta apenas se o capítulo pertencer ao usuário
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -1507,7 +1494,6 @@ router.put('/dialogues/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    // OPERAÇÃO ATÔMICA: atualiza apenas se pertencer ao usuário autenticado
     const updated = await prisma.entity.updateMany({
       where: {
         id: String(id),
@@ -1539,7 +1525,6 @@ router.delete('/dialogues/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // OPERAÇÃO ATÔMICA: exclui apenas se o diálogo pertencer ao usuário autenticado
     const deleted = await prisma.entity.deleteMany({
       where: {
         id: String(id),
@@ -1600,9 +1585,11 @@ router.get('/projects/:projectId/export-stfg', requireAuth, async (req, res) => 
       relations,
     };
 
-    const cryptoResult = encryptStorybible(payloadToEncrypt);
+    // CORREÇÃO: Adicionado o await pois encryptStorybible é assíncrono
+    const cryptoResult = await encryptStorybible(payloadToEncrypt);
 
     const exportPackage = {
+      salt: cryptoResult.salt,
       iv: cryptoResult.iv,
       authTag: cryptoResult.authTag,
       encryptedData: cryptoResult.encryptedData,
@@ -1622,13 +1609,22 @@ router.get('/projects/:projectId/export-stfg', requireAuth, async (req, res) => 
 // ==========================================
 // IMPORTAÇÃO SEGURA DE PROJETO (.STFG)
 // ==========================================
-router.post('/projects/import-stfg', requireAuth, async (req, res) => {
+router.post('/projects/import-stfg', requireAuth, upload.single('file'), validateMagicBytes, async (req, res) => {
   try {
-    const envelope = req.body;
+    let envelope;
+
+    if (req.file && req.file.path) {
+      const fileContent = await fsPromises.readFile(req.file.path, 'utf8');
+      envelope = JSON.parse(fileContent);
+    } else if (req.body && Object.keys(req.body).length > 0) {
+      envelope = req.body;
+    } else {
+      return res.status(400).json({ error: 'Nenhum arquivo ou conteúdo enviado para importação.' });
+    }
 
     let payload;
     if (envelope.encryptedData && envelope.iv && envelope.authTag) {
-      payload = decryptStorybible(envelope);
+      payload = await decryptStorybible(envelope);
     } else if (envelope.projectData) {
       payload = envelope.projectData;
     } else {
@@ -1690,7 +1686,6 @@ router.post('/projects/import-stfg', requireAuth, async (req, res) => {
     }
 
     for (const rel of relations) {
-      // CORREÇÃO DE SEGURANÇA: Mapeamento estrito que impede vinculação inadvertida a IDs de entidades externas
       const mappedCharA = characterIdMap[rel.charAId];
       const mappedCharB = characterIdMap[rel.charBId];
       const mappedScene = sceneIdMap[rel.sceneId] || null;
@@ -1718,6 +1713,10 @@ router.post('/projects/import-stfg', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Erro na importação .stfg:', error);
     return res.status(500).json({ error: 'Erro ao processar ficheiro de importação.' });
+  } finally {
+    if (req.file && req.file.path) {
+      await fsPromises.unlink(req.file.path).catch(() => {});
+    }
   }
 });
 
