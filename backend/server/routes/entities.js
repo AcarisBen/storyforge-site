@@ -50,12 +50,10 @@ function generatePhoneticVariants(word) {
 // EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
 // ==========================================
 const getUserIdFromReq = (req) => {
-  // 1. Tenta extrair o token do Cookie HttpOnly seguro
   if (req.cookies && req.cookies.token) {
     return req.cookies.token.replace('token_seguro_', '').trim();
   }
 
-  // 2. Fallback: Cabeçalho Authorization
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
@@ -82,7 +80,6 @@ const verifyProjectOwner = async (projectId, userId) => {
 // ==========================================
 // PROXY DE VERIFICAÇÃO GRAMATICAL (LANGUAGETOOL)
 // ==========================================
-// CORREÇÃO: Adicionado o middleware requireAuth para proteger o endpoint
 router.post('/grammar-check', requireAuth, async (req, res) => {
   try {
     const { text } = req.body;
@@ -266,7 +263,7 @@ router.post('/relations', requireAuth, async (req, res) => {
     const project = await verifyProjectOwner(projectId, req.userId);
     if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
 
-    // CORREÇÃO DE SEGURANÇA: Garantir que charAId e charBId pertençam a este projeto
+    // CORREÇÃO DE SEGURANÇA 1: Validar se os personagens pertencem a este projeto
     const validChars = await prisma.character.count({
       where: {
         id: { in: [String(charAId), String(charBId)] },
@@ -278,10 +275,30 @@ router.post('/relations', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Um ou ambos os personagens não pertencem a este projeto.' });
     }
 
+    // CORREÇÃO DE SEGURANÇA 2: Validar se a cena informada pertence a este projeto
+    if (sceneId) {
+      const validScene = await prisma.entity.findFirst({
+        where: {
+          id: String(sceneId),
+          projectId: String(projectId),
+          type: 'SCENE',
+        },
+      });
+
+      if (!validScene) {
+        return res.status(400).json({ error: 'A cena informada é inválida ou não pertence a este projeto.' });
+      }
+    }
+
     let savedRelation;
     if (id && !isNaN(Number(id))) {
+      // CORREÇÃO DE SEGURANÇA 3: Garantir validação dupla (projectId + userId)
       const existing = await prisma.characterRelation.findFirst({
-        where: { id: Number(id), project: { userId: req.userId } }
+        where: { 
+          id: Number(id), 
+          projectId: String(projectId),
+          project: { userId: req.userId } 
+        }
       });
       if (!existing) return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
 
@@ -319,12 +336,17 @@ router.post('/relations', requireAuth, async (req, res) => {
 router.delete('/relations/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
-    const existing = await prisma.characterRelation.findFirst({
-      where: { id: Number(id), project: { userId: req.userId } }
+    const deleted = await prisma.characterRelation.deleteMany({
+      where: { 
+        id: Number(id), 
+        project: { userId: req.userId } 
+      }
     });
-    if (!existing) return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
 
-    await prisma.characterRelation.delete({ where: { id: Number(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
+    }
+
     res.json({ success: true, message: 'Relação removida com sucesso' });
   } catch (err) {
     console.error('Erro ao deletar relação:', err);
@@ -632,13 +654,12 @@ router.put('/characters/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, type, details } = req.body;
 
-    const existing = await prisma.character.findFirst({
-      where: { id: String(id), project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
-
-    const updatedChar = await prisma.character.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
+    const updated = await prisma.character.updateMany({
+      where: {
+        id: String(id),
+        project: { userId: req.userId },
+      },
       data: {
         name: name || 'Personagem sem nome',
         role: type || 'protagonista',
@@ -646,11 +667,15 @@ router.put('/characters/:id', requireAuth, async (req, res) => {
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updatedChar.id,
-      name: updatedChar.name,
-      type: updatedChar.role,
-      details: updatedChar.details,
+      id: String(id),
+      name: name || 'Personagem sem nome',
+      type: type || 'protagonista',
+      details: details || {},
     });
   } catch (error) {
     console.error('Erro ao atualizar personagem:', error);
@@ -662,12 +687,18 @@ router.delete('/characters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.character.findFirst({
-      where: { id: String(id), project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
+    const deleted = await prisma.character.deleteMany({
+      where: {
+        id: String(id),
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
 
-    await prisma.character.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Personagem não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Personagem excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar personagem:', error);
@@ -745,15 +776,15 @@ router.put('/world/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, type, customType, description } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'WORLD_ELEMENT', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
-
     const finalType = type === 'Outros' && customType?.trim() ? customType.trim() : type;
 
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'WORLD_ELEMENT',
+        project: { userId: req.userId },
+      },
       data: {
         title: name || 'Sem nome',
         data: { 
@@ -764,12 +795,16 @@ router.put('/world/:id', requireAuth, async (req, res) => {
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      name: updated.title,
-      type: updated.data.elementType,
-      customType: updated.data.customType,
-      description: updated.data.description,
+      id: String(id),
+      name: name || 'Sem nome',
+      type: finalType,
+      customType: type === 'Outros' ? customType.trim() : '',
+      description: description || '',
     });
   } catch (error) {
     console.error('Erro ao atualizar elemento do mundo:', error);
@@ -781,12 +816,19 @@ router.delete('/world/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'WORLD_ELEMENT', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'WORLD_ELEMENT',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Elemento do mundo não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Elemento excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar elemento do mundo:', error);
@@ -854,23 +896,27 @@ router.put('/scenes/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'SCENE', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
-
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza somente se pertencer ao usuário autenticado
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'SCENE',
+        project: { userId: req.userId },
+      },
       data: {
         title: title || 'Cena sem título',
         data: restData || {},
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      title: updated.title,
-      ...(updated.data || {}),
+      id: String(id),
+      title: title || 'Cena sem título',
+      ...(restData || {}),
     });
   } catch (error) {
     console.error('Erro ao atualizar cena:', error);
@@ -882,12 +928,19 @@ router.delete('/scenes/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'SCENE', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: deleta somente se pertencer ao usuário autenticado
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'SCENE',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Cena não encontrada ou acesso negado.' });
+    }
+
     res.json({ message: 'Cena excluída com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir cena:', error);
@@ -955,23 +1008,27 @@ router.put('/mysteries/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'MYSTERY', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
-
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: garante que a alteração ocorra apenas se o recurso pertencer ao usuário logado
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'MYSTERY',
+        project: { userId: req.userId },
+      },
       data: {
         title: title || 'Mistério sem nome',
         data: restData || {},
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      title: updated.title,
-      ...(updated.data || {}),
+      id: String(id),
+      title: title || 'Mistério sem nome',
+      ...(restData || {}),
     });
   } catch (error) {
     console.error('Erro ao atualizar mistério:', error);
@@ -983,12 +1040,19 @@ router.delete('/mysteries/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'MYSTERY', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: deleta apenas se a entidade pertencer ao usuário autenticado
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'MYSTERY',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Mistério não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Mistério excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar mistério:', error);
@@ -1056,23 +1120,27 @@ router.put('/twists/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'PLOT_TWIST', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
-
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza somente se o recurso pertencer ao usuário
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'PLOT_TWIST',
+        project: { userId: req.userId },
+      },
       data: {
         title: title || 'Plot Twist sem título',
         data: restData || {},
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      title: updated.title,
-      ...(updated.data || {}),
+      id: String(id),
+      title: title || 'Plot Twist sem título',
+      ...(restData || {}),
     });
   } catch (error) {
     console.error('Erro ao atualizar plot twist:', error);
@@ -1084,12 +1152,19 @@ router.delete('/twists/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'PLOT_TWIST', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: exclusão restrita ao dono do projeto
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'PLOT_TWIST',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Plot twist não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Plot twist excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar plot twist:', error);
@@ -1159,24 +1234,28 @@ router.put('/chapters/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, type, content } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'CHAPTER', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
-
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza somente se o capítulo pertence ao usuário
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'CHAPTER',
+        project: { userId: req.userId },
+      },
       data: {
         title: title || 'Novo Capítulo',
         data: { chapterType: type || 'Capítulo', content: content || '' },
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      title: updated.title,
-      type: updated.data.chapterType,
-      content: updated.data.content,
+      id: String(id),
+      title: title || 'Novo Capítulo',
+      type: type || 'Capítulo',
+      content: content || '',
     });
   } catch (error) {
     console.error('Erro ao atualizar capítulo:', error);
@@ -1188,12 +1267,19 @@ router.delete('/chapters/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'CHAPTER', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: deleta apenas se o capítulo pertencer ao usuário
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'CHAPTER',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Capítulo não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Capítulo excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar capítulo:', error);
@@ -1421,23 +1507,27 @@ router.put('/dialogues/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, ...restData } = req.body;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'DIALOGUE', project: { userId: req.userId } }
-    });
-    if (!existing) return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
-
-    const updated = await prisma.entity.update({
-      where: { id: String(id) },
+    // OPERAÇÃO ATÔMICA: atualiza apenas se pertencer ao usuário autenticado
+    const updated = await prisma.entity.updateMany({
+      where: {
+        id: String(id),
+        type: 'DIALOGUE',
+        project: { userId: req.userId },
+      },
       data: {
         title: title || 'Diálogo sem título',
         data: restData || {},
       },
     });
 
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
+    }
+
     res.json({
-      id: updated.id,
-      title: updated.title,
-      ...(updated.data || {}),
+      id: String(id),
+      title: title || 'Diálogo sem título',
+      ...(restData || {}),
     });
   } catch (error) {
     console.error('Erro ao atualizar diálogo:', error);
@@ -1449,12 +1539,19 @@ router.delete('/dialogues/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.entity.findFirst({
-      where: { id: String(id), type: 'DIALOGUE', project: { userId: req.userId } }
+    // OPERAÇÃO ATÔMICA: exclui apenas se o diálogo pertencer ao usuário autenticado
+    const deleted = await prisma.entity.deleteMany({
+      where: {
+        id: String(id),
+        type: 'DIALOGUE',
+        project: { userId: req.userId },
+      },
     });
-    if (!existing) return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
 
-    await prisma.entity.delete({ where: { id: String(id) } });
+    if (deleted.count === 0) {
+      return res.status(404).json({ error: 'Diálogo não encontrado ou acesso negado.' });
+    }
+
     res.json({ message: 'Diálogo excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir diálogo:', error);
@@ -1593,9 +1690,10 @@ router.post('/projects/import-stfg', requireAuth, async (req, res) => {
     }
 
     for (const rel of relations) {
-      const mappedCharA = characterIdMap[rel.charAId] || rel.charAId;
-      const mappedCharB = characterIdMap[rel.charBId] || rel.charBId;
-      const mappedScene = sceneIdMap[rel.sceneId] || rel.sceneId || null;
+      // CORREÇÃO DE SEGURANÇA: Mapeamento estrito que impede vinculação inadvertida a IDs de entidades externas
+      const mappedCharA = characterIdMap[rel.charAId];
+      const mappedCharB = characterIdMap[rel.charBId];
+      const mappedScene = sceneIdMap[rel.sceneId] || null;
 
       if (mappedCharA && mappedCharB) {
         await prisma.characterRelation.create({
