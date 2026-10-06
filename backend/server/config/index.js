@@ -6,6 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
+import helmet from 'helmet';
 
 import authRoutes from '../routes/auth.js';
 import entityRoutes from '../routes/entities.js';
@@ -31,8 +32,27 @@ if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
 
 const app = express();
 
-// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare) para extração correta do IP real
+// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare)
 app.set('trust proxy', 1);
+
+// ==========================================
+// MIDDLEWARES DE SEGURANÇA (HELMET & CSP)
+// ==========================================
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
@@ -61,7 +81,7 @@ app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 // 1. Aplicação do Rate Limiter Geral nas rotas genéricas da API
 app.use('/api', apiLimiter);
 
-// 2. Aplicação do Rate Limiter Estrito APENAS nas rotas de autenticação vulneráveis a Força Bruta
+// 2. Aplicação do Rate Limiter Estrito nas rotas de autenticação
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
