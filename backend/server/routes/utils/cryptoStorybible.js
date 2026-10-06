@@ -1,82 +1,165 @@
 // backend/server/routes/utils/cryptoStorybible.js
-// Utilitário de criptografia simétrica autenticada (AES-256-GCM) para exportação/importação de arquivos .stfg
+// Utilitário de criptografia simétrica autenticada (AES-256-GCM) com KDF (PBKDF2 Assíncrono) e Salt individual por arquivo .stfg
 
 import crypto from 'crypto';
+import { promisify } from 'util';
+
+const pbkdf2Async = promisify(crypto.pbkdf2);
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 12; // 96 bits / 12 bytes (padrão NIST recomendado para GCM)
+const IV_LENGTH = 12; // 96 bits / 12 bytes (padrão NIST para GCM)
 const AUTH_TAG_LENGTH = 16; // 128 bits / 16 bytes
+const SALT_LENGTH = 16; // 128 bits para derivação de chave por arquivo
+const PBKDF2_ITERATIONS = 210000; // Padrão OWASP (PBKDF2-HMAC-SHA256)
+const KEY_LENGTH = 32; // 256 bits
+const MAX_PAYLOAD_SIZE_BYTES = 50 * 1024 * 1024; // Limite de 50MB para prevenção de DoS
 
-const SECRET_KEY = process.env.STFG_SECRET_KEY || process.env.STORYBIBLE_SECRET_KEY || 'storyforge_chave_secreta_mestra_32_bytes!';
+const HEX_REGEX = /^[0-9a-fA-F]+$/;
 
-if (process.env.NODE_ENV === 'production' && SECRET_KEY.includes('storyforge_chave_secreta_mestra')) {
-  console.warn('[SECURITY WARNING] Usando chave secreta padrão em ambiente de produção! Configure a variável STFG_SECRET_KEY.');
+// Obtém a chave secreta mestra a partir das variáveis de ambiente
+const SECRET_KEY = process.env.STFG_SECRET_KEY || process.env.STORYBIBLE_SECRET_KEY;
+
+// Bloqueio estrito (Fail-Fast) em produção se a chave mestra não estiver configurada
+if (!SECRET_KEY) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[SECURITY FATAL] A variável de ambiente STFG_SECRET_KEY é obrigatória em produção.');
+  } else {
+    console.warn('[SECURITY WARNING] Variável STFG_SECRET_KEY não definida em ambiente de desenvolvimento.');
+  }
 }
 
-// Deriva uma chave mestre determinística de exatamente 32 bytes (256 bits) usando SHA-256
-const KEY = crypto.createHash('sha256').update(SECRET_KEY).digest();
+const SAFE_SECRET = SECRET_KEY || 'storyforge_dev_secret_key_minimum_32_bytes_length!';
+
+if (SAFE_SECRET.length < 32) {
+  throw new Error('[SECURITY FATAL] A chave secreta mestra (STFG_SECRET_KEY) deve ter no mínimo 32 caracteres.');
+}
 
 /**
- * Criptografa qualquer objeto de dados usando AES-256-GCM.
- * @param {Object} dataObject - Dados sensíveis a serem criptografados
- * @returns {{ iv: string, authTag: string, encryptedData: string }} Payload cifrado em Base64 com IV e Auth Tag em Hex
+ * Deriva uma chave criptográfica forte de 256 bits usando PBKDF2-SHA256 de forma assíncrona.
+ * @param {Buffer} saltBuffer
+ * @returns {Promise<Buffer>} Chave derivada de 32 bytes
  */
-export function encryptStorybible(dataObject) {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+async function deriveKey(saltBuffer) {
+  return await pbkdf2Async(
+    SAFE_SECRET,
+    saltBuffer,
+    PBKDF2_ITERATIONS,
+    KEY_LENGTH,
+    'sha256'
+  );
+}
 
-  const jsonString = JSON.stringify(dataObject);
-  const encrypted = Buffer.concat([cipher.update(jsonString, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
+/**
+ * Valida estritamente se uma string é um hexadecimal válido de determinado tamanho de bytes.
+ * @param {string} str
+ * @param {number} expectedBytes
+ * @returns {boolean}
+ */
+function isValidHex(str, expectedBytes) {
+  return (
+    typeof str === 'string' &&
+    str.length === expectedBytes * 2 &&
+    HEX_REGEX.test(str)
+  );
+}
 
-  return {
-    iv: iv.toString('hex'),
-    authTag: authTag.toString('hex'),
-    encryptedData: encrypted.toString('base64'),
-  };
+/**
+ * Criptografa qualquer objeto de dados usando AES-256-GCM com Salt e PBKDF2 Assíncrono.
+ * @param {Object} dataObject - Dados sensíveis a serem criptografados
+ * @returns {Promise<{ salt: string, iv: string, authTag: string, encryptedData: string }>} Payload cifrado
+ */
+export async function encryptStorybible(dataObject) {
+  let key;
+  try {
+    const salt = crypto.randomBytes(SALT_LENGTH);
+    const iv = crypto.randomBytes(IV_LENGTH);
+    key = await deriveKey(salt);
+
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+
+    const jsonString = JSON.stringify(dataObject);
+    const encrypted = Buffer.concat([cipher.update(jsonString, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+
+    return {
+      salt: salt.toString('hex'),
+      iv: iv.toString('hex'),
+      authTag: authTag.toString('hex'),
+      encryptedData: encrypted.toString('base64'),
+    };
+  } finally {
+    if (key && Buffer.isBuffer(key)) {
+      key.fill(0); // CORREÇÃO: Limpeza de memória do Buffer da chave derivada
+    }
+  }
 }
 
 /**
  * Descriptografa e valida a integridade de um pacote criptografado com AES-256-GCM.
- * @param {Object|string} encryptedPackage - Objeto ou String JSON contendo { iv, authTag, encryptedData }
- * @returns {Object} Dados originais descriptografados
+ * @param {Object|string|Buffer} encryptedPackage
+ * @returns {Promise<Object>} Dados originais descriptografados
  */
-export function decryptStorybible(encryptedPackage) {
+export async function decryptStorybible(encryptedPackage) {
+  let key;
   try {
     let pkg = encryptedPackage;
 
-    // Se receber o conteúdo cru como string JSON ou Buffer
+    // CORREÇÃO: Validação de tamanho no payload cru ANTES de executar JSON.parse()
     if (typeof pkg === 'string' || Buffer.isBuffer(pkg)) {
+      const rawLength = Buffer.isBuffer(pkg) ? pkg.length : Buffer.byteLength(pkg, 'utf8');
+      if (rawLength > MAX_PAYLOAD_SIZE_BYTES) {
+        throw new Error('Tamanho do arquivo excede o limite máximo permitido.');
+      }
       pkg = JSON.parse(pkg.toString('utf8'));
     }
 
-    const { iv, authTag, encryptedData } = pkg || {};
+    const { salt, iv, authTag, encryptedData } = pkg || {};
 
-    if (!iv || !authTag || !encryptedData) {
-      throw new Error('Arquivo corrompido, adulterado ou sem os metadados de autenticação obrigatórios.');
+    if (
+      typeof salt !== 'string' ||
+      typeof iv !== 'string' ||
+      typeof authTag !== 'string' ||
+      typeof encryptedData !== 'string'
+    ) {
+      throw new Error('Metadados de criptografia ausentes ou em formato inválido.');
     }
+
+    // CORREÇÃO: Validação rigorosa do formato Hexadecimal
+    if (!isValidHex(salt, SALT_LENGTH)) {
+      throw new Error('Parâmetro Salt em formato incorreto.');
+    }
+    if (!isValidHex(iv, IV_LENGTH)) {
+      throw new Error('Parâmetro IV em formato incorreto.');
+    }
+    if (!isValidHex(authTag, AUTH_TAG_LENGTH)) {
+      throw new Error('Parâmetro AuthTag em formato incorreto.');
+    }
+
+    const encryptedBuffer = Buffer.from(encryptedData, 'base64');
+    if (encryptedBuffer.length > MAX_PAYLOAD_SIZE_BYTES) {
+      throw new Error('Tamanho dos dados criptografados excede o limite.');
+    }
+
+    const saltBuffer = Buffer.from(salt, 'hex');
+    key = await deriveKey(saltBuffer);
 
     const ivBuffer = Buffer.from(iv, 'hex');
     const authTagBuffer = Buffer.from(authTag, 'hex');
 
-    if (ivBuffer.length !== IV_LENGTH) {
-      throw new Error('Vetor de Inicialização (IV) inválido.');
-    }
-
-    if (authTagBuffer.length !== AUTH_TAG_LENGTH) {
-      throw new Error('Tag de Autenticação (Auth Tag) inválida.');
-    }
-
-    const decipher = crypto.createDecipheriv(ALGORITHM, KEY, ivBuffer);
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, ivBuffer);
     decipher.setAuthTag(authTagBuffer);
 
     const decryptedBuffer = Buffer.concat([
-      decipher.update(Buffer.from(encryptedData, 'base64')),
+      decipher.update(encryptedBuffer),
       decipher.final(),
     ]);
 
     return JSON.parse(decryptedBuffer.toString('utf8'));
   } catch (err) {
-    throw new Error(`Falha ao descriptografar arquivo .stfg: ${err.message}`);
+    throw new Error('Falha na autenticação ou arquivo .stfg corrompido/inválido.');
+  } finally {
+    if (key && Buffer.isBuffer(key)) {
+      key.fill(0); // CORREÇÃO: Limpeza de memória do Buffer da chave derivada
+    }
   }
 }
