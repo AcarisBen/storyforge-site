@@ -2,7 +2,6 @@
 // Página inicial do StoryForge, exibindo a lista de projetos do usuário, opções de busca, criação e importação de projetos, além de modais para suporte, configurações e exclusão de projetos.
 
 import React, { useState, useEffect, useRef } from 'react';
-
 import { 
   Search, Plus, Settings, BookOpen, Upload, RefreshCw, 
   AlertTriangle, CheckCircle, XCircle, Trash2, Heart, 
@@ -238,7 +237,14 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
 
   const handleLogout = () => {
     localStorage.removeItem('storyforge_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.clear();
+
+    if (setCurrentUser) {
+      setCurrentUser(null);
+    }
+
     window.location.reload();
   };
 

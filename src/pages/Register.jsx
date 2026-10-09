@@ -1,15 +1,13 @@
 // src/pages/Register.jsx
-
-// Página de Registro de Usuário
-
 import React, { useState } from 'react';
 import { 
   User, Sparkles, Mail, Lock, UserPlus, 
-  ShieldCheck, ArrowLeft, Check, X, Eye, EyeOff 
+  ShieldCheck, ArrowLeft, Check, X, Eye, EyeOff, Info 
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import TermosDeUsoModal from '../components/TermosDeUsoModal';
 
-export default function Register({ onNavigateToLogin }) {
+export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
   const [fullName, setFullName] = useState('');
   const [writerName, setWriterName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,25 +15,49 @@ export default function Register({ onNavigateToLogin }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Estados dos Checkboxes Legais
+  const [acceptedAge, setAcceptedAge] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Estado do Modal de Termos
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Estado do Tooltip do Pseudônimo
+  const [showPseudonymTooltip, setShowPseudonymTooltip] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
 
-  // Regras de validação da senha
+  // Validação de Senha
   const hasMinLength = password.length >= 8;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
   const passwordsMatch = password && password === confirmPassword;
 
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSpecialChar;
+
+  const handleOpenTerms = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onNavigateToTerms) {
+      onNavigateToTerms();
+    } else {
+      setShowTermsModal(true);
+    }
+  };
+
+  const handleAcceptTerms = () => {
+    setAcceptedTerms(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!fullName.trim() || !writerName.trim() || !email.trim()) {
-      setError('Por favor, preencha todos os campos.');
+      setError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -49,18 +71,28 @@ export default function Register({ onNavigateToLogin }) {
       return;
     }
 
+    if (!acceptedAge) {
+      setError('Você precisa confirmar ter no mínimo 18 anos de idade ou autorização dos responsáveis.');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Você precisa aceitar os Termos de Uso e Serviço para prosseguir com o cadastro.');
+      return;
+    }
+
     try {
       setLoading(true);
-
       const cleanEmail = email.trim().toLowerCase();
       await apiClient.post('/auth/register', {
         fullName: fullName.trim(),
         writerName: writerName.trim(),
         email: cleanEmail,
         password,
+        acceptedAge,
+        acceptedTerms,
       });
 
-      // Define o e-mail registrado para alternar a tela para o aviso de e-mail enviado
       setRegisteredEmail(cleanEmail);
     } catch (err) {
       console.error('Erro ao cadastrar usuário:', err);
@@ -70,7 +102,6 @@ export default function Register({ onNavigateToLogin }) {
     }
   };
 
-  // 1. TELA INTERMEDIÁRIA DE SUCESSO (EXIBIDA APÓS O ENVIO DO E-MAIL)
   if (registeredEmail) {
     return (
       <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
@@ -97,16 +128,14 @@ export default function Register({ onNavigateToLogin }) {
     );
   }
 
-  // 2. TELA PADRÃO DO FORMULÁRIO DE CADASTRO
   return (
     <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white">
       
-      {/* CONTEÚDO PRINCIPAL (GRID 2 COLUNAS) */}
+      {/* CONTEÚDO PRINCIPAL */}
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto py-8">
         
-        {/* COLUNA DA ESQUERDA: APRESENTAÇÃO */}
+        {/* COLUNA DA ESQUERDA */}
         <div className="space-y-8 pr-0 lg:pr-8">
-          
           <button
             type="button"
             onClick={onNavigateToLogin}
@@ -134,20 +163,24 @@ export default function Register({ onNavigateToLogin }) {
             </p>
           </div>
 
-          <div className="p-4 bg-[#13131c]/80 border border-gray-800/80 rounded-2xl space-y-2 max-w-md">
-            <span className="text-xs font-bold text-purple-300 flex items-center gap-2">
-              <Sparkles size={16} className="text-amber-400" /> Pseudônimo / Nome de Escritor
-            </span>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              O seu <b>Nome de Escritor</b> será usado publicamente no estúdio e nas capas geradas das suas Story Bibles, enquanto o seu <b>Nome Completo</b> fica reservado apenas para a sua conta.
-            </p>
+          <div className="space-y-3 text-xs text-gray-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <span>Organização profissional de personagens, universos e enredo</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+              <span>Geração de Story Bibles completas em PDF e JSON</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+              <span>Ambiente 100% gratuito e seguro para autores</span>
+            </div>
           </div>
-
         </div>
 
-        {/* COLUNA DA DIREITA: FORMULÁRIO DE CADASTRO */}
+        {/* COLUNA DA DIREITA: FORMULÁRIO */}
         <div className="w-full max-w-md mx-auto space-y-6">
-          
           <div className="text-center space-y-2">
             <div className="w-12 h-12 bg-[#171724] border border-gray-800 rounded-2xl flex items-center justify-center mx-auto text-purple-400 shadow-xl">
               <UserPlus size={20} />
@@ -156,7 +189,7 @@ export default function Register({ onNavigateToLogin }) {
             <p className="text-xs text-gray-400">Preencha seus dados para ter acesso gratuito</p>
           </div>
 
-          <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-6 shadow-2xl space-y-5">
+          <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-6 shadow-2xl space-y-5 relative">
             
             {error && (
               <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-xs text-red-300">
@@ -182,10 +215,24 @@ export default function Register({ onNavigateToLogin }) {
                 </div>
               </div>
 
-              {/* NOME DE ESCRITOR / PSEUDÔNIMO */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Nome de Escritor (Pseudônimo)</label>
-                <div className="relative">
+              {/* NOME DE ESCRITOR / PSEUDÔNIMO (CARD LATERAL) */}
+              <div className="space-y-1.5 relative">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-gray-300">Nome de Escritor (Pseudônimo)</label>
+                  <div 
+                    className="relative inline-block cursor-pointer text-gray-400 hover:text-purple-300 transition-colors"
+                    onMouseEnter={() => setShowPseudonymTooltip(true)}
+                    onMouseLeave={() => setShowPseudonymTooltip(false)}
+                  >
+                    <Info size={14} />
+                  </div>
+                </div>
+
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowPseudonymTooltip(true)}
+                  onMouseLeave={() => setShowPseudonymTooltip(false)}
+                >
                   <Sparkles className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
                   <input
                     type="text"
@@ -195,6 +242,18 @@ export default function Register({ onNavigateToLogin }) {
                     onChange={(e) => setWriterName(e.target.value)}
                     className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
                   />
+
+                  {/* TOOLTIP POSICIONADO À DIREITA (NÃO ATRAPALHA OS CAMPOS) */}
+                  {showPseudonymTooltip && (
+                    <div className="hidden sm:block absolute left-full top-0 ml-3 w-60 z-40 p-3 bg-[#191928] border border-purple-500/60 rounded-xl shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                      <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5 mb-1">
+                        <Sparkles size={13} className="text-amber-400" /> Sobre o Pseudônimo:
+                      </span>
+                      <p className="text-[11px] text-gray-300 leading-snug">
+                        Usado publicamente no estúdio e nas capas geradas das suas Story Bibles. Seu <b>Nome Completo</b> permanece privado.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -278,16 +337,52 @@ export default function Register({ onNavigateToLogin }) {
                 )}
               </div>
 
+              {/* CHECKBOXES LEGAIS */}
+              <div className="space-y-3 pt-3 border-t border-gray-800/80">
+                <label className="flex items-start gap-2.5 text-xs text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={acceptedAge}
+                    onChange={(e) => setAcceptedAge(e.target.checked)}
+                    className="w-4 h-4 min-w-[16px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                  />
+                  <span className="leading-tight text-[11px] text-gray-400">
+                    Declaro que possuo no mínimo <b>18 anos de idade</b> ou permissão dos meus pais/responsáveis.
+                  </span>
+                </label>
+
+                <div className="flex items-start gap-2.5 text-xs text-gray-300 select-none">
+                  <input
+                    type="checkbox"
+                    id="acceptTermsCheckbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 min-w-[16px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                  />
+                  <span className="leading-tight text-[11px] text-gray-400">
+                    <label htmlFor="acceptTermsCheckbox" className="cursor-pointer">
+                      Li e concordo com os{' '}
+                    </label>
+                    <button 
+                      type="button" 
+                      onClick={handleOpenTerms}
+                      className="text-purple-400 underline hover:text-purple-300 font-semibold cursor-pointer inline"
+                    >
+                      Termos de Uso e Serviço
+                    </button>.
+                  </span>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-950/50 transition-all cursor-pointer disabled:opacity-50 mt-4"
+                disabled={loading || !acceptedAge || !acceptedTerms}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-950/50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4"
               >
                 {loading ? 'Criando conta...' : 'Concluir Cadastro'}
               </button>
 
             </form>
-
           </div>
 
           <div className="text-center">
@@ -302,7 +397,6 @@ export default function Register({ onNavigateToLogin }) {
               </button>
             </p>
           </div>
-
         </div>
 
       </div>
@@ -311,6 +405,13 @@ export default function Register({ onNavigateToLogin }) {
         <ShieldCheck size={14} className="text-purple-400" />
         <span>Seus dados protegidos com criptografia e autenticação segura</span>
       </div>
+
+      {/* MODAL POPUP DE TERMOS */}
+      <TermosDeUsoModal 
+        isOpen={showTermsModal} 
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleAcceptTerms}
+      />
 
     </div>
   );

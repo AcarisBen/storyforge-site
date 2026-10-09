@@ -1,5 +1,5 @@
 // backend/server/routes/auth.js
-// Rotas de Autenticação com Hashing Bcrypt, JWT Assinado, Cookies HttpOnly e Proteção contra Enumeração/Timing Attacks
+// Rotas de Autenticação com Bcrypt, JWT Assinado, Cookies HttpOnly, Validação MX e Auditoria Legal
 
 import express from 'express';
 import crypto from 'crypto';
@@ -17,24 +17,22 @@ import {
 const router = express.Router();
 const dnsPromises = dns.promises;
 
-// Hash BCRYPT fictício pré-calculado para mitigar Timing Attacks quando o usuário não for encontrado no banco
+// Hash BCRYPT fictício pré-calculado para mitigar Timing Attacks no Login
 const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
-// URL base e Chave Secreta JWT
+// URL base e Chave Secreta JWT ancoradas em variáveis de ambiente
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const JWT_SECRET = process.env.JWT_SECRET || 'storyforge_jwt_secret_key_mestra_ultra_segura_2026';
 
-// ==========================================
-// CONFIGURAÇÕES DE SEGURANÇA DE COOKIE
-// ==========================================
+// Configuração de Segurança para Cookies HttpOnly
 const COOKIE_OPTIONS = {
   httpOnly: true, // Proteção contra XSS
   secure: process.env.NODE_ENV === 'production', // Requer HTTPS em produção
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Proteção anti-CSRF
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
 };
 
-// Helper: Extrair e verificar JWT assinado (Cookie HttpOnly ou Header Authorization)
+// Helper: Extrair e verificar ID via JWT (Cookie HttpOnly ou Header Authorization)
 const extractUserId = (req) => {
   let token = req.cookies?.token;
   if (!token) {
@@ -49,18 +47,18 @@ const extractUserId = (req) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     return decoded.userId;
   } catch (err) {
-    return null; // Token inválido, adulterado ou expirado
+    return null; // Token inválido, expirado ou adulterado
   }
 };
 
-// Transporter do Nodemailer
+// Transporter do Nodemailer (Gmail SMTP)
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: Number(process.env.EMAIL_PORT) || 587,
   secure: false,
   auth: {
     user: process.env.EMAIL_USER || 'app.storyforge@gmail.com',
-    pass: process.env.EMAIL_PASS || 'suasenhadeaplicativo',
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -94,13 +92,19 @@ async function validateEmailAddress(email) {
   return { valid: true };
 }
 
-// 1. POST /api/auth/register (Cadastro & Envio de Confirmação com Hash de Senha)
+// 1. POST /api/auth/register (Cadastro de Usuário com Log de IP do Marco Civil)
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, writerName, email, password } = req.body;
+    const { fullName, writerName, email, password, acceptedTerms, acceptedAge } = req.body;
 
     if (!fullName || !writerName || !email || !password) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+    }
+
+    if (!acceptedTerms || !acceptedAge) {
+      return res.status(400).json({ 
+        message: 'Você precisa aceitar os Termos de Uso e confirmar a idade mínima para criar a conta.' 
+      });
     }
 
     if (!isStrongPassword(password)) {
@@ -122,10 +126,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Este e-mail já está cadastrado e ativo. Faça login.' });
     }
 
-    // Gera hash BCRYPT da senha
     const hashedPassword = await bcrypt.hash(password, 10);
     const confirmToken = crypto.randomBytes(32).toString('hex');
-    const tokenExp = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const tokenExp = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Horas
+
+    // Captura do IP do usuário para conformidade com o Art. 15 do Marco Civil da Internet
+    const clientIp = (req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+    const currentTermsVersion = '1.0.0';
 
     if (!user) {
       user = await prisma.user.create({
@@ -138,6 +145,10 @@ router.post('/register', async (req, res) => {
           isVerified: false,
           verificationToken: confirmToken,
           verificationTokenExp: tokenExp,
+          acceptedTerms: true,
+          termsVersion: currentTermsVersion,
+          acceptedTermsAt: new Date(),
+          signupIp: clientIp,
         },
       });
     } else {
@@ -150,6 +161,10 @@ router.post('/register', async (req, res) => {
           password: hashedPassword,
           verificationToken: confirmToken,
           verificationTokenExp: tokenExp,
+          acceptedTerms: true,
+          termsVersion: currentTermsVersion,
+          acceptedTermsAt: new Date(),
+          signupIp: clientIp,
         },
       });
     }
@@ -163,9 +178,13 @@ router.post('/register', async (req, res) => {
       html: getConfirmationEmailHTML(writerName || fullName, confirmationLink),
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (mailError) {
+      console.error('Erro ao enviar e-mail de ativação:', mailError);
+    }
 
-    return res.status(200).json({
+    return res.status(201).json({
       message: 'Link de confirmação enviado! Verifique sua caixa de entrada para ativar a conta.',
     });
   } catch (err) {
@@ -174,7 +193,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// 2. POST /api/auth/confirm-email
+// 2. POST /api/auth/confirm-email (Ativação da Conta)
 router.post('/confirm-email', async (req, res) => {
   try {
     const { token } = req.body;
@@ -218,17 +237,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
     }
 
-    // Busca o usuário no banco
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    // MITIGAÇÃO DE TIMING ATTACK:
-    // Se o usuário não existir, executa o bcrypt.compare contra o DUMMY_HASH.
-    // Isso garante tempo de execução constante (~100ms) independentemente da existência da conta.
+    // Mitigação de Timing Attack: executa o bcrypt.compare mesmo se a conta não existir
     const targetHash = user ? user.password : DUMMY_HASH;
     const isPasswordValid = await bcrypt.compare(password, targetHash);
 
-    // MITIGAÇÃO DE ENUMERAÇÃO DE USUÁRIOS:
-    // Retorna a mesma mensagem genérica ("Credenciais inválidas.") se o usuário não for encontrado ou a senha estiver incorreta.
     if (!user || !isPasswordValid) {
       return res.status(401).json({ message: 'Credenciais inválidas.' });
     }
@@ -239,9 +253,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Geração de JWT assinado
+    // Emissão do Token JWT
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
 
+    // Envio via Cookie HttpOnly
     res.cookie('token', token, COOKIE_OPTIONS);
 
     const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
@@ -253,13 +268,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 4. POST /api/auth/logout
+// 4. POST /api/auth/logout (Destruição da Sessão)
 router.post('/logout', (req, res) => {
   res.clearCookie('token', COOKIE_OPTIONS);
   return res.status(200).json({ message: 'Sessão encerrada com sucesso.' });
 });
 
-// 5. GET /api/auth/me
+// 5. GET /api/auth/me (Obter Usuário Logado)
 router.get('/me', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -275,7 +290,7 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// 6. POST /api/auth/forgot-password
+// 6. POST /api/auth/forgot-password (Solicitação de Redefinição de Senha)
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -284,13 +299,13 @@ router.post('/forgot-password', async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    // Resposta idêntica independente de o e-mail existir para evitar enumeração no forgot-password
+    // Mensagem genérica para não revelar quais e-mails existem
     if (!user) {
       return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, enviamos o link de redefinição.' });
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 30 * 60 * 1000);
+    const resetTokenExp = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
     await prisma.user.update({
       where: { id: user.id },
@@ -315,7 +330,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// 7. POST /api/auth/reset-password (Com Bcrypt)
+// 7. POST /api/auth/reset-password (Aplicação da Nova Senha)
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -360,7 +375,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// 8. PUT /api/auth/change-password (Com Bcrypt)
+// 8. PUT /api/auth/change-password (Alteração de Senha no Painel do Usuário)
 router.put('/change-password', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -400,7 +415,7 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
-// 9. POST /api/auth/request-delete
+// 9. POST /api/auth/request-delete (Solicitação de Exclusão de Conta)
 router.post('/request-delete', async (req, res) => {
   try {
     const userId = extractUserId(req);
@@ -410,7 +425,7 @@ router.post('/request-delete', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
     const deleteToken = crypto.randomBytes(32).toString('hex');
-    const deleteTokenExp = new Date(Date.now() + 60 * 60 * 1000);
+    const deleteTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
     await prisma.user.update({
       where: { id: user.id },
@@ -435,7 +450,7 @@ router.post('/request-delete', async (req, res) => {
   }
 });
 
-// 10. POST /api/auth/confirm-delete
+// 10. POST /api/auth/confirm-delete (Exclusão Irrevogável da Conta e Projetos)
 router.post('/confirm-delete', async (req, res) => {
   try {
     const { token } = req.body;
@@ -464,7 +479,7 @@ router.post('/confirm-delete', async (req, res) => {
   }
 });
 
-// 11. PUT /api/auth/profile
+// 11. PUT /api/auth/profile (Atualização de Pseudônimo)
 router.put('/profile', async (req, res) => {
   try {
     const userId = extractUserId(req);

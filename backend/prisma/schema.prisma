@@ -15,12 +15,19 @@ model User {
   name                 String?
   password             String
   isVerified           Boolean   @default(false)
-  verificationToken    String?
-  verificationTokenExp DateTime?
+  verificationToken     String?
+  verificationTokenExp  DateTime?
   resetToken           String?
   resetTokenExp        DateTime?
   deleteToken          String?
   deleteTokenExp       DateTime?
+
+  // Auditoria Legal (LGPD & Marco Civil da Internet)
+  acceptedTerms        Boolean   @default(true)
+  termsVersion         String    @default("1.0.0")
+  acceptedTermsAt      DateTime  @default(now())
+  signupIp             String?
+
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   projects             Project[]

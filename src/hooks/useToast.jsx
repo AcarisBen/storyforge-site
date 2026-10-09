@@ -1,5 +1,5 @@
 // src/hooks/useToast.jsx
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import NotificationToast from '../components/NotificationToast';
 
 const ToastContext = createContext(null);
@@ -15,6 +15,21 @@ export function ToastProvider({ children }) {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, type, title, message, duration }]);
   }, []);
+
+  // Escuta avisos automáticos do Rate Limiter disparados pelo apiClient.js
+  useEffect(() => {
+    const handleRateLimit = (event) => {
+      showToast({
+        type: 'warning',
+        title: 'Calma lá, Autor! ✍️',
+        message: event.detail?.message || 'Aguarde alguns segundos antes de realizar novas alterações.',
+        duration: 5000,
+      });
+    };
+
+    window.addEventListener('app_rate_limit_warning', handleRateLimit);
+    return () => window.removeEventListener('app_rate_limit_warning', handleRateLimit);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, removeToast }}>
