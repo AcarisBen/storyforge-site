@@ -51,7 +51,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white">
+    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white animate-in fade-in slide-in-from-left-4 duration-300 ease-out">
       
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto py-8">
         

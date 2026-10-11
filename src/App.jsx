@@ -283,30 +283,36 @@ export default function App() {
         }
 
         if (!currentUser) {
-          if (authScreen === 'register') {
-            return (
-              <Register 
-                onNavigateToLogin={() => setAuthScreen('login')}
-              />
-            );
-          }
+  if (authScreen === 'register') {
+    return (
+      <div className="w-full h-full animate-in fade-in duration-300">
+        <Register 
+          onNavigateToLogin={() => setAuthScreen('login')}
+        />
+      </div>
+    );
+  }
 
           if (authScreen === 'forgot-password') {
-            return (
-              <ForgotPassword 
-                onNavigateToLogin={() => setAuthScreen('login')}
-              />
-            );
-          }
+    return (
+      <div className="w-full h-full animate-in fade-in duration-300">
+        <ForgotPassword 
+          onNavigateToLogin={() => setAuthScreen('login')}
+        />
+      </div>
+    );
+  }
 
           return (
-            <Login 
-              onLoginSuccess={() => {}}
-              onNavigateToRegister={() => setAuthScreen('register')}
-              onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
-            />
-          );
-        }
+    <div className="w-full h-full animate-in fade-in duration-300">
+      <Login 
+        onLoginSuccess={() => {}}
+        onNavigateToRegister={() => setAuthScreen('register')}
+        onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+      />
+    </div>
+  );
+}
 
         if (!currentProject) {
           return (

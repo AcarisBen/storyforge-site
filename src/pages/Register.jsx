@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import { 
   User, Sparkles, Mail, Lock, UserPlus, 
-  ShieldCheck, ArrowLeft, Check, X, Eye, EyeOff, Info 
+  ShieldCheck, Check, X, Eye, EyeOff, Info,
+  PenTool, BookOpen, Globe
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import TermosDeUsoModal from '../components/TermosDeUsoModal';
+import PoliticaPrivacidadeModal from '../components/PoliticaPrivacidadeModal';
 
 export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
   const [fullName, setFullName] = useState('');
@@ -15,27 +17,26 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Estados dos Checkboxes Legais
+  // Checkboxes
   const [acceptedAge, setAcceptedAge] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
-  // Estado do Modal de Termos
+  // Modais
   const [showTermsModal, setShowTermsModal] = useState(false);
-
-  // Estado do Tooltip do Pseudônimo
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showPseudonymTooltip, setShowPseudonymTooltip] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
 
-  // Validação de Senha
+  // Validação
   const hasMinLength = password.length >= 8;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
   const passwordsMatch = password && password === confirmPassword;
-
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSpecialChar;
 
   const handleOpenTerms = (e) => {
@@ -48,8 +49,10 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
     }
   };
 
-  const handleAcceptTerms = () => {
-    setAcceptedTerms(true);
+  const handleOpenPrivacy = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowPrivacyModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -77,7 +80,12 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
     }
 
     if (!acceptedTerms) {
-      setError('Você precisa aceitar os Termos de Uso e Serviço para prosseguir com o cadastro.');
+      setError('Você precisa aceitar os Termos de Uso para prosseguir.');
+      return;
+    }
+
+    if (!acceptedPrivacy) {
+      setError('Você precisa aceitar a Política de Privacidade para prosseguir.');
       return;
     }
 
@@ -91,6 +99,7 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
         password,
         acceptedAge,
         acceptedTerms,
+        acceptedPrivacy,
       });
 
       setRegisteredEmail(cleanEmail);
@@ -104,7 +113,7 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
 
   if (registeredEmail) {
     return (
-      <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
+      <div className="h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
         <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
           <div className="w-14 h-14 bg-purple-950/60 border border-purple-800/50 text-purple-400 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg">
             📧
@@ -129,30 +138,24 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white">
+    <div className="h-screen max-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:px-12 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
       
       {/* CONTEÚDO PRINCIPAL */}
-      <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto py-8">
+      <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto">
         
-        {/* COLUNA DA ESQUERDA */}
-        <div className="space-y-8 pr-0 lg:pr-8">
-          <button
-            type="button"
-            onClick={onNavigateToLogin}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <ArrowLeft size={16} /> Voltar para o Login
-          </button>
-
+        {/* COLUNA DA ESQUERDA (PADRONIZADA COM LOGIN) */}
+        <div className="space-y-6 pr-0 lg:pr-8 hidden lg:block">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-950/50">
-              <span className="text-xl">✦</span>
-            </div>
+            <img 
+              src="/StoryForgeLOGO2.png" 
+              alt="StoryForge Logo" 
+              className="w-10 h-10 object-contain shrink-0"
+            />
             <span className="text-2xl font-black tracking-tight text-white">StoryForge</span>
           </div>
 
           <div className="space-y-3">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
               Crie sua conta e comece a <br />
               <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-amber-400 bg-clip-text text-transparent">
                 escrever o seu universo
@@ -163,60 +166,78 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
             </p>
           </div>
 
-          <div className="space-y-3 text-xs text-gray-400">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-              <span>Organização profissional de personagens, universos e enredo</span>
+          {/* CARDS DAS CARACTERÍSTICAS (PADRÃO IGUAL AO LOGIN) */}
+          <div className="space-y-3 pt-2">
+            <div className="bg-[#13131a] border border-gray-800/80 rounded-2xl p-4 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-950/60 border border-purple-800/40 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                <PenTool size={18} />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white mb-0.5">Organização Estruturada</h3>
+                <p className="text-xs text-gray-400 leading-snug">Capítulos, enredo, fichas e universo sincronizados</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-pink-500"></div>
-              <span>Geração de Story Bibles completas em PDF e JSON</span>
+
+            <div className="bg-[#13131a] border border-gray-800/80 rounded-2xl p-4 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-950/60 border border-purple-800/40 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                <BookOpen size={18} />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white mb-0.5">Story Bibles Exportáveis</h3>
+                <p className="text-xs text-gray-400 leading-snug">Geração do Story Bible completo do seu livro em PDF e JSON</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-              <span>Ambiente 100% gratuito e seguro para autores</span>
+
+            <div className="bg-[#13131a] border border-gray-800/80 rounded-2xl p-4 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-950/60 border border-purple-800/40 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                <Globe size={18} />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white mb-0.5">Soberania Total do Autor</h3>
+                <p className="text-xs text-gray-400 leading-snug">Seus manuscritos são 100% seus e nunca usados em IAs</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* COLUNA DA DIREITA: FORMULÁRIO */}
-        <div className="w-full max-w-md mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-[#171724] border border-gray-800 rounded-2xl flex items-center justify-center mx-auto text-purple-400 shadow-xl">
+        <div className="w-full max-w-md mx-auto space-y-4">
+          <div className="text-center space-y-1.5">
+            <div className="w-11 h-11 bg-[#171724] border border-gray-800 rounded-2xl flex items-center justify-center mx-auto text-purple-400 shadow-xl">
               <UserPlus size={20} />
             </div>
             <h2 className="text-2xl font-bold text-white tracking-tight">Criar uma conta</h2>
             <p className="text-xs text-gray-400">Preencha seus dados para ter acesso gratuito</p>
           </div>
 
-          <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-6 shadow-2xl space-y-5 relative">
+          <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-3.5 relative">
             
             {error && (
-              <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-xs text-red-300">
+              <div className="p-2.5 bg-red-950/40 border border-red-800/50 rounded-xl text-xs text-red-300">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               
               {/* NOME COMPLETO */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-300">Nome Completo</label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
+                  <User className="absolute left-3.5 top-3 text-gray-500" size={15} />
                   <input
                     type="text"
                     required
                     placeholder="Seu nome verdadeiro"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
 
-              {/* NOME DE ESCRITOR / PSEUDÔNIMO (CARD LATERAL) */}
-              <div className="space-y-1.5 relative">
+              {/* PSEUDÔNIMO */}
+              <div className="space-y-1 relative">
                 <div className="flex items-center gap-1.5">
                   <label className="text-xs font-bold text-gray-300">Nome de Escritor (Pseudônimo)</label>
                   <div 
@@ -233,24 +254,23 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
                   onMouseEnter={() => setShowPseudonymTooltip(true)}
                   onMouseLeave={() => setShowPseudonymTooltip(false)}
                 >
-                  <Sparkles className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
+                  <Sparkles className="absolute left-3.5 top-3 text-gray-500" size={15} />
                   <input
                     type="text"
                     required
                     placeholder="Ex: J. R. R. Martin / Nome Artístico"
                     value={writerName}
                     onChange={(e) => setWriterName(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
                   />
 
-                  {/* TOOLTIP POSICIONADO À DIREITA (NÃO ATRAPALHA OS CAMPOS) */}
                   {showPseudonymTooltip && (
-                    <div className="hidden sm:block absolute left-full top-0 ml-3 w-60 z-40 p-3 bg-[#191928] border border-purple-500/60 rounded-xl shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-                      <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5 mb-1">
+                    <div className="hidden sm:block absolute left-full top-0 ml-3 w-60 z-40 p-3 bg-[#191928] border border-purple-500/60 rounded-xl shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in duration-150">
+                      <span className="text-xs font-bold text-purple-300 flex items-center gap-1 mb-1">
                         <Sparkles size={13} className="text-amber-400" /> Sobre o Pseudônimo:
                       </span>
-                      <p className="text-[11px] text-gray-300 leading-snug">
-                        Usado publicamente no estúdio e nas capas geradas das suas Story Bibles. Seu <b>Nome Completo</b> permanece privado.
+                      <p className="text-xs text-gray-300 leading-snug">
+                        Usado publicamente no estúdio e nas capas das suas Story Bibles. Seu <b>Nome Completo</b> permanece privado.
                       </p>
                     </div>
                   )}
@@ -258,108 +278,109 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
               </div>
 
               {/* E-MAIL */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-300">E-mail</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
+                  <Mail className="absolute left-3.5 top-3 text-gray-500" size={15} />
                   <input
                     type="email"
                     required
                     placeholder="voce@exemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
 
-              {/* SENHA */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Senha</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
-                {password.length > 0 && (
-                  <div className="p-3 bg-[#171724] rounded-xl border border-gray-800/80 space-y-1.5 text-[11px] mt-2">
-                    <span className="text-gray-400 font-bold block mb-1">A senha deve conter:</span>
-                    <div className="grid grid-cols-2 gap-1">
-                      <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-400' : 'text-gray-500'}`}>
-                        {hasMinLength ? <Check size={12} /> : <X size={12} />} Mínimo 8 caracteres
-                      </span>
-                      <span className={`flex items-center gap-1 ${hasUpperCase ? 'text-emerald-400' : 'text-gray-500'}`}>
-                        {hasUpperCase ? <Check size={12} /> : <X size={12} />} Letra maiúscula
-                      </span>
-                      <span className={`flex items-center gap-1 ${hasLowerCase ? 'text-emerald-400' : 'text-gray-500'}`}>
-                        {hasLowerCase ? <Check size={12} /> : <X size={12} />} Letra minúscula
-                      </span>
-                      <span className={`flex items-center gap-1 ${hasSpecialChar ? 'text-emerald-400' : 'text-gray-500'}`}>
-                        {hasSpecialChar ? <Check size={12} /> : <X size={12} />} Caractere especial
-                      </span>
-                    </div>
+              {/* SENHAS EM GRID */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-300">Senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 text-gray-500" size={15} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-8 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-2.5 text-gray-500 hover:text-gray-300 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
                   </div>
-                )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-300">Confirmar Senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 text-gray-500" size={15} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* CONFIRMAÇÃO DE SENHA */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Confirmar Senha</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 text-gray-500" size={16} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-[#171724] border border-gray-800/90 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
-                  />
+              {/* REQUISITOS DE SENHA */}
+              {password.length > 0 && (
+                <div className="p-2.5 bg-[#171724] rounded-xl border border-gray-800/80 text-xs space-y-1">
+                  <div className="grid grid-cols-2 gap-1 text-[11px]">
+                    <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-400' : 'text-gray-500'}`}>
+                      {hasMinLength ? <Check size={11} /> : <X size={11} />} Mín. 8 caracteres
+                    </span>
+                    <span className={`flex items-center gap-1 ${hasUpperCase ? 'text-emerald-400' : 'text-gray-500'}`}>
+                      {hasUpperCase ? <Check size={11} /> : <X size={11} />} Maiúscula
+                    </span>
+                    <span className={`flex items-center gap-1 ${hasLowerCase ? 'text-emerald-400' : 'text-gray-500'}`}>
+                      {hasLowerCase ? <Check size={11} /> : <X size={11} />} Minúscula
+                    </span>
+                    <span className={`flex items-center gap-1 ${hasSpecialChar ? 'text-emerald-400' : 'text-gray-500'}`}>
+                      {hasSpecialChar ? <Check size={11} /> : <X size={11} />} Especial
+                    </span>
+                  </div>
+                  {confirmPassword && (
+                    <p className={`font-semibold pt-0.5 text-[11px] ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {passwordsMatch ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
+                    </p>
+                  )}
                 </div>
-                {confirmPassword && (
-                  <p className={`text-[11px] font-semibold mt-1 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {passwordsMatch ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* CHECKBOXES LEGAIS */}
-              <div className="space-y-3 pt-3 border-t border-gray-800/80">
-                <label className="flex items-start gap-2.5 text-xs text-gray-300 cursor-pointer select-none">
+              <div className="space-y-1.5 pt-2 border-t border-gray-800/80">
+                <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={acceptedAge}
                     onChange={(e) => setAcceptedAge(e.target.checked)}
-                    className="w-4 h-4 min-w-[16px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                    className="w-3.5 h-3.5 min-w-[14px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
                   />
-                  <span className="leading-tight text-[11px] text-gray-400">
-                    Declaro que possuo no mínimo <b>18 anos de idade</b> ou permissão dos meus pais/responsáveis.
+                  <span className="leading-tight text-gray-400 text-[11px]">
+                    Possuo no mínimo <b>18 anos de idade</b> ou permissão dos responsáveis.
                   </span>
                 </label>
 
-                <div className="flex items-start gap-2.5 text-xs text-gray-300 select-none">
+                <div className="flex items-start gap-2 text-xs text-gray-300 select-none">
                   <input
                     type="checkbox"
                     id="acceptTermsCheckbox"
                     checked={acceptedTerms}
                     onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="w-4 h-4 min-w-[16px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                    className="w-3.5 h-3.5 min-w-[14px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
                   />
-                  <span className="leading-tight text-[11px] text-gray-400">
+                  <span className="leading-tight text-gray-400 text-[11px]">
                     <label htmlFor="acceptTermsCheckbox" className="cursor-pointer">
                       Li e concordo com os{' '}
                     </label>
@@ -368,7 +389,29 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
                       onClick={handleOpenTerms}
                       className="text-purple-400 underline hover:text-purple-300 font-semibold cursor-pointer inline"
                     >
-                      Termos de Uso e Serviço
+                      Termos de Uso
+                    </button>.
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-2 text-xs text-gray-300 select-none">
+                  <input
+                    type="checkbox"
+                    id="acceptPrivacyCheckbox"
+                    checked={acceptedPrivacy}
+                    onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                    className="w-3.5 h-3.5 min-w-[14px] shrink-0 mt-0.5 rounded border-gray-700 bg-[#171724] text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                  />
+                  <span className="leading-tight text-gray-400 text-[11px]">
+                    <label htmlFor="acceptPrivacyCheckbox" className="cursor-pointer">
+                      Li e aceito a{' '}
+                    </label>
+                    <button 
+                      type="button" 
+                      onClick={handleOpenPrivacy}
+                      className="text-purple-400 underline hover:text-purple-300 font-semibold cursor-pointer inline"
+                    >
+                      Política de Privacidade
                     </button>.
                   </span>
                 </div>
@@ -376,8 +419,8 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
 
               <button
                 type="submit"
-                disabled={loading || !acceptedAge || !acceptedTerms}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-950/50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                disabled={loading || !acceptedAge || !acceptedTerms || !acceptedPrivacy}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-950/50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               >
                 {loading ? 'Criando conta...' : 'Concluir Cadastro'}
               </button>
@@ -401,16 +444,23 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
 
       </div>
 
-      <div className="max-w-7xl mx-auto w-full pt-6 border-t border-gray-900/60 flex items-center gap-2 text-gray-500 text-[11px]">
-        <ShieldCheck size={14} className="text-purple-400" />
-        <span>Seus dados protegidos com criptografia e autenticação segura</span>
+      {/* RODAPÉ PADRONIZADO E AUMENTADO */}
+      <div className="max-w-7xl mx-auto w-full pt-4 border-t border-gray-900/60 flex items-center gap-2 text-gray-400 text-xs font-medium">
+        <ShieldCheck size={16} className="text-purple-400 shrink-0" />
+        <span>Seus dados protegidos com autenticação segura</span>
       </div>
 
-      {/* MODAL POPUP DE TERMOS */}
+      {/* MODAIS LEGAIS */}
       <TermosDeUsoModal 
         isOpen={showTermsModal} 
         onClose={() => setShowTermsModal(false)}
-        onAccept={handleAcceptTerms}
+        onAccept={() => setAcceptedTerms(true)}
+      />
+
+      <PoliticaPrivacidadeModal 
+        isOpen={showPrivacyModal} 
+        onClose={() => setShowPrivacyModal(false)}
+        onAccept={() => setAcceptedPrivacy(true)}
       />
 
     </div>

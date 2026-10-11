@@ -10,6 +10,7 @@ import {
 import apiClient from '../api/apiClient';
 import Configuracoes from './Configuracoes';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../lib/AuthContext'; // Importação do hook de autenticação
 
 const ESSENCIA_FIELDS = [
   'O que torna a história única?',
@@ -22,6 +23,7 @@ const ESSENCIA_FIELDS = [
 
 export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   const { showToast } = useToast();
+  const { logout } = useAuth(); // Hook de autenticação do AuthContext
 
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,17 +237,31 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('storyforge_token');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.clear();
+  // LOGOUT CORRIGIDO PARA INTEGRAR COM O AUTHCONTEXT
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('storyforge_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.clear();
 
-    if (setCurrentUser) {
-      setCurrentUser(null);
+      if (logout) {
+        await logout();
+      } else if (setCurrentUser) {
+        setCurrentUser(null);
+      }
+
+      showToast({
+        type: 'info',
+        title: 'Sessão Encerrada',
+        message: 'Você saiu da sua conta com sucesso.'
+      });
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      if (setCurrentUser) {
+        setCurrentUser(null);
+      }
     }
-
-    window.location.reload();
   };
 
   // Abre o modal de confirmação customizado de exclusão
