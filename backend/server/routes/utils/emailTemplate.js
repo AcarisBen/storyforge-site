@@ -1,6 +1,5 @@
 // backend/server/routes/utils/emailTemplate.js
-// Templates de e-mail simplificados (Texto puro e 100% compatíveis)
-
+// Templates de e-mail simplificados
 function getHeaderHTML() {
   return `
     <tr>
@@ -11,6 +10,16 @@ function getHeaderHTML() {
       </td>
     </tr>
   `;
+}
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
 }
 
 // 1. E-MAIL DE CONFIRMAÇÃO DE CADASTRO
@@ -35,7 +44,7 @@ export function getConfirmationEmailHTML(userName, confirmationLink) {
         </h1>
         
         <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px;">
-          Obrigado por se cadastrar no <b>StoryForge</b>. Para garantir a segurança da sua conta e liberar o acesso completo ao seu estúdio narrativo, confirme seu e-mail clicando no botão abaixo:
+          Origado por se cadastrar no <b>StoryForge</b>. Para garantir a segurança da sua conta e liberar o acesso completo ao seu estúdio narrativo, confirme seu e-mail clicando no botão abaixo:
         </p>
 
         <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
@@ -138,7 +147,7 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmsção de Exclusão — StoryForge</title>
+  <title>Confirmação de Exclusão — StoryForge</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #0b0b10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0;">
   
@@ -184,6 +193,63 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
     <tr>
       <td align="center" style="padding: 20px 32px; background-color: #0b0b10; border-top: 1px solid #1e1e2e; font-size: 12px; color: #475569;">
         <p style="margin: 0;">StoryForge — Estúdio Profissional de Desenvolvimento Narrativo</p>
+      </td>
+    </tr>
+
+  </table>
+
+</body>
+</html>`;
+}
+
+// 4. TEMPLATE DE E-MAIL DE REPORT DE BUG (Enviado para a equipe)
+export function getBugReportEmailHTML(data) {
+  const env = data.environment || {};
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Novo Bug Report — StoryForge</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0b10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0;">
+  
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 30px auto; background-color: #12121c; border: 1px solid #281a2e; border-radius: 16px; overflow: hidden;">
+    
+    ${getHeaderHTML()}
+
+    <tr>
+      <td style="padding: 28px; text-align: left;">
+        <h1 style="font-size: 18px; font-weight: 700; color: #ef4444; margin-top: 0; margin-bottom: 12px;">
+          🐛 Novo Diagnóstico de Bug Recebido
+        </h1>
+
+        <div style="background-color: #171724; border: 1px solid #28283a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>Autor:</b> ${data.userName || 'N/A'} (&lt;${data.userEmail}&gt;)</p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>User ID:</b> ${data.userId || 'N/A'}</p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #c084fc;"><b>Módulo:</b> ${data.module}</p>
+          <p style="margin: 0; font-size: 13px; color: #f87171;"><b>Tipo do Problema:</b> ${data.bugType}</p>
+        </div>
+
+        <h3 style="font-size: 14px; color: #ffffff; margin-bottom: 8px;">Descrição detalhada:</h3>
+        <div style="background-color: #0d0d14; border-left: 3px solid #a855f7; border-radius: 6px; padding: 14px; font-size: 13px; color: #e2e8f0; white-space: pre-wrap; line-height: 1.5; margin-bottom: 20px;">
+${data.description}
+        </div>
+
+        <h3 style="font-size: 14px; color: #ffffff; margin-bottom: 8px;">Diagnóstico do Ambiente:</h3>
+        <div style="background-color: #0d0d14; border: 1px solid #1e1e2e; border-radius: 8px; padding: 12px; font-size: 11px; color: #94a3b8; font-mono: monospace; line-height: 1.6;">
+          • <b>URL:</b> ${env.currentUrl || 'N/A'}<br>
+          • <b>Path:</b> ${env.path || 'N/A'}<br>
+          • <b>Navegador/SO:</b> ${env.userAgent || 'N/A'}<br>
+          • <b>Resolução:</b> ${env.screenResolution || 'N/A'}<br>
+          • <b>Versão do App:</b> ${env.appVersion || 'N/A'}<br>
+          • <b>Data/Hora:</b> ${env.timestamp || new Date().toISOString()}
+        </div>
+      </td>
+    </tr>
+
+    <tr>
+      <td align="center" style="padding: 16px; background-color: #0b0b10; border-top: 1px solid #1e1e2e; font-size: 11px; color: #475569;">
+        StoryForge Support System
       </td>
     </tr>
 

@@ -12,6 +12,8 @@ import authRoutes from '../routes/auth.js';
 import entityRoutes from '../routes/entities.js';
 import grammarRoutes from '../routes/grammar.js';
 import uploadRoutes from '../routes/upload.js';
+import supportRoutes from '../routes/support.js';
+
 import { 
   apiLimiter, 
   authLimiter, 
@@ -102,7 +104,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
-
+app.use('/api', supportRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

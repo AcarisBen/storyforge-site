@@ -1,5 +1,5 @@
 // src/pages/Configuracoes.jsx
-// Painel de Configurações do Usuário sem scrolls internos, campos padronizados e cores nacionais no Quem Somos Nós.
+// Painel de Configurações do Usuário com modal integrado para envio de diagnóstico de bugs.
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -12,8 +12,9 @@ import apiClient from '../api/apiClient';
 import { useToast } from '../hooks/useToast';
 import TermosDeUsoModal from '../components/TermosDeUsoModal';
 import PoliticaPrivacidadeModal from '../components/PoliticaPrivacidadeModal';
+import ReportBugModal from '../components/ReportBugModal';
 
-export default function Configuracoes({ currentUser, setCurrentUser }) {
+export default function Configuracoes({ currentUser, setCurrentUser, currentProjectId }) {
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState('perfil');
@@ -42,9 +43,10 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
-  // Modais Legais
+  // Modais Legais e de Suporte
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showBugModal, setShowBugModal] = useState(false);
 
   // Preferências de Cookies
   const getInitialCookiePreferences = () => {
@@ -102,7 +104,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
     }
   }, [currentUser]);
 
-  // Alternadores de Acessibilidade (Com Toast de aviso de implementação)
+  // Alternadores de Acessibilidade
   const handleToggleHighContrast = () => {
     const nextVal = !highContrast;
     setHighContrast(nextVal);
@@ -382,12 +384,10 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         })}
       </div>
 
-      {/* CONTÊINER PRINCIPAL SEM SCROLL (EXPANDE NATURALMENTE) */}
+      {/* CONTÊINER PRINCIPAL */}
       <div className="bg-[#12121a] border border-gray-800 rounded-2xl p-6 shadow-2xl w-full">
         
-        {/* ========================================================================= */}
         {/* ABA 1: PERFIL DO AUTOR */}
-        {/* ========================================================================= */}
         {activeTab === 'perfil' && (
           <form onSubmit={handleSaveProfile} className="space-y-6">
             
@@ -409,7 +409,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* DADOS DE IDENTIFICAÇÃO DO AUTOR - PADRONIZADOS COM h-10 */}
+            {/* DADOS DE IDENTIFICAÇÃO DO AUTOR */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               
               <div className="space-y-1.5">
@@ -475,9 +475,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
           </form>
         )}
 
-        {/* ========================================================================= */}
-        {/* ABA 2: E-MAIL & SEGURANÇA + ACESSIBILIDADE */}
-        {/* ========================================================================= */}
+        {/* ABA 2: E-MAIL & SEGURANÇA */}
         {activeTab === 'seguranca' && (
           <div className="space-y-6">
             <h2 className="text-sm font-bold text-white border-b border-gray-800 pb-3">E-mail & Segurança</h2>
@@ -531,7 +529,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
             </form>
 
-            {/* SEÇÃO DE ACESSIBILIDADE E VISÃO (AGORA NESTA ABA) */}
+            {/* ACESSIBILIDADE E VISÃO */}
             <div className="pt-4 border-t border-gray-800/80 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -599,9 +597,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
           </div>
         )}
 
-        {/* ========================================================================= */}
         {/* ABA 3: PRIVACIDADE & CONTA */}
-        {/* ========================================================================= */}
         {activeTab === 'privacidade' && (
           <div className="space-y-5">
             
@@ -722,9 +718,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* ABA 4: VERSÃO & SISTEMA (COM CORAÇÃO VERDE E AMARELO BRASILEIRO 🇧🇷) */}
-        {/* ========================================================================= */}
+        {/* ABA 4: VERSÃO & SISTEMA */}
         {activeTab === 'sobre' && (
           <div className="space-y-6">
             
@@ -770,7 +764,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
                 </div>
               </div>
 
-              {/* 3. QUEM SOMOS NÓS? (ÍCONE DO CORAÇÃO VERDE E AMARELO 🇧🇷) */}
+              {/* 3. QUEM SOMOS NÓS? */}
               <div className="p-4 bg-[#171724] border border-gray-800/90 rounded-2xl space-y-2 text-center flex flex-col justify-between">
                 <div className="space-y-2">
                   <div className="w-10 h-10 rounded-xl bg-emerald-950/90 border border-emerald-600/60 text-amber-400 flex items-center justify-center mx-auto shadow-md shadow-emerald-950/50">
@@ -802,18 +796,19 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
               </div>
             </div>
 
-            {/* CANAL DE DÚVIDAS E FEEDBACK (COM BADGE DE SUPORTE ATIVO) */}
+            {/* CANAL DE DÚVIDAS E FEEDBACK (BOTÃO DE REPORTAR BUG ATIVADO) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <a
-                href="mailto:app.storyforge@gmail.com?subject=Reportar%20Bug%20-%20StoryForge"
-                className="p-3 bg-[#171724] hover:bg-[#1f1f2e] border border-gray-800 rounded-xl flex items-center gap-2.5 text-xs text-gray-200 transition-all"
+              <button
+                type="button"
+                onClick={() => setShowBugModal(true)}
+                className="p-3 bg-[#171724] hover:bg-[#1f1f2e] border border-gray-800 rounded-xl flex items-center gap-2.5 text-xs text-gray-200 transition-all cursor-pointer text-left w-full"
               >
                 <Bug size={16} className="text-red-400 shrink-0" />
                 <div>
                   <span className="font-bold block text-white">Reportar um Bug</span>
                   <span className="text-[10px] text-gray-400">Envie um diagnóstico à equipe</span>
                 </div>
-              </a>
+              </button>
 
               <a
                 href="mailto:app.storyforge@gmail.com?subject=Sugest%C3%A3o%20-%20StoryForge"
@@ -885,7 +880,7 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
         </div>
       )}
 
-      {/* MODAIS POPUP DE TERMOS E PRIVACIDADE */}
+      {/* MODAIS POPUP DE TERMOS, PRIVACIDADE E REPORTAR BUG */}
       <TermosDeUsoModal 
         isOpen={showTermsModal} 
         onClose={() => setShowTermsModal(false)}
@@ -894,6 +889,12 @@ export default function Configuracoes({ currentUser, setCurrentUser }) {
       <PoliticaPrivacidadeModal 
         isOpen={showPrivacyModal} 
         onClose={() => setShowPrivacyModal(false)}
+      />
+
+      <ReportBugModal
+        isOpen={showBugModal}
+        onClose={() => setShowBugModal(false)}
+        currentUser={currentUser}
       />
 
     </div>
