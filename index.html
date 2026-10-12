@@ -3,14 +3,88 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="referrer" content="no-referrer" />
 		<title>StoryForge</title>
 
         <script type="text/javascript">
-            (function(c,l,a,r,i,t,y){
-                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window, document, "clarity", "script", "yfehlialoc");
+			(function () {
+				function captureSensitiveTokens() {
+					var url = new URL(window.location.href);
+					var fragmentParams = new URLSearchParams(url.hash.slice(1));
+					var confirmToken = url.searchParams.get('confirmToken') || fragmentParams.get('confirmToken');
+					var deleteToken = url.searchParams.get('deleteToken') || fragmentParams.get('deleteToken');
+					var resetToken = url.pathname.replace(/\/+$/, '') === '/reset-password'
+						? url.searchParams.get('token') || url.searchParams.get('resetToken') || fragmentParams.get('token') || fragmentParams.get('resetToken')
+						: url.searchParams.get('resetToken') || fragmentParams.get('resetToken');
+					var pendingTokens = {};
+
+					if (confirmToken) {
+						pendingTokens.confirmToken = confirmToken;
+						url.searchParams.delete('confirmToken');
+						fragmentParams.delete('confirmToken');
+					}
+					if (deleteToken) {
+						pendingTokens.deleteToken = deleteToken;
+						url.searchParams.delete('deleteToken');
+						fragmentParams.delete('deleteToken');
+					}
+					if (resetToken) {
+						pendingTokens.resetToken = resetToken;
+						url.searchParams.delete('token');
+						url.searchParams.delete('resetToken');
+						fragmentParams.delete('token');
+						fragmentParams.delete('resetToken');
+					}
+
+					if (!Object.keys(pendingTokens).length) return false;
+
+					window.__STORYFORGE_SENSITIVE_ROUTE__ = true;
+					window.__STORYFORGE_PENDING_TOKENS__ = pendingTokens;
+					url.hash = fragmentParams.toString();
+					window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+					window.dispatchEvent(new CustomEvent('storyforge:sensitive-tokens', { detail: pendingTokens }));
+					return true;
+				}
+
+				var hasSensitiveTokens = captureSensitiveTokens();
+				window.addEventListener('hashchange', captureSensitiveTokens);
+
+				window.storyforgeSetAnalyticsConsent = function (allowed) {
+					if (allowed && window.__STORYFORGE_SENSITIVE_ROUTE__) return;
+					if (typeof window.clarity === 'function') {
+						var consentState = allowed ? 'granted' : 'denied';
+						window.clarity('consentv2', { ad_Storage: consentState, analytics_Storage: consentState });
+					}
+					if (!allowed) return;
+
+					var preferences;
+					try {
+						preferences = JSON.parse(window.localStorage.getItem('storyforge_cookie_pref') || 'null');
+					} catch (_) {
+						preferences = null;
+					}
+					var analyticsAllowed = preferences
+						? preferences.analytics === true
+						: window.localStorage.getItem('cookie_consent') === 'granted';
+					if (!analyticsAllowed || window.__storyforgeClarityLoaded) return;
+
+					window.__storyforgeClarityLoaded = true;
+					(function (c, l, a, r, i, t, y) {
+						c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+						t = l.createElement(r);
+						t.async = 1;
+						t.src = 'https://www.clarity.ms/tag/' + i;
+						y = l.getElementsByTagName(r)[0];
+						y.parentNode.insertBefore(t, y);
+					})(window, document, 'clarity', 'script', 'yfehlialoc');
+				};
+
+				window.storyforgeLoadClarity = function () {
+					window.storyforgeSetAnalyticsConsent(true);
+				};
+
+				if (!hasSensitiveTokens) window.storyforgeLoadClarity();
+			})();
         </script>
 
 	</head>

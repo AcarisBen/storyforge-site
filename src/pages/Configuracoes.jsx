@@ -2,6 +2,7 @@
 // Painel de Configurações do Usuário com suporte a Acessibilidade e Documentações Legais.
 
 import React, { useState, useEffect } from 'react';
+import { usePostHog } from '@posthog/react';
 import { 
   User, Shield, Trash2, AlertTriangle, 
   Key, Info, CheckCircle, Cookie, FileText, Lock, 
@@ -19,6 +20,7 @@ import useAccessibility from '../hooks/useAccessibility';
 
 export default function Configuracoes({ currentUser, setCurrentUser, currentProjectId }) {
   const { showToast } = useToast();
+  const posthog = usePostHog();
 
   const [activeTab, setActiveTab] = useState('perfil');
 
@@ -164,20 +166,6 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
         }));
       }
 
-      try {
-        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        localStorage.setItem('user', JSON.stringify({ 
-          ...storedUser, 
-          name: cleanName, 
-          writerName: cleanName,
-          bio: bio.trim(),
-          primaryGenre,
-          website: website.trim()
-        }));
-      } catch (storageErr) {
-        console.error('Aviso no localStorage:', storageErr);
-      }
-
       showToast({
         type: 'success',
         title: 'Perfil Atualizado',
@@ -275,8 +263,11 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
 
     try {
       localStorage.setItem('storyforge_cookie_pref', JSON.stringify(updated));
-      const consentStatus = (updated.preferences || updated.analytics) ? 'granted' : 'essential';
+      const consentStatus = updated.analytics ? 'granted' : 'essential';
       localStorage.setItem('cookie_consent', consentStatus);
+      window.storyforgeSetAnalyticsConsent?.(updated.analytics);
+      if (updated.analytics) posthog?.opt_in_capturing();
+      else posthog?.opt_out_capturing();
       window.dispatchEvent(new Event('cookie_pref_updated'));
 
       showToast({
@@ -292,25 +283,12 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
   // Limpeza de Cache Local
   const handleClearCache = () => {
     try {
-      const token = localStorage.getItem('storyforge_token');
-      const user = localStorage.getItem('user');
-
-      localStorage.clear();
-
-      if (token) localStorage.setItem('storyforge_token', token);
-      if (user) localStorage.setItem('user', user);
-
-      const defaultPref = { essential: true, preferences: true, analytics: true };
-      localStorage.setItem('storyforge_cookie_pref', JSON.stringify(defaultPref));
-      localStorage.setItem('cookie_consent', 'granted');
-      
-      setCookiePreferences(defaultPref);
-      window.dispatchEvent(new Event('cookie_pref_updated'));
+      ['storyforge_token', 'token', 'user'].forEach((key) => localStorage.removeItem(key));
 
       showToast({
         type: 'info',
         title: 'Cache Limpo',
-        message: 'Os dados temporários de cache local foram limpos.'
+        message: 'Credenciais locais antigas foram removidas. Suas preferências de interface foram preservadas.'
       });
     } catch (err) {
       showToast({

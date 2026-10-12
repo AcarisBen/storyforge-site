@@ -9,14 +9,36 @@ import App from './App.jsx';
 import CookieConsentBanner from './components/CookieConsentBanner.jsx';
 import './index.css';
 
-// Verifica se o usuário já deu o consentimento prévio
-const hasConsent = localStorage.getItem('cookie_consent') === 'granted';
+try {
+  localStorage.removeItem('storyforge_token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+} catch (error) {
+  console.warn('Não foi possível limpar credenciais locais legadas:', error);
+}
+
+// Analytics só inicia se a categoria analítica foi autorizada explicitamente.
+let savedPreferences = null;
+let savedConsent = null;
+try {
+  savedPreferences = JSON.parse(localStorage.getItem('storyforge_cookie_pref') || 'null');
+  savedConsent = localStorage.getItem('cookie_consent');
+} catch {
+  savedPreferences = null;
+  savedConsent = null;
+}
+const hasConsent = savedPreferences
+  ? savedPreferences.analytics === true
+  : savedConsent === 'granted';
+
+const analyticsAllowed = hasConsent && !window.__STORYFORGE_SENSITIVE_ROUTE__;
+if (analyticsAllowed) window.storyforgeLoadClarity?.();
 
 const options = {
   api_host: 'https://us.i.posthog.com',
   // Desativa a captura por padrão se o usuário ainda não autorizou
-  opt_out_capturing_by_default: !hasConsent,
-  persistence: hasConsent ? 'localStorage+cookie' : 'memory',
+  opt_out_capturing_by_default: !analyticsAllowed,
+  persistence: analyticsAllowed ? 'localStorage+cookie' : 'memory',
   // Proteção LGPD: Mascara todo o texto e inputs para proteger o manuscrito dos autores
   mask_all_text: true,
   mask_all_element_attributes: true,

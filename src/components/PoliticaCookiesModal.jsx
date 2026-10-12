@@ -94,13 +94,13 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                       <span className="text-xs bg-black text-white px-2.5 py-0.5 rounded-full font-sans font-bold">Obrigatório</span>
                     </h4>
                     <p className="text-gray-800">
-                      <b>Finalidade:</b> Manutenção da autenticação segura, gestão de tokens de acesso JWT e prevenção contra ataques cibernéticos.
+                      <b>Finalidade:</b> Manutenção da sessão segura por cookie HttpOnly e proteção das requisições autenticadas.
                     </p>
                     <p className="text-gray-800">
                       <b>Base Legal (LGPD):</b> <i>Execução de Contrato (Art. 7º, V da LGPD)</i>. Não exige consentimento prévio (<i>opt-in</i>), pois sem esses registros a aplicação não pode funcionar nem autenticar o usuário.
                     </p>
                     <p className="text-xs text-gray-600 font-mono pt-1">
-                      Chaves utilizadas: <code>storyforge_token</code>, <code>user</code>, <i>cookies</i> seguros de sessão.
+                      Armazenamento utilizado: cookie HttpOnly de sessão. Não salvamos tokens de autenticação no armazenamento acessível por JavaScript.
                     </p>
                   </div>
 

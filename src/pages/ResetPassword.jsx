@@ -13,13 +13,21 @@ export default function ResetPassword({ token, onNavigateToLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!newPassword || newPassword.length < 6) {
-      alert('A nova senha deve ter no mínimo 6 caracteres.');
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      setStatus('error');
+      setMessage('A senha precisa ter 8 caracteres, letra maiúscula, minúscula e um caractere especial.');
+      return;
+    }
+
+    if (new TextEncoder().encode(newPassword).length > 72) {
+      setStatus('error');
+      setMessage('A senha não pode exceder 72 bytes em UTF-8.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert('As senhas não coincidem.');
+      setStatus('error');
+      setMessage('As senhas não coincidem.');
       return;
     }
 

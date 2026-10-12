@@ -18,12 +18,15 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 1, fieldSize: 64 * 1024, parts: 2 },
 });
 
-const hasAllowedImageSignature = (file) => {
+const getImageMimeFromSignature = (file) => {
   const bytes = file.buffer;
   const isPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const isWebp = bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
-  return isPng || isJpeg || isWebp;
+  if (isPng) return 'image/png';
+  if (isJpeg) return 'image/jpeg';
+  if (isWebp) return 'image/webp';
+  return null;
 };
 
 // Configura o transportador SMTP usando as variáveis do .env
@@ -57,7 +60,8 @@ router.post('/support/report-bug', requireAuth, supportLimiter, upload.single('s
       return res.status(400).json({ message: 'A descrição do erro é obrigatória.' });
     }
 
-    if (req.file && !hasAllowedImageSignature(req.file)) {
+    const imageMime = req.file ? getImageMimeFromSignature(req.file) : null;
+    if (req.file && (!imageMime || req.file.mimetype !== imageMime)) {
       return res.status(400).json({ message: 'O anexo não corresponde a uma imagem PNG, JPEG ou WebP válida.' });
     }
 
@@ -78,9 +82,9 @@ router.post('/support/report-bug', requireAuth, supportLimiter, upload.single('s
     const attachments = [];
     if (req.file) {
       attachments.push({
-        filename: req.file.mimetype === 'image/png' ? 'screenshot.png' : req.file.mimetype === 'image/webp' ? 'screenshot.webp' : 'screenshot.jpg',
+        filename: imageMime === 'image/png' ? 'screenshot.png' : imageMime === 'image/webp' ? 'screenshot.webp' : 'screenshot.jpg',
         content: req.file.buffer,
-        contentType: req.file.mimetype,
+        contentType: imageMime,
       });
     }
 

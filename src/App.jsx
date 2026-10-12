@@ -216,19 +216,28 @@ export default function App() {
 
   const [authScreen, setAuthScreen] = useState('login');
   
-  const [confirmToken, setConfirmToken] = useState(null);
-  const [resetToken, setResetToken] = useState(null);
-  const [deleteToken, setDeleteToken] = useState(null);
+  const [urlTokens] = useState(() => {
+    return window.__STORYFORGE_PENDING_TOKENS__ || {};
+  });
+  const [confirmToken, setConfirmToken] = useState(urlTokens.confirmToken || null);
+  const [resetToken, setResetToken] = useState(urlTokens.resetToken || null);
+  const [deleteToken, setDeleteToken] = useState(urlTokens.deleteToken || null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const cToken = params.get('confirmToken');
-    const rToken = params.get('resetToken');
-    const dToken = params.get('deleteToken');
+    delete window.__STORYFORGE_PENDING_TOKENS__;
+  }, []);
 
-    if (cToken) setConfirmToken(cToken);
-    if (rToken) setResetToken(rToken);
-    if (dToken) setDeleteToken(dToken);
+  useEffect(() => {
+    const receiveTokens = (event) => {
+      const pendingTokens = event.detail || {};
+      if (pendingTokens.confirmToken) setConfirmToken(pendingTokens.confirmToken);
+      if (pendingTokens.resetToken) setResetToken(pendingTokens.resetToken);
+      if (pendingTokens.deleteToken) setDeleteToken(pendingTokens.deleteToken);
+      delete window.__STORYFORGE_PENDING_TOKENS__;
+    };
+
+    window.addEventListener('storyforge:sensitive-tokens', receiveTokens);
+    return () => window.removeEventListener('storyforge:sensitive-tokens', receiveTokens);
   }, []);
 
   const clearUrlTokens = () => {
@@ -236,6 +245,8 @@ export default function App() {
     setResetToken(null);
     setDeleteToken(null);
     window.history.replaceState({}, document.title, window.location.pathname);
+    window.__STORYFORGE_SENSITIVE_ROUTE__ = false;
+    window.storyforgeLoadClarity?.();
     setAuthScreen('login');
   };
 

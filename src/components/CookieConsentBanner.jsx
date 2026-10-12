@@ -42,6 +42,7 @@ export default function CookieConsentBanner() {
     if (posthog) {
       posthog.opt_in_capturing();
     }
+    window.storyforgeSetAnalyticsConsent?.(true);
 
     window.dispatchEvent(new Event('cookie_pref_updated'));
     setShowBanner(false);
@@ -58,6 +59,7 @@ export default function CookieConsentBanner() {
     if (posthog) {
       posthog.opt_out_capturing();
     }
+    window.storyforgeSetAnalyticsConsent?.(false);
 
     window.dispatchEvent(new Event('cookie_pref_updated'));
     setShowBanner(false);

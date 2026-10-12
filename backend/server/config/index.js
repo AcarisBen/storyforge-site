@@ -35,9 +35,14 @@ if (!JWT_SECRET || JWT_SECRET.trim().length < 32 || JWT_SECRET === 'secret123') 
 }
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
 
-const trustedProxyHops = Number.parseInt(process.env.TRUST_PROXY_HOPS || '0', 10);
-if (!Number.isInteger(trustedProxyHops) || trustedProxyHops < 0) {
+const trustProxySetting = process.env.TRUST_PROXY_HOPS;
+if (isProduction && !/^(0|[1-9]\d*)$/.test(trustProxySetting || '')) {
+  throw new Error('TRUST_PROXY_HOPS deve ser configurado explicitamente em produção.');
+}
+const trustedProxyHops = trustProxySetting === undefined ? 0 : Number(trustProxySetting);
+if (!Number.isSafeInteger(trustedProxyHops) || trustedProxyHops < 0) {
   throw new Error('TRUST_PROXY_HOPS deve ser um inteiro maior ou igual a zero.');
 }
 app.set('trust proxy', trustedProxyHops);
@@ -62,19 +67,40 @@ app.use(
 );
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
-const isProduction = process.env.NODE_ENV === 'production';
+let frontendOrigin = null;
 
-if (isProduction && (!FRONTEND_URL || !FRONTEND_URL.startsWith('https://'))) {
+if (FRONTEND_URL) {
+  let frontendUrl;
+  try {
+    frontendUrl = new URL(FRONTEND_URL);
+  } catch {
+    throw new Error('FRONTEND_URL deve ser uma origem HTTP(S) válida.');
+  }
+  if (!['http:', 'https:'].includes(frontendUrl.protocol) || frontendUrl.pathname !== '/' || frontendUrl.search || frontendUrl.hash) {
+    throw new Error('FRONTEND_URL deve conter somente a origem, sem caminho, query ou fragmento.');
+  }
+  frontendOrigin = frontendUrl.origin;
+}
+
+if (isProduction && (!frontendOrigin || !frontendOrigin.startsWith('https://'))) {
   throw new Error('FRONTEND_URL HTTPS é obrigatória em produção.');
 }
+
+if (isProduction && (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
+  throw new Error('EMAIL_HOST, EMAIL_USER e EMAIL_PASS são obrigatórios em produção.');
+}
+
+const isAllowedBrowserOrigin = (origin) => (
+  (frontendOrigin && origin === frontendOrigin) ||
+  (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
+);
 
 // Configuração de CORS para desenvolvimento e produção
 app.use(cors({
   origin: (origin, callback) => {
     if (
       !origin || 
-      (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) ||
-      (FRONTEND_URL && origin === FRONTEND_URL)
+      isAllowedBrowserOrigin(origin)
     ) {
       callback(null, true);
     } else {
@@ -83,6 +109,18 @@ app.use(cors({
   },
   credentials: true // Permite envio/recebimento de cookies HttpOnly
 }));
+
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+
+  const origin = req.get('origin');
+  const fetchSite = req.get('sec-fetch-site');
+  if (fetchSite === 'cross-site' || origin === 'null' || (origin && !isAllowedBrowserOrigin(origin))) {
+    return res.status(403).json({ error: 'Origem não autorizada para esta operação.' });
+  }
+
+  return next();
+});
 
 app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
@@ -116,14 +154,17 @@ app.use('/api', supportRoutes);
 
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
-  if (error instanceof multer.MulterError || error.message?.includes('Unexpected field')) {
+  if (error.name === 'MulterError' || error.message?.includes('Unexpected field')) {
     return res.status(400).json({ error: 'O arquivo enviado é inválido ou excede os limites permitidos.' });
   }
   if (error.message === 'Bloqueado pelo CORS') {
     return res.status(403).json({ error: 'Origem não autorizada.' });
   }
-  console.error('Erro não tratado na API:', error.message);
-  return res.status(500).json({ error: 'Erro interno do servidor.' });
+  const statusCode = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+    ? error.status
+    : 500;
+  if (statusCode === 500) console.error('Erro não tratado na API:', error.message);
+  return res.status(statusCode).json({ error: statusCode === 500 ? 'Erro interno do servidor.' : 'Requisição inválida.' });
 });
 
 const PORT = process.env.PORT || 3000;

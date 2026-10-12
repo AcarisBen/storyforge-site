@@ -536,7 +536,10 @@ export default function Escrita({ projectId, onNavigate }) {
           apiClient.get(`/entities/projects/${projectId}/twists`).catch(() => ({ data: [] })),
         ]);
 
-        const loadedChapters = resChapters.data || [];
+        const loadedChapters = (resChapters.data || []).map((chapter) => ({
+          ...chapter,
+          content: sanitizeHtml(chapter.content || ''),
+        }));
         setChapters(loadedChapters);
         if (loadedChapters.length > 0) {
           setSelectedId(loadedChapters[0].id);
@@ -1008,9 +1011,10 @@ useEffect(() => {
   }
 
   function updateSelectedChapter(key, value) {
+    const safeValue = key === 'content' ? sanitizeHtml(value) : value;
     setSavingStatus('Salvando...');
     setChapters((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, [key]: value } : c))
+      prev.map((c) => (c.id === selectedId ? { ...c, [key]: safeValue } : c))
     );
 
     if (!selectedId) return;
@@ -1544,6 +1548,7 @@ useEffect(() => {
                 <div
                   ref={editorRef}
                   contentEditable
+                  data-clarity-mask="true"
                   onInput={handleEditorInput}
                   onKeyUp={checkActiveFormats}
                   onMouseUp={checkActiveFormats}

@@ -16,8 +16,6 @@ export default function ConfirmDelete({ token, onNavigateToLogin }) {
     const executeDelete = async () => {
       try {
         const res = await apiClient.post('/auth/confirm-delete', { token });
-        localStorage.removeItem('storyforge_token');
-        localStorage.removeItem('user');
         setStatus('success');
         setMessage(res.data?.message || 'Sua conta foi excluída com sucesso.');
       } catch (err) {

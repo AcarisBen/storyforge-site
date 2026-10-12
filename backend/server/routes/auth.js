@@ -20,15 +20,30 @@ const dnsPromises = dns.promises;
 // Hash BCRYPT fictício pré-calculado para mitigar Timing Attacks no Login
 const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
-// URL base e Chave Secreta JWT ancoradas em variáveis de ambiente
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-const JWT_SECRET = process.env.JWT_SECRET;
+const hashOneTimeToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const isOneTimeToken = (token) => typeof token === 'string' && /^[a-f\d]{64}$/i.test(token);
 
+// URL base e Chave Secreta JWT ancoradas em variáveis de ambiente
+const configuredFrontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+const frontendUrl = new URL(configuredFrontendUrl);
+if (!['http:', 'https:'].includes(frontendUrl.protocol) || frontendUrl.pathname !== '/' || frontendUrl.search || frontendUrl.hash) {
+  throw new Error('FRONTEND_URL deve ser uma origem HTTP(S) válida, sem caminho, query ou fragmento.');
+}
+const FRONTEND_URL = frontendUrl.origin;
+const JWT_SECRET = process.env.JWT_SECRET;
+const cookieSameSite = (process.env.COOKIE_SAME_SITE || (process.env.NODE_ENV === 'production' ? 'strict' : 'lax')).toLowerCase();
+
+if (!['strict', 'lax', 'none'].includes(cookieSameSite)) {
+  throw new Error('COOKIE_SAME_SITE deve ser strict, lax ou none.');
+}
+if (cookieSameSite === 'none' && process.env.NODE_ENV !== 'production') {
+  throw new Error('COOKIE_SAME_SITE=none só pode ser usado em produção HTTPS.');
+}
 // Configuração de Segurança para Cookies HttpOnly
 const COOKIE_OPTIONS = {
   httpOnly: true, // Proteção contra XSS
-  secure: process.env.NODE_ENV === 'production', // Requer HTTPS em produção
-  sameSite: process.env.COOKIE_SAME_SITE || (process.env.NODE_ENV === 'production' ? 'strict' : 'lax'), // Cross-site HTTPS pode usar COOKIE_SAME_SITE=none
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: cookieSameSite,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
 };
 
@@ -44,8 +59,8 @@ const extractUserId = (req) => {
   if (!token) return null;
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded.userId;
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    return typeof decoded.userId === 'string' && decoded.userId.length > 0 ? decoded.userId : null;
   } catch (err) {
     return null; // Token inválido, expirado ou adulterado
   }
@@ -55,15 +70,16 @@ const extractUserId = (req) => {
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false,
+  secure: Number(process.env.EMAIL_PORT) === 465,
   auth: {
-    user: process.env.EMAIL_USER || 'app.storyforge@gmail.com',
+    user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
 
 // Helper: Validação de Senha Forte
 function isStrongPassword(password) {
+  if (typeof password !== 'string' || Buffer.byteLength(password, 'utf8') > 72) return false;
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
@@ -97,8 +113,11 @@ router.post('/register', async (req, res) => {
   try {
     const { fullName, writerName, email, password, acceptedTerms, acceptedAge } = req.body;
 
-    if (!fullName || !writerName || !email || !password) {
+    if (typeof fullName !== 'string' || typeof writerName !== 'string' || typeof email !== 'string' || typeof password !== 'string' || !fullName.trim() || !writerName.trim() || !email.trim() || !password) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+    }
+    if (fullName.length > 160 || writerName.length > 160 || email.length > 254 || password.length > 128) {
+      return res.status(400).json({ message: 'Um ou mais campos excedem o tamanho permitido.' });
     }
 
     if (!acceptedTerms || !acceptedAge) {
@@ -143,7 +162,7 @@ router.post('/register', async (req, res) => {
           name: writerName,
           password: hashedPassword,
           isVerified: false,
-          verificationToken: confirmToken,
+          verificationToken: hashOneTimeToken(confirmToken),
           verificationTokenExp: tokenExp,
           acceptedTerms: true,
           termsVersion: currentTermsVersion,
@@ -159,7 +178,7 @@ router.post('/register', async (req, res) => {
           writerName,
           name: writerName,
           password: hashedPassword,
-          verificationToken: confirmToken,
+          verificationToken: hashOneTimeToken(confirmToken),
           verificationTokenExp: tokenExp,
           acceptedTerms: true,
           termsVersion: currentTermsVersion,
@@ -169,10 +188,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const confirmationLink = `${FRONTEND_URL}/?confirmToken=${confirmToken}`;
+    const confirmationLink = `${FRONTEND_URL}/#confirmToken=${encodeURIComponent(confirmToken)}`;
 
     const mailOptions = {
-      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
+      from: `"StoryForge" <${process.env.EMAIL_USER}>`,
       to: cleanEmail,
       subject: '🔨 Confirme seu e-mail — StoryForge',
       html: getConfirmationEmailHTML(writerName || fullName, confirmationLink),
@@ -181,7 +200,8 @@ router.post('/register', async (req, res) => {
     try {
       await transporter.sendMail(mailOptions);
     } catch (mailError) {
-      console.error('Erro ao enviar e-mail de ativação:', mailError);
+      console.error('Erro ao enviar e-mail de ativação:', mailError.message);
+      return res.status(503).json({ message: 'Cadastro criado, mas o e-mail de ativação não pôde ser enviado. Tente novamente.' });
     }
 
     return res.status(201).json({
@@ -197,28 +217,23 @@ router.post('/register', async (req, res) => {
 router.post('/confirm-email', async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).json({ message: 'Token de verificação ausente.' });
-
-    const user = await prisma.user.findFirst({
-      where: { verificationToken: token },
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Link de verificação inválido ou já utilizado.' });
+    if (!isOneTimeToken(token)) {
+      return res.status(400).json({ message: 'Token de verificação ausente.' });
     }
 
-    if (user.verificationTokenExp && user.verificationTokenExp < new Date()) {
-      return res.status(400).json({ message: 'O link de verificação expirou. Faça o cadastro novamente.' });
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
+    const tokenCandidates = [hashOneTimeToken(token), token];
+    const result = await prisma.user.updateMany({
+      where: { verificationToken: { in: tokenCandidates }, verificationTokenExp: { gt: new Date() } },
       data: {
         isVerified: true,
         verificationToken: null,
         verificationTokenExp: null,
       },
     });
+
+    if (result.count !== 1) {
+      return res.status(400).json({ message: 'Link de verificação inválido, expirado ou já utilizado.' });
+    }
 
     return res.status(200).json({ message: 'E-mail verificado com sucesso! Sua conta está ativa.' });
   } catch (err) {
@@ -254,12 +269,22 @@ router.post('/login', async (req, res) => {
     }
 
     // Emissão do Token JWT
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d', algorithm: 'HS256' });
 
     // Envio via Cookie HttpOnly
     res.cookie('token', token, COOKIE_OPTIONS);
 
-    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
+    const {
+      password: _password,
+      verificationToken: _verificationToken,
+      verificationTokenExp: _verificationTokenExp,
+      resetToken: _resetToken,
+      resetTokenExp: _resetTokenExp,
+      deleteToken: _deleteToken,
+      deleteTokenExp: _deleteTokenExp,
+      signupIp: _signupIp,
+      ...userClean
+    } = user;
 
     return res.status(200).json({ user: userClean });
   } catch (err) {
@@ -283,7 +308,17 @@ router.get('/me', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(401).json({ message: 'Sessão inválida' });
 
-    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
+    const {
+      password: _password,
+      verificationToken: _verificationToken,
+      verificationTokenExp: _verificationTokenExp,
+      resetToken: _resetToken,
+      resetTokenExp: _resetTokenExp,
+      deleteToken: _deleteToken,
+      deleteTokenExp: _deleteTokenExp,
+      signupIp: _signupIp,
+      ...userClean
+    } = user;
     return res.status(200).json({ user: userClean });
   } catch (err) {
     return res.status(401).json({ message: 'Erro ao obter sessão' });
@@ -294,7 +329,9 @@ router.get('/me', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Informe o seu e-mail.' });
+    if (typeof email !== 'string' || !email.trim() || email.length > 254) {
+      return res.status(400).json({ message: 'Informe um e-mail válido.' });
+    }
 
     const cleanEmail = email.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -309,13 +346,13 @@ router.post('/forgot-password', async (req, res) => {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { resetToken, resetTokenExp },
+      data: { resetToken: hashOneTimeToken(resetToken), resetTokenExp },
     });
 
-    const resetLink = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const resetLink = `${FRONTEND_URL}/#resetToken=${encodeURIComponent(resetToken)}`;
 
     const mailOptions = {
-      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
+      from: `"StoryForge" <${process.env.EMAIL_USER}>`,
       to: cleanEmail,
       subject: '🔨 Redefinição de Senha — StoryForge',
       html: getResetPasswordEmailHTML(user.writerName || user.fullName || user.name, resetLink),
@@ -335,7 +372,7 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    if (!token || !newPassword) {
+    if (!isOneTimeToken(token) || typeof newPassword !== 'string' || !newPassword) {
       return res.status(400).json({ message: 'Token e nova senha são obrigatórios.' });
     }
 
@@ -345,28 +382,29 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
+    const tokenCandidates = [hashOneTimeToken(token), token];
     const user = await prisma.user.findFirst({
-      where: { resetToken: token },
+      where: { resetToken: { in: tokenCandidates }, resetTokenExp: { gt: new Date() } },
     });
 
     if (!user) {
       return res.status(400).json({ message: 'Link de redefinição inválido ou expirado.' });
     }
 
-    if (user.resetTokenExp && user.resetTokenExp < new Date()) {
-      return res.status(400).json({ message: 'Este link de redefinição expirou. Solicite um novo.' });
-    }
-
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await prisma.user.update({
-      where: { id: user.id },
+    const result = await prisma.user.updateMany({
+      where: { id: user.id, resetToken: { in: tokenCandidates }, resetTokenExp: { gt: new Date() } },
       data: {
         password: hashedPassword,
         resetToken: null,
         resetTokenExp: null,
       },
     });
+
+    if (result.count !== 1) {
+      return res.status(400).json({ message: 'Link de redefinição inválido ou expirado.' });
+    }
 
     return res.status(200).json({ message: 'Senha alterada com sucesso! Você já pode fazer login.' });
   } catch (err) {
@@ -383,7 +421,7 @@ router.put('/change-password', async (req, res) => {
 
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword || !newPassword || newPassword.length > 128) {
       return res.status(400).json({ message: 'Informe a senha atual e a nova senha.' });
     }
 
@@ -429,13 +467,13 @@ router.post('/request-delete', async (req, res) => {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { deleteToken, deleteTokenExp },
+      data: { deleteToken: hashOneTimeToken(deleteToken), deleteTokenExp },
     });
 
-    const deleteLink = `${FRONTEND_URL}/?deleteToken=${deleteToken}`;
+    const deleteLink = `${FRONTEND_URL}/#deleteToken=${encodeURIComponent(deleteToken)}`;
 
     const mailOptions = {
-      from: `"StoryForge" <${process.env.EMAIL_USER || 'app.storyforge@gmail.com'}>`,
+      from: `"StoryForge" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: '🔨 Confirmação de Exclusão de Conta — StoryForge',
       html: getDeleteAccountEmailHTML(user.writerName || user.fullName || user.name, deleteLink),
@@ -454,21 +492,18 @@ router.post('/request-delete', async (req, res) => {
 router.post('/confirm-delete', async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).json({ message: 'Token de exclusão ausente.' });
+    if (!isOneTimeToken(token)) {
+      return res.status(400).json({ message: 'Token de exclusão ausente.' });
+    }
 
-    const user = await prisma.user.findFirst({
-      where: { deleteToken: token },
+    const tokenCandidates = [hashOneTimeToken(token), token];
+    const result = await prisma.user.deleteMany({
+      where: { deleteToken: { in: tokenCandidates }, deleteTokenExp: { gt: new Date() } },
     });
 
-    if (!user) {
-      return res.status(400).json({ message: 'Link de exclusão inválido ou já utilizado.' });
+    if (result.count !== 1) {
+      return res.status(400).json({ message: 'Link de exclusão inválido, expirado ou já utilizado.' });
     }
-
-    if (user.deleteTokenExp && user.deleteTokenExp < new Date()) {
-      return res.status(400).json({ message: 'Este link de exclusão expirou.' });
-    }
-
-    await prisma.user.delete({ where: { id: user.id } });
 
     res.clearCookie('token', COOKIE_OPTIONS);
 
@@ -487,7 +522,7 @@ router.put('/profile', async (req, res) => {
 
     const { name } = req.body;
 
-    if (!name || !name.trim()) {
+    if (typeof name !== 'string' || !name.trim() || name.length > 160) {
       return res.status(400).json({ error: 'O pseudônimo é obrigatório.' });
     }
 
@@ -501,7 +536,17 @@ router.put('/profile', async (req, res) => {
       },
     });
 
-    const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = updatedUser;
+    const {
+      password: _password,
+      verificationToken: _verificationToken,
+      verificationTokenExp: _verificationTokenExp,
+      resetToken: _resetToken,
+      resetTokenExp: _resetTokenExp,
+      deleteToken: _deleteToken,
+      deleteTokenExp: _deleteTokenExp,
+      signupIp: _signupIp,
+      ...userClean
+    } = updatedUser;
     return res.json({ user: userClean });
   } catch (err) {
     console.error('Erro ao atualizar perfil:', err);

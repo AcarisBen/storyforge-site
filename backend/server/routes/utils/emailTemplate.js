@@ -40,7 +40,7 @@ export function getConfirmationEmailHTML(userName, confirmationLink) {
     <tr>
       <td style="padding: 36px 32px; text-align: left;">
         <h1 style="font-size: 20px; font-weight: 700; color: #ffffff; margin-top: 0; margin-bottom: 16px;">
-          Falta pouco para forjar suas histórias, ${userName || 'Autor'}!
+          Falta pouco para forjar suas histórias, ${escapeHTML(userName || 'Autor')}!
         </h1>
         
         <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px;">
@@ -50,7 +50,7 @@ export function getConfirmationEmailHTML(userName, confirmationLink) {
         <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
           <tr>
             <td align="center" style="border-radius: 12px; background-color: #8b5cf6;">
-              <a href="${confirmationLink}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
+              <a href="${escapeHTML(confirmationLink)}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
                 Confirmar Meu E-mail
               </a>
             </td>
@@ -61,7 +61,7 @@ export function getConfirmationEmailHTML(userName, confirmationLink) {
 
         <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin: 0; word-break: break-all;">
           Se o botão não funcionar, copie e cole este link no navegador:<br>
-          <a href="${confirmationLink}" style="color: #c084fc; text-decoration: none;">${confirmationLink}</a>
+          <a href="${escapeHTML(confirmationLink)}" style="color: #c084fc; text-decoration: none;">${escapeHTML(confirmationLink)}</a>
         </p>
       </td>
     </tr>
@@ -100,13 +100,13 @@ export function getResetPasswordEmailHTML(userName, resetLink) {
         </h1>
         
         <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
-          Olá, <b>${userName || 'Autor'}</b>! Recebemos uma solicitação para redefinir a senha de acesso da sua conta no <b>StoryForge</b>.
+          Olá, <b>${escapeHTML(userName || 'Autor')}</b>! Recebemos uma solicitação para redefinir a senha de acesso da sua conta no <b>StoryForge</b>.
         </p>
 
         <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
           <tr>
             <td align="center" style="border-radius: 12px; background-color: #8b5cf6;">
-              <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
+              <a href="${escapeHTML(resetLink)}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
                 Redefinir Minha Senha
               </a>
             </td>
@@ -123,7 +123,7 @@ export function getResetPasswordEmailHTML(userName, resetLink) {
 
         <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin: 0; word-break: break-all;">
           Se o botão não funcionar, copie e cole este link no navegador:<br>
-          <a href="${resetLink}" style="color: #c084fc; text-decoration: none;">${resetLink}</a>
+          <a href="${escapeHTML(resetLink)}" style="color: #c084fc; text-decoration: none;">${escapeHTML(resetLink)}</a>
         </p>
       </td>
     </tr>
@@ -162,7 +162,7 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
         </h1>
         
         <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px;">
-          Olá, <b>${userName || 'Autor'}</b>. Recebemos uma solicitação no painel do <b>StoryForge</b> para excluir permanentemente a sua conta.
+          Olá, <b>${escapeHTML(userName || 'Autor')}</b>. Recebemos uma solicitação no painel do <b>StoryForge</b> para excluir permanentemente a sua conta.
         </p>
 
         <div style="background-color: #1f1213; border: 1px solid #7f1d1d; border-radius: 10px; padding: 14px; margin-bottom: 24px;">
@@ -174,7 +174,7 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
         <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
           <tr>
             <td align="center" style="border-radius: 12px; background-color: #ef4444;">
-              <a href="${deleteLink}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
+              <a href="${escapeHTML(deleteLink)}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 12px;">
                 Excluir Minha Conta Definitivamente
               </a>
             </td>
@@ -185,7 +185,7 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
 
         <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin: 0; word-break: break-all;">
           Se o botão não funcionar, copie e cole este link no navegador:<br>
-          <a href="${deleteLink}" style="color: #f87171; text-decoration: none;">${deleteLink}</a>
+          <a href="${escapeHTML(deleteLink)}" style="color: #f87171; text-decoration: none;">${escapeHTML(deleteLink)}</a>
         </p>
       </td>
     </tr>
@@ -205,6 +205,7 @@ export function getDeleteAccountEmailHTML(userName, deleteLink) {
 // 4. TEMPLATE DE E-MAIL DE REPORT DE BUG (Enviado para a equipe)
 export function getBugReportEmailHTML(data) {
   const env = data.environment || {};
+  const value = (input, fallback = 'N/A') => escapeHTML(input || fallback);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -224,25 +225,25 @@ export function getBugReportEmailHTML(data) {
         </h1>
 
         <div style="background-color: #171724; border: 1px solid #28283a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>Autor:</b> ${data.userName || 'N/A'} (&lt;${data.userEmail}&gt;)</p>
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>User ID:</b> ${data.userId || 'N/A'}</p>
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #c084fc;"><b>Módulo:</b> ${data.module}</p>
-          <p style="margin: 0; font-size: 13px; color: #f87171;"><b>Tipo do Problema:</b> ${data.bugType}</p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>Autor:</b> ${value(data.userName)} (&lt;${value(data.userEmail)}&gt;)</p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #cbd5e1;"><b>User ID:</b> ${value(data.userId)}</p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #c084fc;"><b>Módulo:</b> ${value(data.module)}</p>
+          <p style="margin: 0; font-size: 13px; color: #f87171;"><b>Tipo do Problema:</b> ${value(data.bugType)}</p>
         </div>
 
         <h3 style="font-size: 14px; color: #ffffff; margin-bottom: 8px;">Descrição detalhada:</h3>
         <div style="background-color: #0d0d14; border-left: 3px solid #a855f7; border-radius: 6px; padding: 14px; font-size: 13px; color: #e2e8f0; white-space: pre-wrap; line-height: 1.5; margin-bottom: 20px;">
-${data.description}
+${value(data.description, '')}
         </div>
 
         <h3 style="font-size: 14px; color: #ffffff; margin-bottom: 8px;">Diagnóstico do Ambiente:</h3>
         <div style="background-color: #0d0d14; border: 1px solid #1e1e2e; border-radius: 8px; padding: 12px; font-size: 11px; color: #94a3b8; font-mono: monospace; line-height: 1.6;">
-          • <b>URL:</b> ${env.currentUrl || 'N/A'}<br>
-          • <b>Path:</b> ${env.path || 'N/A'}<br>
-          • <b>Navegador/SO:</b> ${env.userAgent || 'N/A'}<br>
-          • <b>Resolução:</b> ${env.screenResolution || 'N/A'}<br>
-          • <b>Versão do App:</b> ${env.appVersion || 'N/A'}<br>
-          • <b>Data/Hora:</b> ${env.timestamp || new Date().toISOString()}
+          • <b>URL:</b> ${value(env.currentUrl)}<br>
+          • <b>Path:</b> ${value(env.path)}<br>
+          • <b>Navegador/SO:</b> ${value(env.userAgent)}<br>
+          • <b>Resolução:</b> ${value(env.screenResolution)}<br>
+          • <b>Versão do App:</b> ${value(env.appVersion)}<br>
+          • <b>Data/Hora:</b> ${value(env.timestamp, new Date().toISOString())}
         </div>
       </td>
     </tr>

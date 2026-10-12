@@ -240,11 +240,6 @@ export default function Home({ onSelectProject, currentUser, setCurrentUser }) {
   // LOGOUT CORRIGIDO PARA INTEGRAR COM O AUTHCONTEXT
   const handleLogout = async () => {
     try {
-      localStorage.removeItem('storyforge_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.clear();
-
       if (logout) {
         await logout();
       } else if (setCurrentUser) {
