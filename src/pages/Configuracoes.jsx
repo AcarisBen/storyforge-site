@@ -13,6 +13,7 @@ import { useToast } from '../hooks/useToast';
 import TermosDeUsoModal from '../components/TermosDeUsoModal';
 import PoliticaPrivacidadeModal from '../components/PoliticaPrivacidadeModal';
 import ReportBugModal from '../components/ReportBugModal';
+import SuggestIdeaModal from '../components/SuggestIdeaModal';
 
 export default function Configuracoes({ currentUser, setCurrentUser, currentProjectId }) {
   const { showToast } = useToast();
@@ -47,6 +48,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
+  const [showIdeaModal, setShowIdeaModal] = useState(false);
 
   // Preferências de Cookies
   const getInitialCookiePreferences = () => {
@@ -810,16 +812,17 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                 </div>
               </button>
 
-              <a
-                href="mailto:app.storyforge@gmail.com?subject=Sugest%C3%A3o%20-%20StoryForge"
-                className="p-3 bg-[#171724] hover:bg-[#1f1f2e] border border-gray-800 rounded-xl flex items-center gap-2.5 text-xs text-gray-200 transition-all"
+              <button
+                type="button"
+                onClick={() => setShowIdeaModal(true)}
+                className="p-3 bg-[#171724] hover:bg-[#1f1f2e] border border-gray-800 rounded-xl flex items-center gap-2.5 text-xs text-gray-200 transition-all text-left w-full"
               >
                 <MessageSquare size={16} className="text-purple-400 shrink-0" />
                 <div>
                   <span className="font-bold block text-white">Sugerir Ideia</span>
                   <span className="text-[10px] text-gray-400">Ajude a evoluir a plataforma</span>
                 </div>
-              </a>
+              </button>
             </div>
 
           </div>
@@ -894,6 +897,12 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
       <ReportBugModal
         isOpen={showBugModal}
         onClose={() => setShowBugModal(false)}
+        currentUser={currentUser}
+      />
+
+      <SuggestIdeaModal
+        isOpen={showIdeaModal}
+        onClose={() => setShowIdeaModal(false)}
         currentUser={currentUser}
       />
 

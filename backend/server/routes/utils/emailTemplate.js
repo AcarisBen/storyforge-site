@@ -258,3 +258,37 @@ ${data.description}
 </body>
 </html>`;
 }
+
+export function getIdeaSuggestionEmailHTML(data) {
+  const value = (input, fallback = 'N/A') => escapeHTML(input || fallback);
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Nova sugestão de melhoria - StoryForge</title>
+</head>
+<body style="margin:0;padding:24px;background:#0b0b10;font-family:Arial,sans-serif;color:#e2e8f0;">
+  <table align="center" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;background:#12121c;border:1px solid #28283a;border-radius:12px;overflow:hidden;">
+    ${getHeaderHTML()}
+    <tr><td style="padding:28px;">
+      <h1 style="margin:0 0 18px;color:#fbbf24;font-size:20px;">Nova sugestão para o StoryForge</h1>
+      <div style="padding:14px;background:#171724;border:1px solid #28283a;border-radius:8px;margin-bottom:18px;">
+        <p><b>Categoria:</b> ${value(data.category)}</p>
+        <p><b>Ideia:</b> ${value(data.title)}</p>
+        <p><b>Autor:</b> ${value(data.userName)} (${value(data.userEmail)})</p>
+        <p><b>ID do usuário:</b> ${value(data.userId)}</p>
+      </div>
+      <h2 style="font-size:14px;color:#fff;">Como funcionaria</h2>
+      <div style="white-space:pre-wrap;line-height:1.6;padding:14px;background:#0d0d14;border-left:3px solid #a855f7;border-radius:6px;">${value(data.description, '')}</div>
+      ${data.benefit ? `<h2 style="font-size:14px;color:#fff;margin-top:20px;">Benefício para o fluxo</h2><div style="white-space:pre-wrap;line-height:1.6;padding:14px;background:#0d0d14;border-radius:6px;">${value(data.benefit, '')}</div>` : ''}
+      <div style="margin-top:20px;color:#94a3b8;font-size:12px;line-height:1.6;">
+        <b>URL:</b> ${value(data.currentUrl)}<br>
+        <b>Navegador:</b> ${value(data.userAgent)}<br>
+        <b>Enviado em:</b> ${value(data.timestamp)}
+      </div>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
