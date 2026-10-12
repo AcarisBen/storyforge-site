@@ -66,13 +66,13 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
               {/* SEÇÃO 1 */}
               <section className="space-y-3">
                 <h3 className="text-base md:text-lg font-extrabold text-black uppercase tracking-wide border-b border-gray-300 pb-1">
-                  1. O que são Cookies e Tecnologias de Armazenamento Local?
+                  1. O que são <i>Cookies</i> e Tecnologias de Armazenamento Local?
                 </h3>
                 <p>
-                  <b>1.1. Cookies:</b> São pequenos arquivos de texto salvos pelo navegador no seu dispositivo quando você visita uma plataforma web. Eles permitem reconhecer sua sessão e armazenar pequenas informações operacionais.
+                  <b>1.1. <i>Cookies</i>:</b> São pequenos arquivos de texto salvos pelo navegador no seu dispositivo quando você visita uma plataforma web. Eles permitem reconhecer sua sessão e armazenar pequenas informações operacionais.
                 </p>
                 <p>
-                  <b>1.2. Armazenamento Local (Local Storage e Session Storage):</b> Recursos do HTML5 que permitem que o StoryForge guarde dados diretamente no seu navegador com maior capacidade técnica. O <i>Local Storage</i> mantém as preferências salvas entre sessões, enquanto o <i>Session Storage</i> expira automaticamente ao fechar a aba do navegador.
+                  <b>1.2. Armazenamento Local (<i>Local Storage</i> e <i>Session Storage</i>):</b> Recursos do HTML5 que permitem que o <b>StoryForge</b> guarde dados diretamente no seu navegador com maior capacidade técnica. O <i>Local Storage</i> mantém as preferências salvas entre sessões, enquanto o <i>Session Storage</i> expira automaticamente ao fechar a aba do navegador.
                 </p>
               </section>
 
@@ -82,7 +82,7 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   2. Categorização e Discriminação do Armazenamento no StoryForge
                 </h3>
                 <p>
-                  O StoryForge categoriza o armazenamento local e os cookies em três modalidades bem definidas:
+                  O <b>StoryForge</b> categoriza o armazenamento local e os cookies em três modalidades bem definidas:
                 </p>
 
                 <div className="space-y-4 pl-2 pt-1">
@@ -97,10 +97,10 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                       <b>Finalidade:</b> Manutenção da autenticação segura, gestão de tokens de acesso JWT e prevenção contra ataques cibernéticos.
                     </p>
                     <p className="text-gray-800">
-                      <b>Base Legal (LGPD):</b> <i>Execução de Contrato (Art. 7º, V da LGPD)</i>. Não exige consentimento prévio (opt-in), pois sem esses registros a aplicação não pode funcionar nem autenticar o usuário.
+                      <b>Base Legal (LGPD):</b> <i>Execução de Contrato (Art. 7º, V da LGPD)</i>. Não exige consentimento prévio (<i>opt-in</i>), pois sem esses registros a aplicação não pode funcionar nem autenticar o usuário.
                     </p>
                     <p className="text-xs text-gray-600 font-mono pt-1">
-                      Chaves utilizadas: <code>storyforge_token</code>, <code>user</code>, cookies seguros de sessão.
+                      Chaves utilizadas: <code>storyforge_token</code>, <code>user</code>, <i>cookies</i> seguros de sessão.
                     </p>
                   </div>
 
@@ -124,17 +124,17 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   {/* CATEGORIA C */}
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-1.5">
                     <h4 className="font-extrabold text-black text-sm md:text-base flex items-center justify-between">
-                      <span>C. Métricas de Desempenho e Analytics Técnico</span>
+                      <span>C. Métricas de Desempenho e <i>Analytics</i> Técnico</span>
                       <span className="text-xs bg-purple-100 text-purple-900 border border-purple-300 px-2.5 py-0.5 rounded-full font-sans font-bold">Opcional</span>
                     </h4>
                     <p className="text-gray-800">
-                      <b>Finalidade:</b> Registrar logs de erros locais, tempo de resposta do servidor e métricas técnicas de utilização (via PostHog / Microsoft Clarity) para identificação de falhas de código.
+                      <b>Finalidade:</b> Registrar logs de erros locais, tempo de resposta do servidor e métricas técnicas de utilização (via <i>PostHog</i> / <i>Microsoft Clarity</i>) para identificação de falhas de código.
                     </p>
                     <p className="text-gray-800">
                       <b>Base Legal (LGPD):</b> <i>Consentimento do Titular (Art. 7º, I da LGPD)</i>. Exige autorização prévia pelo banner de consentimento ou painel de preferências.
                     </p>
                     <p className="text-xs text-gray-600 font-mono pt-1">
-                      Provedores: PostHog Analytics e Microsoft Clarity (executados sob estrito isolamento).
+                      Provedores: <i>PostHog</i> e <i>Microsoft Clarity</i> (executados sob estrito isolamento).
                     </p>
                   </div>
 
@@ -147,10 +147,10 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   3. Garantia de Sigilo do Manuscrito e Mascaramento de Texto
                 </h3>
                 <p>
-                  <b>3.1. Proteção Absoluta da Propriedade Intelectual:</b> Nenhuma ferramenta de análise, script técnico ou tecnologia de cookies utilizada no StoryForge possui autorização ou capacidade técnica de ler, capturar, registrar ou transmitir o texto literário dos seus livros, manuscritos, capítulos ou fichas de worldbuilding.
+                  <b>3.1. Proteção Absoluta da Propriedade Intelectual:</b> Nenhuma ferramenta de análise, <i>script</i> técnico ou tecnologia de cookies utilizada no <b>StoryForge</b> possui autorização ou capacidade técnica de ler, capturar, registrar ou transmitir o texto literário dos seus livros, manuscritos, capítulos ou fichas de <i>worldbuilding</i>.
                 </p>
                 <p>
-                  <b>3.2. Mascaramento Automático:</b> Os editores de texto e campos de criação da plataforma contam com travas estritas de mascaramento automático de dados (atributos de proteção contra gravação), garantindo que Replays de Sessão de ferramentas analíticas registrem apenas a estrutura técnica da tela, sem jamais coletar o conteúdo escrito pelo autor.
+                  <b>3.2. Mascaramento Automático:</b> Os editores de texto e campos de criação da plataforma contam com travas estritas de mascaramento automático de dados (atributos de proteção contra gravação), garantindo que <i>Replays</i> de Sessão de ferramentas analíticas registrem apenas a estrutura técnica da tela, sem jamais coletar o conteúdo escrito pelo autor.
                 </p>
               </section>
 
@@ -160,13 +160,13 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   4. Como Gerenciar ou Alterar Suas Preferências
                 </h3>
                 <p>
-                  O usuário possui controle total sobre o armazenamento de dados não essenciais no StoryForge:
+                  O usuário possui controle total sobre o armazenamento de dados não essenciais no <b>StoryForge</b>:
                 </p>
                 <ul className="list-disc pl-8 space-y-2 text-gray-800">
                   <li><b>Painel de Configurações da Conta:</b> Na aba <i>Privacidade & Conta</i> do aplicativo, você pode ativar ou desativar individualmente as chaves de <i>Preferências de Interface</i> e <i>Métricas de Desempenho Local</i> a qualquer tempo.</li>
                   <li><b>Banner de Consentimento:</b> Exibido no primeiro acesso ou a cada nova sessão, permitindo selecionar <i>"Aceitar Todos"</i> ou <i>"Apenas Essenciais"</i> de forma instantânea.</li>
                   <li><b>Botão "Limpar Cache Local":</b> Disponível nas Configurações do usuário, permite redefinir todas as preferências salvas no navegador mantendo sua sessão segura.</li>
-                  <li><b>Configurações do Navegador:</b> Você também pode bloquear ou excluir cookies diretamente nas configurações de privacidade do seu navegador (Chrome, Firefox, Edge, Safari), ciente de que o bloqueio de dados essenciais impedirá o login na plataforma.</li>
+                  <li><b>Configurações do Navegador:</b> Você também pode bloquear ou excluir <i>cookies</i> diretamente nas configurações de privacidade do seu navegador (<i>Chrome</i>, <i>Firefox</i>, <i>Edge</i>, <i>Safari</i>), ciente de que o bloqueio de dados essenciais impedirá o login na plataforma.</li>
                 </ul>
               </section>
 
@@ -176,10 +176,10 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   5. Ausência de Cookies de Publicidade e Marketing de Terceiros
                 </h3>
                 <p>
-                  <b>5.1. Não Comercialização:</b> O StoryForge <b>NÃO</b> utiliza cookies de remarketing, pixels de rastreamento de anúncios (como Meta Pixel ou Google Ads) e jamais comercializa dados de perfil de navegação com corretores de dados (data brokers) ou anunciantes.
+                  <b>5.1. Não Comercialização:</b> O <b>StoryForge NÃO</b> utiliza <i>cookies</i> de <i>remarketing</i>, pixels de rastreamento de anúncios (como <i>Meta Pixel</i> ou <i>Google Ads</i>) e jamais comercializa dados de perfil de navegação com corretores de dados (<i>data brokers</i>) ou anunciantes.
                 </p>
                 <p>
-                  <b>5.2. Notificação em Caso de Alteração:</b> Caso o StoryForge venha a integrar novas ferramentas técnicas ou serviços opcionais no futuro, esta política será atualizada e um novo aviso de consentimento será exibido ao usuário para concessão ou negação de autorização.
+                  <b>5.2. Notificação em Caso de Alteração:</b> Caso o <b>StoryForge</b> venha a integrar novas ferramentas técnicas ou serviços opcionais no futuro, esta política será atualizada e um novo aviso de consentimento será exibido ao usuário para concessão ou negação de autorização.
                 </p>
               </section>
 
@@ -189,7 +189,7 @@ export default function PoliticaCookiesModal({ isOpen, onClose }) {
                   6. Contato e Dúvidas sobre Privacidade
                 </h3>
                 <p>
-                  Para esclarecer dúvidas sobre esta Política de Cookies, exercer seus direitos previstos na LGPD ou enviar solicitações relativas ao tratamento de dados, entre em contato com nosso suporte técnico:
+                  Para esclarecer dúvidas sobre esta Política de <i>Cookies</i>, exercer seus direitos previstos na <b>LGPD</b> ou enviar solicitações relativas ao tratamento de dados, entre em contato com nosso suporte técnico:
                 </p>
                 <p className="font-bold text-black pt-1">
                   E-mail oficial de suporte e privacidade: <a href="mailto:app.storyforge@gmail.com" className="underline text-purple-900">app.storyforge@gmail.com</a>

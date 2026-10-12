@@ -159,7 +159,7 @@ export default function TermosDeUsoModal({ isOpen, onClose, onAccept }) {
             {/* 6. AUP */}
             <section className="space-y-2 pt-4 border-t border-gray-300">
               <h3 className="text-base font-bold text-gray-900 uppercase tracking-wide">
-                6. Política de Conteúdo Proibido e Uso Aceitável (AUP)
+                6. Política de Conteúdo Proibido e Uso Aceitável
               </h3>
               <p>
                 6.1. O usuário compromete-se a utilizar o <b>StoryForge</b> de maneira ética, respeitosa e em conformidade com o ordenamento jurídico vigente.
@@ -187,7 +187,7 @@ export default function TermosDeUsoModal({ isOpen, onClose, onAccept }) {
                 7.1. O <b>StoryForge</b> atua exclusivamente como ferramenta de organização, estruturação e escrita narrativa.
               </p>
               <p>
-                7.2. O uso da plataforma ou a exportação de documentos (em PDF ou JSON) não substitui nem constitui registro formal de direitos autorais perante órgãos oficiais competentes, tais como a Fundação Biblioteca Nacional ou a Escola de Belas Artes. Cabe ao próprio autor providenciar a proteção jurídica formal da sua obra conforme a legislação aplicável.
+                7.2. O uso da plataforma ou a exportação de documentos (em PDF ou JSON) <b>NÃO</b> substitui nem constitui registro formal de direitos autorais perante órgãos oficiais competentes, tais como a Fundação Biblioteca Nacional ou a Escola de Belas Artes. Cabe ao próprio autor providenciar a proteção jurídica formal da sua obra conforme a legislação aplicável.
               </p>
             </section>
 
@@ -197,10 +197,10 @@ export default function TermosDeUsoModal({ isOpen, onClose, onAccept }) {
                 8. Status do Projeto, Limitação de Responsabilidade e Backups
               </h3>
               <p>
-                8.1. <b>Fase de Desenvolvimento (Beta):</b> O <b>StoryForge</b> é um projeto mantido de forma independente. O usuário reconhece que o serviço é fornecido "no estado em que se encontra" (as is) e pode passar por atualizações, otimizações de código ou modificações de interface.
+                8.1. <b>Fase de Desenvolvimento (Beta):</b> O <b>StoryForge</b> é um projeto mantido de forma independente. O usuário reconhece que o serviço é fornecido "no estado em que se encontra" (<i>as is</i>) e pode passar por atualizações, otimizações de código ou modificações de interface.
               </p>
               <p>
-                8.2. <b>Responsabilidade por Backups:</b> Embora a plataforma adote rotinas de segurança e redundância em banco de dados, é dever do usuário realizar a exportação periódica de seus projetos (via arquivos JSON ou relatórios em PDF) para salvaguarda de seu acervo pessoal.
+                8.2. <b>Responsabilidade por Backups:</b> Embora a plataforma adote rotinas de segurança e redundância em banco de dados, é <b>DEVER</b> do usuário realizar a exportação periódica de seus projetos (via arquivos JSON ou relatórios em PDF) para salvaguarda de seu acervo pessoal.
               </p>
               <p>
                 8.3. <b>Limitação de Danos:</b> Em nenhuma hipótese o <b>StoryForge</b> ou seus desenvolvedores serão responsáveis por quaisquer danos indiretos, lucros cessantes, prejuízos comerciais ou perda de dados decorrentes do uso inadequado do sistema ou de falhas de conexão de responsabilidade do próprio usuário.

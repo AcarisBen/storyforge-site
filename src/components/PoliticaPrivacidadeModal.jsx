@@ -54,14 +54,14 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 1. Compromisso de Privacidade e Soberania do Autor
               </h3>
               <p>
-                O <b>StoryForge</b> assume o compromisso irrestrito de atuar com transparência, sigilo e respeito à privacidade do autor, operando em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018) e o Marco Civil da Internet (Lei nº 12.965/2014).
+                O <b>StoryForge</b> assume o compromisso irrestrito de atuar com transparência, sigilo e respeito à privacidade do autor, operando em estrita conformidade com a <b>Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018)</b> e o <b>Marco Civil da Internet (Lei nº 12.965/2014)</b>.
               </p>
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>
-                  <b>Soberania Total do Conteúdo:</b> Todas as histórias, enredos, personagens, fichas de universo, manuscritos, mapas e notas criados ou inseridos no StoryForge pertencem exclusivamente ao seu criador.
+                  <b>Soberania Total do Conteúdo:</b> Todas as histórias, enredos, personagens, fichas de universo, manuscritos, mapas e notas criados ou inseridos no <b>StoryForge</b> pertencem exclusivamente ao seu criador.
                 </li>
                 <li>
-                  <b>Proibição de Comercialização:</b> O StoryForge garante que os seus textos e dados pessoais jamais serão vendidos, alugados, trocados ou comercializados com terceiros.
+                  <b>Proibição de Comercialização:</b> O <b>StoryForge</b> garante que os seus textos e dados pessoais jamais serão vendidos, alugados, trocados ou comercializados com terceiros.
                 </li>
                 <li>
                   <b>Proteção contra Treinamento de IA:</b> O conteúdo das suas obras literárias não é utilizado sob nenhuma hipótese para alimentar, treinar ou aprimorar modelos públicos ou privados de inteligência artificial ou motores de linguagem comercial.
@@ -75,14 +75,14 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 2. Bases Legais do Tratamento de Dados (Art. 7º da LGPD)
               </h3>
               <p>
-                Em conformidade com a legislação vigente, todo tratamento de dados pessoais realizado pelo StoryForge é fundamentado em bases legais específicas:
+                Em conformidade com a legislação vigente, todo tratamento de dados pessoais realizado pelo <b>StoryForge</b> é fundamentado em bases legais específicas:
               </p>
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>
                   <b>Execução de Contrato e Termos de Serviço (Art. 7º, V):</b> Para a criação de conta, manutenção do seu acesso e entrega das funcionalidades do estúdio de escrita.
                 </li>
                 <li>
-                  <b>Cumprimento de Obrigação Legal ou Regulatória (Art. 7º, II):</b> Para a guarda obrigatória dos registros de acesso à aplicação, conforme exigido pelo Marco Civil da Internet.
+                  <b>Cumprimento de Obrigação Legal ou Regulatória (Art. 7º, II):</b> Para a guarda obrigatória dos registros de acesso à aplicação, conforme exigido pelo <b>Marco Civil da Internet</b>.
                 </li>
                 <li>
                   <b>Consentimento do Titular (Art. 7º, I):</b> Para o armazenamento de preferências locais de navegação, cookies não essenciais e recursos opcionais de personalização de perfil.
@@ -127,11 +127,11 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 4. Compartilhamento de Dados e Subprocessadores
               </h3>
               <p>
-                O StoryForge não vende nem compartilha seus dados pessoais para fins publicitários. Contudo, para manter a aplicação online e funcional, utilizamos serviços de infraestrutura de tecnologia de terceiros estritamente qualificados (Subprocessadores):
+                O <b>StoryForge</b> não vende nem compartilha seus dados pessoais para fins publicitários. Contudo, para manter a aplicação online e funcional, utilizamos serviços de infraestrutura de tecnologia de terceiros estritamente qualificados (Subprocessadores):
               </p>
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>
-                  <b>Provedores de Hospedagem e Banco de Dados (ex: Render, Vercel, PostgreSQL Cloud):</b> Para armazenamento seguro dos dados criptografados da aplicação.
+                  <b>Provedores de Hospedagem e Banco de Dados (ex: <i>Render</i>, <i>Vercel</i>, <i>PostgreSQL Cloud</i>):</b> Para armazenamento seguro dos dados criptografados da aplicação.
                 </li>
                 <li>
                   <b>Serviços de E-mail Transacional:</b> Para o envio de e-mails do sistema (confirmação de cadastro, redefinição de senha e solicitações de exclusão).
@@ -151,7 +151,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 Alguns dos nossos servidores de hospedagem e banco de dados podem estar localizados em data centers fora do território brasileiro (como nos Estados Unidos ou na União Europeia).
               </p>
               <p>
-                Todas as transferências internacionais cumprem integralmente as exigências do Art. 33 da LGPD, garantindo que os dados mantidos no exterior recebam nível de proteção e criptografia equivalente ou superior ao exigido pela legislação brasileira.
+                Todas as transferências internacionais cumprem integralmente as exigências do Art. 33 da <b>LGPD</b>, garantindo que os dados mantidos no exterior recebam nível de proteção e criptografia equivalente ou superior ao exigido pela legislação brasileira.
               </p>
             </section>
 
@@ -169,7 +169,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 </li>
               </ul>
               <p className="text-gray-700 italic pt-1">
-                Caso o StoryForge passe a utilizar cookies de análise técnica ou marketing de terceiros no futuro, os usuários serão notificados para gerenciamento de preferências através do banner de consentimento.
+                Caso o <b>StoryForge</b> passe a utilizar <i>cookies</i> de análise técnica ou marketing de terceiros no futuro, os usuários serão notificados para gerenciamento de preferências através do banner de consentimento.
               </p>
             </section>
 
@@ -179,7 +179,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 7. Guarda de Registros (Marco Civil da Internet)
               </h3>
               <p>
-                Em cumprimento ao Artigo 15 da Lei nº 12.965/2014 (Marco Civil da Internet), o StoryForge guarda em ambiente seguro e sob sigilo os registros de acesso à aplicação (endereço IP, data, hora e duração das sessões) pelo prazo mínimo legal de 6 (seis) meses.
+                Em cumprimento ao Artigo 15 da Lei nº 12.965/2014 (<b>Marco Civil da Internet</b>), o <b>StoryForge</b> guarda em ambiente seguro e sob sigilo os registros de acesso à aplicação (endereço IP, data, hora e duração das sessões) pelo prazo mínimo legal de 6 (seis) meses.
               </p>
               <p>
                 Estes dados não são utilizados para cruzamento de perfis comportamentais e só serão fornecidos mediante ordem judicial expressa das autoridades competentes.
@@ -196,7 +196,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                   <b>Criptografia e Protocolos Seguros:</b> Toda a comunicação entre o navegador e nossos servidores ocorre via protocolo seguro HTTPS/TLS. As senhas de acesso são armazenadas sob algoritmos de hash criptográfico de alta resistência.
                 </li>
                 <li>
-                  <b>Notificação de Incidentes:</b> Caso ocorra qualquer evento fortuito, ataque cibernético ou incidente de segurança que possa acarretar risco ou dano relevante aos seus dados pessoais, o StoryForge compromete-se a notificar a Autoridade Nacional de Proteção de Dados (ANPD) e os usuários afetados em prazo razoável, indicando as medidas corretivas adotadas.
+                  <b>Notificação de Incidentes:</b> Caso ocorra qualquer evento fortuito, ataque cibernético ou incidente de segurança que possa acarretar risco ou dano relevante aos seus dados pessoais, o <b>StoryForge</b> compromete-se a notificar a <b>Autoridade Nacional de Proteção de Dados (ANPD)</b> e os usuários afetados em prazo razoável, indicando as medidas corretivas adotadas.
                 </li>
               </ul>
             </section>
@@ -207,7 +207,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 9. Tratamento de Dados de Menores de Idade
               </h3>
               <p>
-                O StoryForge é uma plataforma desenvolvida para escritores e autores.
+                O <b>StoryForge</b> é uma plataforma desenvolvida para escritores e autores.
               </p>
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>
@@ -225,10 +225,10 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 10. Links para Sites e Plataformas de Terceiros
               </h3>
               <p>
-                A aplicação ou os perfis de usuários podem conter links para sites externos (como Amazon, Wattpad, redes sociais ou websites pessoais de autores).
+                A aplicação ou os perfis de usuários podem conter links para sites externos (como <i>Amazon</i>, <i>Wattpad</i>, redes sociais ou websites pessoais de autores).
               </p>
               <p>
-                O StoryForge não controla e não se responsabiliza pelas práticas de privacidade, termos de uso ou conteúdos de sites de terceiros. Recomendamos que o usuário leia a política de privacidade de qualquer plataforma externa que visitar.
+                O <b>StoryForge</b> não controla e não se responsabiliza pelas práticas de privacidade, termos de uso ou conteúdos de sites de terceiros. Recomendamos que o usuário leia a política de privacidade de qualquer plataforma externa que visitar.
               </p>
             </section>
 
@@ -238,7 +238,7 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
                 11. Direitos do Titular dos Dados (LGPD)
               </h3>
               <p>
-                Conforme estabelecido pelo Artigo 18 da LGPD, você pode exercer a qualquer momento os seguintes direitos:
+                Conforme estabelecido pelo Artigo 18 da <b>LGPD</b>, você pode exercer a qualquer momento os seguintes direitos:
               </p>
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>Confirmar a existência do tratamento e acessar seus dados pessoais.</li>
@@ -260,20 +260,20 @@ export default function PoliticaPrivacidadeModal({ isOpen, onClose }) {
               <ul className="list-disc pl-6 space-y-1.5 text-gray-800">
                 <li>Por motivos de segurança, a solicitação exige confirmação prévia por e-mail.</li>
                 <li>Após a confirmação, todos os dados do perfil, projetos, fichas de personagens, manuscritos e preferências serão apagados de forma irreversível.</li>
-                <li>Apenas os logs de acesso exigidos pelo Marco Civil da Internet serão retidos até o encerramento do prazo legal obrigatório de 6 meses.</li>
+                <li>Apenas os logs de acesso exigidos pelo <b>Marco Civil da Internet</b> serão retidos até o encerramento do prazo legal obrigatório de 6 meses.</li>
               </ul>
             </section>
 
             {/* 13. ALTERAÇÕES E CONTATO */}
             <section className="space-y-2 pt-4 border-t border-gray-300 pb-4">
               <h3 className="text-base font-bold text-gray-900 uppercase tracking-wide">
-                13. Alterações nesta Política e Contato (DPO)
+                13. Alterações nesta Política e Contato
               </h3>
               <p>
                 Esta Política de Privacidade poderá ser atualizada periodicamente para refletir evoluções técnicas, novas funcionalidades ou adequações legislativas. Alterações significativas serão notificadas diretamente na plataforma.
               </p>
               <p>
-                Para exercer seus direitos de privacidade, esclarecer dúvidas ou contatar o nosso Encarregado de Proteção de Dados (DPO), envie uma mensagem para: <b>app.storyforge@gmail.com</b>.
+                Para exercer seus direitos de privacidade, esclarecer dúvidas ou fazer reclamações, envie uma mensagem para: <b>app.storyforge@gmail.com</b>.
               </p>
             </section>
 
