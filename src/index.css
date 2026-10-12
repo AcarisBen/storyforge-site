@@ -775,3 +775,32 @@ html.high-contrast .sidebar-nav,
 html.high-contrast .page-content {
     scrollbar-color: #ffffff #000000;
 }
+
+/* Escala global de interface; a classe normal preserva o tamanho atual. */
+html.font-scale-normal {
+    font-size: 100% !important;
+}
+
+html.font-scale-medium {
+    font-size: 115% !important;
+}
+
+html.font-scale-large {
+    font-size: 130% !important;
+}
+
+html.font-scale-medium .text-\[9px\],
+html.font-scale-medium .text-\[10px\],
+html.font-scale-medium .text-\[11px\] {
+    font-size: 12px !important;
+}
+
+html.font-scale-large .text-\[9px\],
+html.font-scale-large .text-\[10px\],
+html.font-scale-large .text-\[11px\] {
+    font-size: 14px !important;
+}
+
+.rich-editor-content {
+    font-size: 14px;
+}

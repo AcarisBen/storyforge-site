@@ -1,5 +1,5 @@
 // src/pages/Configuracoes.jsx
-// Painel de Configurações do Usuário com modal integrado para envio de diagnóstico de bugs.
+// Painel de Configurações do Usuário com suporte a Acessibilidade e Documentações Legais.
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -12,6 +12,7 @@ import apiClient from '../api/apiClient';
 import { useToast } from '../hooks/useToast';
 import TermosDeUsoModal from '../components/TermosDeUsoModal';
 import PoliticaPrivacidadeModal from '../components/PoliticaPrivacidadeModal';
+import PoliticaCookiesModal from '../components/PoliticaCookiesModal';
 import ReportBugModal from '../components/ReportBugModal';
 import SuggestIdeaModal from '../components/SuggestIdeaModal';
 import useAccessibility from '../hooks/useAccessibility';
@@ -29,10 +30,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
   const [email, setEmail] = useState('');
 
   // Estados de Acessibilidade & Preferências Visuais
-  const { highContrast, toggleHighContrast } = useAccessibility();
-  const [largeText, setLargeText] = useState(() => {
-    return localStorage.getItem('storyforge_large_text') === 'true';
-  });
+  const { highContrast, toggleHighContrast, fontScale, setFontScale } = useAccessibility();
 
   // Estados de Segurança
   const [currentPassword, setCurrentPassword] = useState('');
@@ -46,6 +44,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
   // Modais Legais e de Suporte
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showCookiesModal, setShowCookiesModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showIdeaModal, setShowIdeaModal] = useState(false);
 
@@ -118,21 +117,12 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
     });
   };
 
-  const handleToggleLargeText = () => {
-    const nextVal = !largeText;
-    setLargeText(nextVal);
-    localStorage.setItem('storyforge_large_text', nextVal.toString());
-
-    if (nextVal) {
-      document.documentElement.classList.add('large-text');
-    } else {
-      document.documentElement.classList.remove('large-text');
-    }
-
+  const handleFontScaleChange = (scale, label) => {
+    setFontScale(scale);
     showToast({
-      type: 'info',
-      title: 'Em Implementação',
-      message: 'O dimensionamento de fontes integradas está em desenvolvimento para as próximas versões.'
+      type: 'success',
+      title: `Tamanho da fonte ajustado para ${label}`,
+      message: 'A escala da interface foi atualizada.'
     });
   };
 
@@ -545,13 +535,13 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 
                 {/* ALTO CONTRASTE */}
-                <div className="flex items-center justify-between p-3 bg-[#171724] rounded-xl border border-gray-800">
+                <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3 p-3 bg-[#171724] rounded-xl border border-gray-800">
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-white flex items-center gap-1.5">
                       <Sun size={13} className="text-amber-400" /> Alto Contraste
                     </span>
                     <span className="text-[10px] text-gray-400 block">
-                      Preto e branco reforçados
+                      Preto puro e realce de bordas para leitura focada.
                     </span>
                   </div>
                   <button
@@ -559,33 +549,47 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                     onClick={handleToggleHighContrast}
                     aria-pressed={highContrast}
                     aria-label="Modo Alto Contraste"
-                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      highContrast ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
+                    className={`min-h-10 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      highContrast 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                     }`}
                   >
                     {highContrast ? 'Ativado' : 'Desativado'}
                   </button>
                 </div>
 
-                {/* FONTE AMPLIADA */}
-                <div className="flex items-center justify-between p-3 bg-[#171724] rounded-xl border border-gray-800">
+                {/* FONTE DA INTERFACE */}
+                <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3 p-3 bg-[#171724] rounded-xl border border-gray-800">
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Type size={13} className="text-indigo-400" /> Fonte Ampliada
+                      <Type size={13} className="text-indigo-400" /> Fonte da interface
                     </span>
                     <span className="text-[10px] text-gray-400 block">
-                      Versões futuras v1.1
+                      Aumenta controles e textos sem alterar a formatação do manuscrito.
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleToggleLargeText}
-                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      largeText ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
-                    }`}
-                  >
-                    {largeText ? 'Ativado' : 'Testar'}
-                  </button>
+                  <div role="group" aria-label="Escala da fonte da interface" className="flex flex-wrap gap-1.5">
+                    {[
+                      { value: 'normal', label: 'Normal', scale: '100%' },
+                      { value: 'medium', label: 'Médio', scale: '115%' },
+                      { value: 'large', label: 'Grande', scale: '130%' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleFontScaleChange(option.value, option.label)}
+                        aria-pressed={fontScale === option.value}
+                        className={`min-h-10 px-3 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                          fontScale === option.value
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        {option.label} ({option.scale})
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
               </div>
@@ -670,10 +674,11 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                 <FileText size={15} className="text-purple-400" /> Documentação Legal
               </h3>
               <p className="text-[11px] text-gray-400">
-                Consulte as diretrizes contratuais, termos de serviço e política de privacidade do StoryForge.
+                Consulte as diretrizes contratuais, termos de serviço, política de privacidade e cookies do StoryForge.
               </p>
 
               <div className="flex flex-wrap gap-2 pt-1">
+                {/* BOTÃO 1: TERMOS */}
                 <button
                   type="button"
                   onClick={() => setShowTermsModal(true)}
@@ -682,12 +687,22 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                   <FileText size={13} /> Termos de Uso e Serviço
                 </button>
 
+                {/* BOTÃO 2: PRIVACIDADE */}
                 <button
                   type="button"
                   onClick={() => setShowPrivacyModal(true)}
                   className="px-3.5 py-2 bg-[#12121a] hover:bg-[#1c1c28] text-purple-300 hover:text-white text-xs font-bold rounded-xl border border-purple-500/30 transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Lock size={13} /> Política de Privacidade
+                </button>
+
+                {/* BOTÃO 3: COOKIES (O BOTÃO QUE FALTAVA) */}
+                <button
+                  type="button"
+                  onClick={() => setShowCookiesModal(true)}
+                  className="px-3.5 py-2 bg-[#12121a] hover:bg-[#1c1c28] text-purple-300 hover:text-white text-xs font-bold rounded-xl border border-purple-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Cookie size={13} /> Política de Cookies
                 </button>
               </div>
             </div>
@@ -793,7 +808,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
               </div>
             </div>
 
-            {/* CANAL DE DÚVIDAS E FEEDBACK (BOTÃO DE REPORTAR BUG ATIVADO) */}
+            {/* CANAL DE DÚVIDAS E FEEDBACK */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
@@ -878,7 +893,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
         </div>
       )}
 
-      {/* MODAIS POPUP DE TERMOS, PRIVACIDADE E REPORTAR BUG */}
+      {/* MODAIS POPUP DE TERMOS, PRIVACIDADE E COOKIES */}
       <TermosDeUsoModal 
         isOpen={showTermsModal} 
         onClose={() => setShowTermsModal(false)}
@@ -887,6 +902,11 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
       <PoliticaPrivacidadeModal 
         isOpen={showPrivacyModal} 
         onClose={() => setShowPrivacyModal(false)}
+      />
+
+      <PoliticaCookiesModal 
+        isOpen={showCookiesModal} 
+        onClose={() => setShowCookiesModal(false)}
       />
 
       <ReportBugModal
