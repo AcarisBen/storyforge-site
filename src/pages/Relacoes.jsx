@@ -19,15 +19,15 @@ import {
 } from 'lucide-react';
 
 const RELATION_TYPES = {
-  Amizade: { label: 'Amizade', color: '#10b981', letter: 'A' },
-  Família: { label: 'Família', color: '#eab308', letter: 'F' },
-  Ódio: { label: 'Ódio / Raiva', color: '#ef4444', letter: 'Ó' },
-  Amor: { label: 'Amor', color: '#ec4899', letter: 'A' },
-  Aliança: { label: 'Aliança', color: '#06b6d4', letter: 'A' },
-  Rivalidade: { label: 'Rivalidade', color: '#f97316', letter: 'R' },
-  Vingança: { label: 'Vingança', color: '#a855f7', letter: 'V' },
-  Opressão: { label: 'Opressão', color: '#6b7280', letter: 'O' },
-  Mentor: { label: 'Mentor', color: '#d97706', letter: 'M' },
+  Amizade: { label: 'Amizade', color: 'var(--relation-friendship, #10b981)', letter: 'A' },
+  Família: { label: 'Família', color: 'var(--relation-family, #eab308)', letter: 'F' },
+  Ódio: { label: 'Ódio / Raiva', color: 'var(--relation-hate, #ef4444)', letter: 'Ó' },
+  Amor: { label: 'Amor', color: 'var(--relation-love, #ec4899)', letter: 'A' },
+  Aliança: { label: 'Aliança', color: 'var(--relation-alliance, #06b6d4)', letter: 'A' },
+  Rivalidade: { label: 'Rivalidade', color: 'var(--relation-rivalry, #f97316)', letter: 'R' },
+  Vingança: { label: 'Vingança', color: 'var(--relation-vengeance, #a855f7)', letter: 'V' },
+  Opressão: { label: 'Opressão', color: 'var(--relation-oppression, #6b7280)', letter: 'O' },
+  Mentor: { label: 'Mentor', color: 'var(--relation-mentor, #d97706)', letter: 'M' },
 };
 
 const INTENSITY_OPTIONS = [
@@ -155,9 +155,9 @@ function getCharacterBorderColor(char = {}) {
     .map(sanitize)
     .join(' ');
 
-  if (combinedProps.includes('protagonista')) return '#f97316';
-  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return '#ef4444';
-  return '#3b82f6';
+  if (combinedProps.includes('protagonista')) return 'var(--role-protagonist, #f97316)';
+  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return 'var(--role-antagonist, #ef4444)';
+  return 'var(--role-secondary, #3b82f6)';
 }
 
 function getStrokeWidthFromIntensity(val = 6) {

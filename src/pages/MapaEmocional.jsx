@@ -28,14 +28,14 @@ import {
 } from 'lucide-react';
 
 const EMOTIONS = [
-  { key: 'curiosidade', label: 'Curiosidade', color: '#a855f7' },
-  { key: 'tensao', label: 'Tensão', color: '#ef4444' },
-  { key: 'esperanca', label: 'Esperança', color: '#10b981' },
-  { key: 'medo', label: 'Medo', color: '#6366f1' },
-  { key: 'tristeza', label: 'Tristeza', color: '#3b82f6' },
-  { key: 'choque', label: 'Choque', color: '#f97316' },
-  { key: 'alegria', label: 'Alegria', color: '#eab308' },
-  { key: 'alivio', label: 'Alívio', color: '#14b8a6' },
+  { key: 'curiosidade', label: 'Curiosidade', color: 'var(--emotion-curiosity, #a855f7)' },
+  { key: 'tensao', label: 'Tensão', color: 'var(--emotion-tension, #ef4444)' },
+  { key: 'esperanca', label: 'Esperança', color: 'var(--emotion-hope, #10b981)' },
+  { key: 'medo', label: 'Medo', color: 'var(--emotion-fear, #6366f1)' },
+  { key: 'tristeza', label: 'Tristeza', color: 'var(--emotion-sadness, #3b82f6)' },
+  { key: 'choque', label: 'Choque', color: 'var(--emotion-shock, #f97316)' },
+  { key: 'alegria', label: 'Alegria', color: 'var(--emotion-joy, #eab308)' },
+  { key: 'alivio', label: 'Alívio', color: 'var(--emotion-relief, #14b8a6)' },
 ];
 
 const guideTabs = {

@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { ToastProvider } from './hooks/useToast';
 import { useAuth } from './lib/AuthContext'; // 1. Usar o hook useAuth
+import useAccessibility from './hooks/useAccessibility';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ConfirmEmail from './pages/ConfirmEmail';
@@ -208,6 +209,7 @@ function Sidebar({ activePage, onNavigate, onBackToProjects, currentProject }) {
 }
 
 export default function App() {
+  useAccessibility();
   const { user: currentUser, loading: loadingSession, updateUser } = useAuth(); // 2. Obtém o usuário direto do AuthContext
   const [currentProject, setCurrentProject] = useState(null); 
   const [activePage, setActivePage] = useState('escrita');

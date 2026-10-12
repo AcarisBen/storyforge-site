@@ -599,3 +599,179 @@ textarea:focus { border-color: #4b4f59; background: #1c1f25; }
     .identity-form { width: 100%; }
     .identity-card { padding: 16px 14px 14px; }
 }
+
+/* Alto contraste: isolado por classe para preservar integralmente o tema padrão. */
+html.high-contrast {
+    color-scheme: dark;
+    --role-protagonist: #ffff66;
+    --role-antagonist: #ff8080;
+    --role-secondary: #80ffff;
+    --relation-friendship: #80ff80;
+    --relation-family: #ffff66;
+    --relation-hate: #ff8080;
+    --relation-love: #ff80ff;
+    --relation-alliance: #80ffff;
+    --relation-rivalry: #ffcc80;
+    --relation-vengeance: #b3b3ff;
+    --relation-oppression: #cccccc;
+    --relation-mentor: #a0ffb0;
+    --emotion-curiosity: #b3b3ff;
+    --emotion-tension: #ff8080;
+    --emotion-hope: #80ff80;
+    --emotion-fear: #ffcc80;
+    --emotion-sadness: #99ccff;
+    --emotion-shock: #ffff66;
+    --emotion-joy: #ff80ff;
+    --emotion-relief: #80ffff;
+    background: #000000 !important;
+    color: #ffffff !important;
+}
+
+html.high-contrast body,
+html.high-contrast #root,
+html.high-contrast .app-shell,
+html.high-contrast .page-content {
+    min-height: 100vh;
+    background: #000000 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+}
+
+html.high-contrast *,
+html.high-contrast *::before,
+html.high-contrast *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html.high-contrast [class*="bg-"] {
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+html.high-contrast [class*="card"],
+html.high-contrast [class*="panel"],
+html.high-contrast [class*="form"],
+html.high-contrast [class*="guide"],
+html.high-contrast .sidebar,
+html.high-contrast .character-card,
+html.high-contrast .world-card,
+html.high-contrast .mystery-card,
+html.high-contrast .twist-card,
+html.high-contrast .scene-card,
+html.high-contrast .timeline-milestone,
+html.high-contrast .framework-card,
+html.high-contrast .identity-card,
+html.high-contrast .character-section {
+    background: #000000 !important;
+    background-image: none !important;
+    border: 2px solid #ffffff !important;
+}
+
+html.high-contrast body,
+html.high-contrast body *:not(svg):not(path),
+html.high-contrast input::placeholder,
+html.high-contrast textarea::placeholder {
+    color: #ffffff !important;
+}
+
+html.high-contrast :is(button, input, textarea, select, [role="button"], [class*="border-"]) {
+    border-width: 2px !important;
+    border-color: #ffffff !important;
+}
+
+html.high-contrast input,
+html.high-contrast textarea,
+html.high-contrast select,
+html.high-contrast option {
+    background: #000000 !important;
+    color: #ffffff !important;
+}
+
+html.high-contrast input::placeholder,
+html.high-contrast textarea::placeholder {
+    opacity: 0.8;
+}
+
+html.high-contrast body :is(button, input, textarea, select, a, [tabindex]):not(:disabled):focus-visible,
+html.high-contrast body :is(button, input, textarea, select, a, [tabindex]):not(:disabled):focus {
+    outline: 3px solid #ffff00 !important;
+    outline-color: #ffff00 !important;
+    outline-offset: 2px !important;
+    border-color: #ffff00 !important;
+    box-shadow: 0 0 0 3px #ffff00 !important;
+}
+
+html.high-contrast .character-card.type-protagonist .character-card-image,
+html.high-contrast .character-card-type.type-protagonist,
+html.high-contrast .character-type.type-protagonist {
+    color: var(--role-protagonist) !important;
+    border: 2px solid var(--role-protagonist) !important;
+}
+
+html.high-contrast .character-card.type-antagonist .character-card-image,
+html.high-contrast .character-card-type.type-antagonist,
+html.high-contrast .character-type.type-antagonist {
+    color: var(--role-antagonist) !important;
+    border: 2px solid var(--role-antagonist) !important;
+}
+
+html.high-contrast .character-card.type-secondary .character-card-image,
+html.high-contrast .character-card-type.type-secondary,
+html.high-contrast .character-type.type-secondary {
+    color: var(--role-secondary) !important;
+    border: 2px solid var(--role-secondary) !important;
+}
+
+html.high-contrast [class*="lime-"],
+html.high-contrast [class*="amber-"] {
+    color: #ffff66 !important;
+    border-color: #ffff66 !important;
+}
+
+html.high-contrast [class*="emerald-"] {
+    color: #80ff80 !important;
+    border-color: #80ff80 !important;
+}
+
+html.high-contrast [class*="red-"] {
+    color: #ff8080 !important;
+    border-color: #ff8080 !important;
+}
+
+html.high-contrast [class*="purple-"] {
+    color: #80ffff !important;
+    border-color: #80ffff !important;
+}
+
+html.high-contrast [class*="blue-"],
+html.high-contrast [class*="indigo-"] {
+    color: #99ccff !important;
+    border-color: #99ccff !important;
+}
+
+html.high-contrast .world-card small,
+html.high-contrast .world-card-actions button:hover,
+html.high-contrast .character-card-body button:hover,
+html.high-contrast .delete-character:hover {
+    color: #80ffff !important;
+    border-color: #80ffff !important;
+}
+
+html.high-contrast ::-webkit-scrollbar-track {
+    background: #000000;
+}
+
+html.high-contrast ::-webkit-scrollbar-thumb {
+    background: #ffffff;
+}
+
+html.high-contrast *,
+html.high-contrast body,
+html.high-contrast .sidebar,
+html.high-contrast .sidebar-nav,
+html.high-contrast .page-content {
+    scrollbar-color: #ffffff #000000;
+}

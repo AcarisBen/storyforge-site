@@ -6,7 +6,7 @@ import {
   User, Shield, Trash2, AlertTriangle, 
   Key, Info, CheckCircle, Cookie, FileText, Lock, 
   Sparkles, Bug, MessageSquare, Eye, Sun, 
-  Target, Compass, Heart, Type, Clock
+  Target, Compass, Heart, Type
 } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import { useToast } from '../hooks/useToast';
@@ -14,6 +14,7 @@ import TermosDeUsoModal from '../components/TermosDeUsoModal';
 import PoliticaPrivacidadeModal from '../components/PoliticaPrivacidadeModal';
 import ReportBugModal from '../components/ReportBugModal';
 import SuggestIdeaModal from '../components/SuggestIdeaModal';
+import useAccessibility from '../hooks/useAccessibility';
 
 export default function Configuracoes({ currentUser, setCurrentUser, currentProjectId }) {
   const { showToast } = useToast();
@@ -28,9 +29,7 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
   const [email, setEmail] = useState('');
 
   // Estados de Acessibilidade & Preferências Visuais
-  const [highContrast, setHighContrast] = useState(() => {
-    return localStorage.getItem('storyforge_high_contrast') === 'true';
-  });
+  const { highContrast, toggleHighContrast } = useAccessibility();
   const [largeText, setLargeText] = useState(() => {
     return localStorage.getItem('storyforge_large_text') === 'true';
   });
@@ -108,20 +107,14 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
 
   // Alternadores de Acessibilidade
   const handleToggleHighContrast = () => {
-    const nextVal = !highContrast;
-    setHighContrast(nextVal);
-    localStorage.setItem('storyforge_high_contrast', nextVal.toString());
-    
-    if (nextVal) {
-      document.documentElement.classList.add('high-contrast');
-    } else {
-      document.documentElement.classList.remove('high-contrast');
-    }
-
+    const enabled = !highContrast;
+    toggleHighContrast();
     showToast({
-      type: 'info',
-      title: 'Em Implementação',
-      message: 'O suporte completo ao Alto Contraste está sendo aprimorado para as próximas versões!'
+      type: 'success',
+      title: enabled ? 'Alto Contraste Ativado' : 'Alto Contraste Desativado',
+      message: enabled
+        ? 'A interface foi ajustada para oferecer contraste reforçado.'
+        : 'A aparência padrão foi restaurada.'
     });
   };
 
@@ -540,8 +533,8 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                     Acessibilidade & Visão
                   </h3>
                 </div>
-                <span className="text-[10px] font-bold bg-purple-950/80 text-purple-300 px-2.5 py-0.5 rounded-full border border-purple-800/50 flex items-center gap-1">
-                  <Clock size={11} /> Em Implementação
+                <span className="text-[10px] font-bold bg-purple-950/80 text-purple-300 px-2.5 py-0.5 rounded-full border border-purple-800/50">
+                  Preferências visuais
                 </span>
               </div>
               
@@ -558,17 +551,19 @@ export default function Configuracoes({ currentUser, setCurrentUser, currentProj
                       <Sun size={13} className="text-amber-400" /> Alto Contraste
                     </span>
                     <span className="text-[10px] text-gray-400 block">
-                      Versões futuras v1.1
+                      Preto e branco reforçados
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleToggleHighContrast}
+                    aria-pressed={highContrast}
+                    aria-label="Modo Alto Contraste"
                     className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       highContrast ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
                     }`}
                   >
-                    {highContrast ? 'Ativado' : 'Testar'}
+                    {highContrast ? 'Ativado' : 'Desativado'}
                   </button>
                 </div>
 

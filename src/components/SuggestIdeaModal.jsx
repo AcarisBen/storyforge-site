@@ -134,8 +134,7 @@ export default function SuggestIdeaModal({ isOpen, onClose, currentUser }) {
             </form>
           )}
         </div>
-        <p className="px-5 pb-4 text-[10px] text-gray-500">Enviado por {currentUser?.writerName || currentUser?.fullName || 'sua conta'} à equipe StoryForge.</p>
-      </section>
+        </section>
     </div>,
     document.body,
   );
