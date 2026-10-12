@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer';
 import multer from 'multer';
 import prisma from '../config/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { supportLimiter } from '../middleware/rateLimiter.js';
 import { getBugReportEmailHTML, getIdeaSuggestionEmailHTML } from './utils/emailTemplate.js';
 
 const router = express.Router();
@@ -14,8 +15,16 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 1, fieldSize: 64 * 1024, parts: 2 },
 });
+
+const hasAllowedImageSignature = (file) => {
+  const bytes = file.buffer;
+  const isPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isWebp = bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+  return isPng || isJpeg || isWebp;
+};
 
 // Configura o transportador SMTP usando as variáveis do .env
 const transporter = nodemailer.createTransport({
@@ -29,7 +38,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // ✅ CORREÇÃO: Altere o caminho para '/support/report-bug'
-router.post('/support/report-bug', requireAuth, upload.single('screenshot'), async (req, res) => {
+router.post('/support/report-bug', requireAuth, supportLimiter, upload.single('screenshot'), async (req, res) => {
   try {
     let payload = {};
     if (req.body.data) {
@@ -38,10 +47,18 @@ router.post('/support/report-bug', requireAuth, upload.single('screenshot'), asy
       payload = req.body;
     }
 
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return res.status(400).json({ message: 'Os dados do relatório são inválidos.' });
+    }
+
     const { module, bugType, description } = payload;
 
-    if (typeof description !== 'string' || !description.trim()) {
+    if (typeof description !== 'string' || !description.trim() || description.length > 12000) {
       return res.status(400).json({ message: 'A descrição do erro é obrigatória.' });
+    }
+
+    if (req.file && !hasAllowedImageSignature(req.file)) {
+      return res.status(400).json({ message: 'O anexo não corresponde a uma imagem PNG, JPEG ou WebP válida.' });
     }
 
     const user = await prisma.user.findUnique({
@@ -61,7 +78,7 @@ router.post('/support/report-bug', requireAuth, upload.single('screenshot'), asy
     const attachments = [];
     if (req.file) {
       attachments.push({
-        filename: req.file.originalname || 'screenshot.png',
+        filename: req.file.mimetype === 'image/png' ? 'screenshot.png' : req.file.mimetype === 'image/webp' ? 'screenshot.webp' : 'screenshot.jpg',
         content: req.file.buffer,
         contentType: req.file.mimetype,
       });
@@ -72,7 +89,7 @@ router.post('/support/report-bug', requireAuth, upload.single('screenshot'), asy
       from: `"StoryForge Support" <${process.env.EMAIL_USER}>`,
       to: 'app.storyforge@gmail.com',
       replyTo: user.email,
-      subject: `[BUG REPORT] ${module || 'Geral'} - ${bugType || 'Erro registrado'}`,
+      subject: `[BUG REPORT] ${String(module || 'Geral').replace(/[\r\n]+/g, ' ').slice(0, 80)} - ${String(bugType || 'Erro registrado').replace(/[\r\n]+/g, ' ').slice(0, 80)}`,
       html: getBugReportEmailHTML(payload),
       attachments,
     };
@@ -91,7 +108,7 @@ router.post('/support/report-bug', requireAuth, upload.single('screenshot'), asy
   }
 });
 
-router.post('/support/suggest-idea', requireAuth, async (req, res) => {
+router.post('/support/suggest-idea', requireAuth, supportLimiter, async (req, res) => {
   try {
     const { category, title, description, benefit, currentUrl, userAgent } = req.body;
 

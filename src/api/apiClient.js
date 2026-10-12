@@ -1,31 +1,14 @@
 // src/api/apiClient.js
-// Cliente Axios unificado com suporte a cookies HttpOnly, token JWT no header e fallback de URL base para desenvolvimento.
+// Cliente Axios unificado usando sessão HttpOnly e URL relativa por padrão.
 
 import axios from 'axios';
 
-// Define a URL base da API: se VITE_API_URL não estiver no .env, aponta para o servidor Express local (porta 3000)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // Envia cookies HttpOnly automaticamente em todas as requisições
 });
-
-// Interceptor de Requisição: Injeta automaticamente o Token JWT se estiver salvo no localStorage
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('storyforge_token') || localStorage.getItem('token');
-    
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Interceptor de Resposta
 apiClient.interceptors.response.use(

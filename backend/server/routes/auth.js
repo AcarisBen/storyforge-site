@@ -22,13 +22,13 @@ const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
 
 // URL base e Chave Secreta JWT ancoradas em variáveis de ambiente
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-const JWT_SECRET = process.env.JWT_SECRET || 'storyforge_jwt_secret_key_mestra_ultra_segura_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Configuração de Segurança para Cookies HttpOnly
 const COOKIE_OPTIONS = {
   httpOnly: true, // Proteção contra XSS
   secure: process.env.NODE_ENV === 'production', // Requer HTTPS em produção
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Proteção anti-CSRF
+  sameSite: process.env.COOKIE_SAME_SITE || (process.env.NODE_ENV === 'production' ? 'strict' : 'lax'), // Cross-site HTTPS pode usar COOKIE_SAME_SITE=none
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
 };
 
@@ -131,7 +131,7 @@ router.post('/register', async (req, res) => {
     const tokenExp = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Horas
 
     // Captura do IP do usuário para conformidade com o Art. 15 do Marco Civil da Internet
-    const clientIp = (req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+    const clientIp = req.ip || req.socket.remoteAddress || '';
     const currentTermsVersion = '1.0.0';
 
     if (!user) {
@@ -261,7 +261,7 @@ router.post('/login', async (req, res) => {
 
     const { password: _, verificationToken: __, resetToken: ___, deleteToken: ____, ...userClean } = user;
 
-    return res.status(200).json({ token, user: userClean });
+    return res.status(200).json({ user: userClean });
   } catch (err) {
     console.error('Erro no login:', err);
     return res.status(500).json({ message: 'Erro interno no login.' });

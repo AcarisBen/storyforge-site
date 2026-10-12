@@ -19,7 +19,10 @@ export const requireAuth = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (typeof decoded.userId !== 'string' || !decoded.userId) {
+      return res.status(401).json({ error: 'Token inválido ou expirado.' });
+    }
     req.userId = decoded.userId;
     next();
   } catch (err) {

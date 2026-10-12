@@ -33,7 +33,7 @@ if (process.env.REDIS_URL) {
   }
 }
 
-// Extrai o ID do Usuário do Cookie HttpOnly ou Header Authorization antes do tratamento das rotas
+// Só associa limite a uma conta quando o token foi validado criptograficamente.
 const extractUserIdQuietly = (req) => {
   try {
     let token = req.cookies?.token;
@@ -43,18 +43,11 @@ const extractUserIdQuietly = (req) => {
     }
 
     if (token) {
-      const cleanToken = token.replace('token_seguro_', '').trim();
-      const JWT_SECRET = process.env.JWT_SECRET || 'storyforge_jwt_secret_key_mestra_ultra_segura_2026';
-      
-      try {
-        const decoded = jwt.verify(cleanToken, JWT_SECRET);
-        return decoded.userId || cleanToken;
-      } catch {
-        return cleanToken; // Fallback caso não seja JWT assinado
-      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      return typeof decoded.userId === 'string' ? decoded.userId : null;
     }
   } catch {
-    // Ignora erros silenciosamente para fallback no IP
+    return null;
   }
   return null;
 };
@@ -141,4 +134,15 @@ export const apiLimiter = rateLimit({
   message: {
     error: 'Muitas requisições enviadas em curto período. Aguarde alguns segundos.',
   },
+});
+
+export const supportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store,
+  keyGenerator: (req) => req.userId ? `user_${req.userId}` : req.ip,
+  validate: customKeyGenValidation,
+  message: { error: 'Limite de envios de suporte atingido. Tente novamente mais tarde.' },
 });

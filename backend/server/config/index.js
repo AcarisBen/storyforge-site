@@ -25,10 +25,10 @@ import {
 // ==========================================
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
+if (!JWT_SECRET || JWT_SECRET.trim().length < 32 || JWT_SECRET === 'secret123') {
   console.error('\x1b[31m%s\x1b[0m', '=======================================================');
-  console.error('\x1b[31m%s\x1b[0m', '[ERRO FATAL DE SEGURANÇA] JWT_SECRET não está configurado!');
-  console.error('\x1b[31m%s\x1b[0m', 'Defina uma chave secreta forte para JWT_SECRET no arquivo .env.');
+  console.error('\x1b[31m%s\x1b[0m', '[ERRO FATAL DE SEGURANÇA] JWT_SECRET precisa ter pelo menos 32 caracteres.');
+  console.error('\x1b[31m%s\x1b[0m', 'Defina uma chave secreta forte para JWT_SECRET no ambiente do servidor.');
   console.error('\x1b[31m%s\x1b[0m', 'A aplicação foi interrompida para evitar vulnerabilidades.');
   console.error('\x1b[31m%s\x1b[0m', '=======================================================');
   process.exit(1);
@@ -36,8 +36,11 @@ if (!JWT_SECRET || JWT_SECRET.trim() === '' || JWT_SECRET === 'secret123') {
 
 const app = express();
 
-// Confia no primeiro proxy reverso (Nginx, Render, Heroku, Cloudflare) para extração do IP real
-app.set('trust proxy', 1);
+const trustedProxyHops = Number.parseInt(process.env.TRUST_PROXY_HOPS || '0', 10);
+if (!Number.isInteger(trustedProxyHops) || trustedProxyHops < 0) {
+  throw new Error('TRUST_PROXY_HOPS deve ser um inteiro maior ou igual a zero.');
+}
+app.set('trust proxy', trustedProxyHops);
 
 // ==========================================
 // MIDDLEWARES DE SEGURANÇA (HELMET & CSP)
@@ -59,13 +62,18 @@ app.use(
 );
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && (!FRONTEND_URL || !FRONTEND_URL.startsWith('https://'))) {
+  throw new Error('FRONTEND_URL HTTPS é obrigatória em produção.');
+}
 
 // Configuração de CORS para desenvolvimento e produção
 app.use(cors({
   origin: (origin, callback) => {
     if (
       !origin || 
-      origin.startsWith('http://localhost:') || 
+      (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) ||
       (FRONTEND_URL && origin === FRONTEND_URL)
     ) {
       callback(null, true);
@@ -76,7 +84,7 @@ app.use(cors({
   credentials: true // Permite envio/recebimento de cookies HttpOnly
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser()); // Middleware essencial para interpretar req.cookies
 
 // Servir pasta de uploads publicamente
@@ -105,6 +113,19 @@ app.use('/api', entityRoutes);
 app.use('/api/grammar', grammarRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', supportRoutes);
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  if (error instanceof multer.MulterError || error.message?.includes('Unexpected field')) {
+    return res.status(400).json({ error: 'O arquivo enviado é inválido ou excede os limites permitidos.' });
+  }
+  if (error.message === 'Bloqueado pelo CORS') {
+    return res.status(403).json({ error: 'Origem não autorizada.' });
+  }
+  console.error('Erro não tratado na API:', error.message);
+  return res.status(500).json({ error: 'Erro interno do servidor.' });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
