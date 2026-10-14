@@ -11,6 +11,7 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
@@ -19,15 +20,15 @@ import {
 } from 'lucide-react';
 
 const RELATION_TYPES = {
-  Amizade: { label: 'Amizade', color: 'var(--relation-friendship, #10b981)', letter: 'A' },
-  Família: { label: 'Família', color: 'var(--relation-family, #eab308)', letter: 'F' },
-  Ódio: { label: 'Ódio / Raiva', color: 'var(--relation-hate, #ef4444)', letter: 'Ó' },
-  Amor: { label: 'Amor', color: 'var(--relation-love, #ec4899)', letter: 'A' },
-  Aliança: { label: 'Aliança', color: 'var(--relation-alliance, #06b6d4)', letter: 'A' },
-  Rivalidade: { label: 'Rivalidade', color: 'var(--relation-rivalry, #f97316)', letter: 'R' },
-  Vingança: { label: 'Vingança', color: 'var(--relation-vengeance, #a855f7)', letter: 'V' },
-  Opressão: { label: 'Opressão', color: 'var(--relation-oppression, #6b7280)', letter: 'O' },
-  Mentor: { label: 'Mentor', color: 'var(--relation-mentor, #d97706)', letter: 'M' },
+  Amizade: { label: 'Amizade', color: '#10b981', letter: 'A' },
+  Família: { label: 'Família', color: '#eab308', letter: 'F' },
+  Ódio: { label: 'Ódio / Raiva', color: '#ef4444', letter: 'Ó' },
+  Amor: { label: 'Amor', color: '#ec4899', letter: 'A' },
+  Aliança: { label: 'Aliança', color: '#06b6d4', letter: 'A' },
+  Rivalidade: { label: 'Rivalidade', color: '#f97316', letter: 'R' },
+  Vingança: { label: 'Vingança', color: '#a855f7', letter: 'V' },
+  Opressão: { label: 'Opressão', color: '#6b7280', letter: 'O' },
+  Mentor: { label: 'Mentor', color: '#d97706', letter: 'M' },
 };
 
 const INTENSITY_OPTIONS = [
@@ -68,7 +69,6 @@ const guideTabs = {
   ),
 };
 
-// Mapeamento centralizado de ícones e cores do Guia do Módulo
 const GUIDE_TAB_CONFIG = {
   Objetivo: { Icon: Target, color: 'text-red-400' },
   Dicas: { Icon: Lightbulb, color: 'text-amber-400' },
@@ -82,7 +82,6 @@ function RelacoesGuide() {
 
   return (
     <section className="module-guide character-guide mb-6 rounded-2xl border border-white/10 bg-[#14141e]/80 backdrop-blur-md overflow-hidden">
-      {/* Cabeçalho do Guia com ícone de Exclamação */}
       <button
         className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors text-left"
         type="button"
@@ -100,7 +99,6 @@ function RelacoesGuide() {
         )}
       </button>
 
-      {/* Conteúdo com Abas Padronizadas */}
       {isOpen && (
         <div className="p-4 pt-0 border-t border-white/5 space-y-4">
           <nav className="flex flex-wrap gap-2 pt-3" aria-label="Guia do módulo">
@@ -155,9 +153,9 @@ function getCharacterBorderColor(char = {}) {
     .map(sanitize)
     .join(' ');
 
-  if (combinedProps.includes('protagonista')) return 'var(--role-protagonist, #f97316)';
-  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return 'var(--role-antagonist, #ef4444)';
-  return 'var(--role-secondary, #3b82f6)';
+  if (combinedProps.includes('protagonista')) return '#f97316';
+  if (combinedProps.includes('antagonista') || combinedProps.includes('vilao')) return '#ef4444';
+  return '#3b82f6';
 }
 
 function getStrokeWidthFromIntensity(val = 6) {
@@ -179,6 +177,7 @@ export default function Relacoes({ projectId }) {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedSceneFilter, setSelectedSceneFilter] = useState('todas');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const [editingId, setEditingId] = useState(null);
   const [charA, setCharA] = useState('');
@@ -230,9 +229,10 @@ export default function Relacoes({ projectId }) {
     const positions = {};
 
     characters.forEach((char, index) => {
-      if (!char || !char.id) return;
+      const charId = char.id || char._id;
+      if (!char || !charId) return;
       const angle = (2 * Math.PI * index) / total - Math.PI / 2;
-      positions[char.id] = {
+      positions[charId] = {
         x: center + radius * Math.cos(angle),
         y: center + radius * Math.sin(angle),
         name: char.name || char.nome || 'Sem Nome',
@@ -247,7 +247,8 @@ export default function Relacoes({ projectId }) {
     if (!Array.isArray(relations)) return [];
     return relations.filter((r) => {
       if (!r) return false;
-      return selectedSceneFilter === 'todas' || String(r.sceneId) === String(selectedSceneFilter);
+      const sId = r.sceneId || r.cenaId;
+      return selectedSceneFilter === 'todas' || String(sId) === String(selectedSceneFilter);
     });
   }, [relations, selectedSceneFilter]);
 
@@ -255,8 +256,10 @@ export default function Relacoes({ projectId }) {
     const groups = {};
 
     filteredRelations.forEach((rel) => {
-      if (!rel.charAId || !rel.charBId) return;
-      const pairKey = [String(rel.charAId), String(rel.charBId)].sort().join('___');
+      const cA = rel.charAId || rel.characterAId || rel.charA;
+      const cB = rel.charBId || rel.characterBId || rel.charB;
+      if (!cA || !cB) return;
+      const pairKey = [String(cA), String(cB)].sort().join('___');
       if (!groups[pairKey]) groups[pairKey] = [];
       groups[pairKey].push(rel);
     });
@@ -266,20 +269,28 @@ export default function Relacoes({ projectId }) {
 
   const handleOpenForm = (rel = null) => {
     if (rel) {
-      setEditingId(rel.id);
-      setCharA(rel.charAId || '');
-      setCharB(rel.charBId || '');
-      setRelType(rel.type || 'Amizade');
-      setIntensity(rel.intensity || 6);
-      setRelSceneId(rel.sceneId || '');
-      setDescription(rel.description || '');
+      const rId = rel.id || rel._id;
+      const cA = rel.charAId || rel.characterAId || rel.charA || '';
+      const cB = rel.charBId || rel.characterBId || rel.charB || '';
+
+      setEditingId(rId);
+      setCharA(String(cA));
+      setCharB(String(cB));
+      setRelType(rel.type || rel.tipo || 'Amizade');
+      setIntensity(rel.intensity || rel.intensidade || 6);
+      setRelSceneId(rel.sceneId || rel.cenaId || '');
+      setDescription(rel.description || rel.descricao || '');
     } else {
+      const defaultA = characters[0]?.id || characters[0]?._id || '';
+      const defaultB = characters[1]?.id || characters[1]?._id || '';
+      const defaultScene = scenes[0]?.id || scenes[0]?._id || '';
+
       setEditingId(null);
-      setCharA(characters[0]?.id || '');
-      setCharB(characters[1]?.id || '');
+      setCharA(String(defaultA));
+      setCharB(String(defaultB));
       setRelType('Amizade');
       setIntensity(6);
-      setRelSceneId(scenes[0]?.id || '');
+      setRelSceneId(String(defaultScene));
       setDescription('');
     }
     setIsFormOpen(true);
@@ -287,11 +298,15 @@ export default function Relacoes({ projectId }) {
 
   const handleSaveRelation = async (e) => {
     e.preventDefault();
-    if (!charA || !charB || charA === charB) {
+
+    const charAExists = characters.some((c) => String(c.id || c._id) === String(charA));
+    const charBExists = characters.some((c) => String(c.id || c._id) === String(charB));
+
+    if (!charA || !charB || charA === charB || !charAExists || !charBExists) {
       showToast({
         type: 'warning',
         title: 'Seleção Inválida',
-        message: 'Selecione dois personagens diferentes.'
+        message: 'Por favor, selecione dois personagens válidos e diferentes.'
       });
       return;
     }
@@ -300,26 +315,54 @@ export default function Relacoes({ projectId }) {
 
     const payload = {
       id: editingId,
+      _id: editingId,
       projectId,
       charAId: charA,
       charBId: charB,
+      characterAId: charA,
+      characterBId: charB,
       type: relType,
-      intensity,
+      tipo: relType,
+      intensity: Number(intensity),
+      intensidade: Number(intensity),
       sceneId: relSceneId || null,
       description,
+      descricao: description,
     };
 
     try {
-      const res = await apiClient.post(`/entities/relations`, payload);
+      let res;
       if (editingId) {
-        setRelations((prev) => prev.map((r) => (r.id === editingId ? res.data : r)));
+        try {
+          res = await apiClient.put(`/entities/relations/${editingId}`, payload);
+        } catch {
+          try {
+            res = await apiClient.put(`/entities/projects/${projectId}/relations/${editingId}`, payload);
+          } catch {
+            res = await apiClient.post(`/entities/relations`, payload);
+          }
+        }
+      } else {
+        try {
+          res = await apiClient.post(`/entities/relations`, payload);
+        } catch {
+          res = await apiClient.post(`/entities/projects/${projectId}/relations`, payload);
+        }
+      }
+
+      const savedData = res?.data || payload;
+
+      if (editingId) {
+        setRelations((prev) =>
+          prev.map((r) => ((r.id || r._id) === editingId ? { ...r, ...savedData, id: editingId } : r))
+        );
         showToast({
           type: 'success',
           title: 'Relação Atualizada',
           message: 'A relação foi atualizada com sucesso.'
         });
       } else {
-        setRelations((prev) => [...prev, res.data]);
+        setRelations((prev) => [...prev, savedData]);
         showToast({
           type: 'success',
           title: 'Relação Criada',
@@ -339,14 +382,18 @@ export default function Relacoes({ projectId }) {
     }
   };
 
-  const handleDeleteRelation = async (id, e) => {
-    e.stopPropagation();
-    if (!window.confirm('Tem certeza que deseja excluir esta relação?')) return;
-
+  const confirmDeleteRelation = async (id) => {
+    if (!id) return;
     setSavingStatus('Salvando...');
+
     try {
-      await apiClient.delete(`/entities/relations/${id}`);
-      setRelations((prev) => prev.filter((r) => r.id !== id));
+      try {
+        await apiClient.delete(`/entities/relations/${id}`);
+      } catch {
+        await apiClient.delete(`/entities/projects/${projectId}/relations/${id}`);
+      }
+
+      setRelations((prev) => prev.filter((r) => (r.id || r._id) !== id));
       setSavingStatus('Salvo');
       showToast({
         type: 'success',
@@ -361,6 +408,8 @@ export default function Relacoes({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir a relação.'
       });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -369,8 +418,8 @@ export default function Relacoes({ projectId }) {
       {/* CABEÇALHO PADRONIZADO DA PÁGINA RELAÇÕES */}
       <header className="module-header flex justify-between items-center">
         <div>
-          <h1>Relações</h1>
-          <p>Grafo interativo mostrando as conexões e dinâmicas entre personagens.</p>
+          <h1 className="text-2xl font-bold text-white">Relações</h1>
+          <p className="text-xs text-gray-400 mt-1">Grafo interativo mostrando as conexões e dinâmicas entre personagens.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 font-medium bg-[#1c1c26] px-3 py-1 rounded-full border border-gray-800">
@@ -400,9 +449,10 @@ export default function Relacoes({ projectId }) {
             className="bg-[#12131a] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
           >
             <option value="todas">Todas as Cenas</option>
-            {scenes.map((s) => (
-              <option key={s.id} value={s.id}>{s.title || s.titulo || `Cena ${s.id}`}</option>
-            ))}
+            {scenes.map((s) => {
+              const sId = s.id || s._id;
+              return <option key={sId} value={sId}>{s.title || s.titulo || `Cena ${sId}`}</option>;
+            })}
           </select>
 
           <button
@@ -436,9 +486,13 @@ export default function Relacoes({ projectId }) {
                 className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Selecione...</option>
-                {characters.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name || c.nome}</option>
-                ))}
+                {charA && !characters.some((c) => String(c.id || c._id) === String(charA)) && (
+                  <option value={charA}>⚠️ Personagem Excluído (Escolha outro)</option>
+                )}
+                {characters.map((c) => {
+                  const cId = c.id || c._id;
+                  return <option key={cId} value={cId}>{c.name || c.nome}</option>;
+                })}
               </select>
             </div>
 
@@ -451,9 +505,13 @@ export default function Relacoes({ projectId }) {
                 className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Selecione...</option>
-                {characters.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name || c.nome}</option>
-                ))}
+                {charB && !characters.some((c) => String(c.id || c._id) === String(charB)) && (
+                  <option value={charB}>⚠️ Personagem Excluído (Escolha outro)</option>
+                )}
+                {characters.map((c) => {
+                  const cId = c.id || c._id;
+                  return <option key={cId} value={cId}>{c.name || c.nome}</option>;
+                })}
               </select>
             </div>
           </div>
@@ -480,9 +538,10 @@ export default function Relacoes({ projectId }) {
                 className="w-full bg-[#181924] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="">Geral (Todas as Cenas)</option>
-                {scenes.map((s) => (
-                  <option key={s.id} value={s.id}>{s.title || s.titulo || `Cena ${s.id}`}</option>
-                ))}
+                {scenes.map((s) => {
+                  const sId = s.id || s._id;
+                  return <option key={sId} value={sId}>{s.title || s.titulo || `Cena ${sId}`}</option>;
+                })}
               </select>
             </div>
 
@@ -531,15 +590,17 @@ export default function Relacoes({ projectId }) {
                 const totalInPair = relsGroup.length;
 
                 return relsGroup.map((rel, index) => {
-                  const posA = nodePositions[rel.charAId];
-                  const posB = nodePositions[rel.charBId];
+                  const cA = rel.charAId || rel.characterAId || rel.charA;
+                  const cB = rel.charBId || rel.characterBId || rel.charB;
+                  const posA = nodePositions[cA];
+                  const posB = nodePositions[cB];
 
                   if (!posA || !posB) return null;
 
-                  const config = RELATION_TYPES[rel.type] || RELATION_TYPES.Amizade;
-                  const strokeW = getStrokeWidthFromIntensity(rel.intensity);
+                  const config = RELATION_TYPES[rel.type || rel.tipo] || RELATION_TYPES.Amizade;
+                  const strokeW = getStrokeWidthFromIntensity(rel.intensity || rel.intensidade);
 
-                  const isCanonicalOrder = String(rel.charAId) < String(rel.charBId);
+                  const isCanonicalOrder = String(cA) < String(cB);
                   const startPos = isCanonicalOrder ? posA : posB;
                   const endPos = isCanonicalOrder ? posB : posA;
 
@@ -571,9 +632,10 @@ export default function Relacoes({ projectId }) {
                   const labelY = 0.25 * startPos.y + 0.5 * ctrlY + 0.25 * endPos.y;
 
                   const pathD = `M ${startPos.x} ${startPos.y} Q ${ctrlX} ${ctrlY} ${endPos.x} ${endPos.y}`;
+                  const rId = rel.id || rel._id || index;
 
                   return (
-                    <g key={rel.id || index}>
+                    <g key={rId}>
                       <path
                         d={pathD}
                         fill="none"
@@ -640,13 +702,16 @@ export default function Relacoes({ projectId }) {
             </div>
           ) : (
             filteredRelations.map((rel) => {
-              const nameA = nodePositions[rel.charAId]?.name || 'Desconhecido';
-              const nameB = nodePositions[rel.charBId]?.name || 'Desconhecido';
-              const config = RELATION_TYPES[rel.type] || RELATION_TYPES.Amizade;
+              const relId = rel.id || rel._id;
+              const cA = rel.charAId || rel.characterAId || rel.charA;
+              const cB = rel.charBId || rel.characterBId || rel.charB;
+              const nameA = nodePositions[cA]?.name || 'Desconhecido';
+              const nameB = nodePositions[cB]?.name || 'Desconhecido';
+              const config = RELATION_TYPES[rel.type || rel.tipo] || RELATION_TYPES.Amizade;
 
               return (
                 <div
-                  key={rel.id}
+                  key={relId}
                   onClick={() => handleOpenForm(rel)}
                   className="p-3.5 bg-[#12131a] hover:bg-[#181924] border border-gray-800/80 hover:border-purple-600/50 rounded-2xl transition-all shadow-md cursor-pointer flex flex-col justify-between group"
                 >
@@ -657,14 +722,17 @@ export default function Relacoes({ projectId }) {
                         className="px-2 py-0.5 rounded-md text-[9px] font-bold text-white"
                         style={{ backgroundColor: config.color }}
                       >
-                        {rel.type}
+                        {rel.type || rel.tipo}
                       </span>
                       <span>{nameB}</span>
                     </div>
 
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteRelation(rel.id, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirmId(relId);
+                      }}
                       className="text-gray-500 hover:text-red-400 text-xs p-1 transition-colors cursor-pointer"
                       title="Excluir relação"
                     >
@@ -672,9 +740,9 @@ export default function Relacoes({ projectId }) {
                     </button>
                   </div>
 
-                  {rel.description && (
+                  {(rel.description || rel.descricao) && (
                     <p className="text-[11px] text-gray-400 italic leading-snug">
-                      {rel.description}
+                      {rel.description || rel.descricao}
                     </p>
                   )}
                 </div>
@@ -683,6 +751,44 @@ export default function Relacoes({ projectId }) {
           )}
         </div>
       </div>
+
+      {/* MODAL DE CONFIRMAÇÃO IDENTICO À IMAGEM DE REFERÊNCIA */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#13121b] border border-red-500/20 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col items-center text-center">
+            
+            {/* Ícone de Alerta com Glow e Borda Arredondada */}
+            <div className="w-14 h-14 rounded-2xl bg-red-950/50 border border-red-500/30 flex items-center justify-center text-red-400 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.25)]">
+              <AlertTriangle size={28} />
+            </div>
+
+            {/* Título e Texto de Confirmação */}
+            <h3 className="text-xl font-extrabold text-white tracking-tight">Excluir Relação</h3>
+            <p className="text-xs text-gray-400 leading-relaxed mt-2 mb-6">
+              Tem certeza que deseja excluir esta relação? Esta ação é irreversível e removerá a conexão entre os personagens.
+            </p>
+
+            {/* Botões do Modal */}
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="py-3 px-4 bg-[#1a1926] hover:bg-[#232136] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => confirmDeleteRelation(deleteConfirmId)}
+                className="py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-[0_4px_20px_rgba(239,68,68,0.4)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

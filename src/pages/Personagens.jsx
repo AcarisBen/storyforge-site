@@ -1,5 +1,5 @@
 // src/pages/Personagens.jsx
-// Página de Personagens do StoryForge com Guia do Módulo Padronizado
+// Página de Personagens do StoryForge com Guia do Módulo e Modal Customizado de Exclusão Padronizados
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
@@ -11,8 +11,12 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
-  ChevronDown 
+  ChevronDown,
+  Plus,
+  Trash2,
+  X
 } from 'lucide-react';
 
 const characterTypes = {
@@ -276,6 +280,9 @@ export default function Personagens({ projectId }) {
   const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Estado para controlar o personagem a ser excluído via Modal Customizado
+  const [characterToDelete, setCharacterToDelete] = useState(null);
+
   // Carrega os personagens do banco PostgreSQL ao abrir a página
   useEffect(() => {
     if (!projectId) return;
@@ -353,19 +360,23 @@ export default function Personagens({ projectId }) {
     setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }
 
-  // Excluir Personagem do PostgreSQL
-  async function deleteCharacter(id) {
-    if (!window.confirm('Tem certeza que deseja excluir este personagem?')) return;
+  // Executa a exclusão do personagem após confirmação no modal
+  const confirmDeleteCharacter = async () => {
+    if (!characterToDelete) return;
+
+    const { id, name } = characterToDelete;
 
     try {
-      await apiClient.delete(`/characters/${id}`);
+      await apiClient.delete(`/characters/${id}`).catch(() => 
+        apiClient.delete(`/entities/characters/${id}`)
+      );
       setCharacters((prev) => prev.filter((c) => c.id !== id));
       if (selectedCharacter?.id === id) setSelectedCharacter(null);
 
       showToast({
         type: 'success',
         title: 'Personagem Excluído',
-        message: 'O personagem foi removido com sucesso.'
+        message: `O personagem "${name}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir personagem:', err);
@@ -374,17 +385,64 @@ export default function Personagens({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir o personagem.'
       });
+    } finally {
+      setCharacterToDelete(null);
     }
-  }
+  };
 
   if (selectedCharacter) {
     return (
-      <CharacterDetail
-        character={selectedCharacter}
-        onBack={() => setSelectedCharacter(null)}
-        onUpdate={updateCharacterState}
-        onDelete={() => deleteCharacter(selectedCharacter.id)}
-      />
+      <>
+        <CharacterDetail
+          character={selectedCharacter}
+          onBack={() => setSelectedCharacter(null)}
+          onUpdate={updateCharacterState}
+          onDelete={() => setCharacterToDelete(selectedCharacter)}
+        />
+
+        {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE PERSONAGEM */}
+        {characterToDelete && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+            <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+              <button
+                type="button"
+                onClick={() => setCharacterToDelete(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+                <AlertTriangle size={24} />
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-bold text-white">Excluir Personagem</h3>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Tem certeza que deseja excluir o personagem <strong className="text-white">"{characterToDelete.name}"</strong>? Esta ação é irreversível e removerá todas as informações cadastradas no dossiê.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCharacterToDelete(null)}
+                  className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteCharacter}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+                >
+                  <Trash2 size={15} /> Confirmar Exclusão
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -418,8 +476,8 @@ export default function Personagens({ projectId }) {
             </button>
           ))}
         </nav>
-        <button className="new-character-button cursor-pointer" type="button" onClick={() => setIsCreating(true)}>
-          ＋ Novo Personagem
+        <button className="new-character-button cursor-pointer flex items-center gap-1" type="button" onClick={() => setIsCreating(true)}>
+          <Plus size={16} /> Novo Personagem
         </button>
       </div>
 
@@ -481,7 +539,7 @@ export default function Personagens({ projectId }) {
                     className="cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteCharacter(character.id);
+                      setCharacterToDelete(character);
                     }}
                   >
                     Excluir
@@ -490,6 +548,49 @@ export default function Personagens({ projectId }) {
               </article>
             );
           })}
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE PERSONAGEM */}
+      {characterToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setCharacterToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Personagem</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o personagem <strong className="text-white">"{characterToDelete.name}"</strong>? Esta ação é irreversível e removerá todas as informações cadastradas no dossiê.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setCharacterToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCharacter}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

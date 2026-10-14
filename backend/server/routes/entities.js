@@ -32,7 +32,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// Função auxiliar para gerar variações fonéticas universais caso o LT entregue poucas opções
+// Função auxiliar para gerar variações fonéticas universais
 function generatePhoneticVariants(word) {
   const variants = new Set();
   const lower = word.toLowerCase();
@@ -50,9 +50,6 @@ function generatePhoneticVariants(word) {
   return Array.from(variants);
 }
 
-// ==========================================
-// EXTRAIR E VALIDAR USUÁRIO LOGADO VIA COOKIE HTTPONLY OU HEADER
-// ==========================================
 // Middleware para validar propriedade do projeto em rotas com :projectId
 const verifyProjectOwner = async (projectId, userId) => {
   if (!projectId || !userId) return null;
@@ -217,74 +214,102 @@ router.post('/projects', requireAuth, createProjectHandler);
 router.delete('/projects/:id', requireAuth, deleteProjectHandler);
 
 // ==========================================
-// RELAÇÕES DE PERSONAGENS
+// RELAÇÕES DE PERSONAGENS (COM PROTEÇÃO BOLA/IDOR)
 // ==========================================
-router.get('/projects/:projectId/relations', requireAuth, async (req, res) => {
+
+// Helper para tratar ID da relação (deve ser Int/Número conforme o schema.prisma)
+const parseRelationId = (id) => {
+  if (id === undefined || id === null || id === '') return null;
+  const num = Number(id);
+  return !isNaN(num) && Number.isInteger(num) ? num : null;
+};
+
+// 1. LISTAR RELAÇÕES DO PROJETO
+const getRelationsHandler = async (req, res) => {
   const { projectId } = req.params;
+
   try {
     const project = await verifyProjectOwner(projectId, req.userId);
-    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+    if (!project) {
+      return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+    }
 
     const relations = await prisma.characterRelation.findMany({
       where: { projectId: String(projectId) },
       orderBy: { id: 'asc' },
     });
+
     res.json(relations);
   } catch (err) {
     console.error('Erro ao buscar relações:', err);
-    res.status(500).json({ error: 'Erro ao carregar relações' });
+    res.status(500).json({ error: 'Erro ao carregar relações do projeto.' });
   }
-});
+};
 
-router.post('/relations', requireAuth, async (req, res) => {
-  const { id, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
+router.get('/projects/:projectId/relations', requireAuth, getRelationsHandler);
+router.get('/entities/projects/:projectId/relations', requireAuth, getRelationsHandler);
+
+// 2. CRIAR OU ATUALIZAR RELAÇÃO
+const saveRelationHandler = async (req, res) => {
+  const idFromParam = req.params.id;
+  const { id: idFromBody, projectId, charAId, charBId, type, intensity, sceneId, description } = req.body;
+  
+  const targetId = parseRelationId(idFromParam || idFromBody);
 
   if (!projectId || !charAId || !charBId) {
-    return res.status(400).json({ error: 'Projeto e Personagens são obrigatórios.' });
+    return res.status(400).json({ error: 'Projeto e Personagens A e B são obrigatórios.' });
   }
 
   try {
+    // 1. Valida se o projeto pertence ao usuário logado
     const project = await verifyProjectOwner(projectId, req.userId);
-    if (!project) return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+    if (!project) {
+      return res.status(404).json({ error: 'Projeto não encontrado ou acesso negado.' });
+    }
 
-    const validChars = await prisma.character.count({
+    // 2. Valida se os personagens pertencem ao projeto
+    const validCharsCount = await prisma.character.count({
       where: {
         id: { in: [String(charAId), String(charBId)] },
         projectId: String(projectId),
       },
     });
 
-    if (validChars < (charAId === charBId ? 1 : 2)) {
-      return res.status(400).json({ error: 'Um ou ambos os personagens não pertencem a este projeto.' });
+    const expectedCount = String(charAId) === String(charBId) ? 1 : 2;
+    if (validCharsCount < expectedCount) {
+      return res.status(400).json({ 
+        error: 'Um ou ambos os personagens selecionados não foram encontrados no projeto.' 
+      });
     }
 
-    if (sceneId) {
-      const validScene = await prisma.entity.findFirst({
-        where: {
-          id: String(sceneId),
-          projectId: String(projectId),
-          type: 'SCENE',
-        },
+    // 3. Valida cena vinculada, se informada
+    if (sceneId && String(sceneId).trim() !== '') {
+      const validSceneEntity = await prisma.entity.findFirst({
+        where: { id: String(sceneId), projectId: String(projectId), type: 'SCENE' },
+      });
+      const validSceneModel = await prisma.scene.findFirst({
+        where: { id: String(sceneId), projectId: String(projectId) },
       });
 
-      if (!validScene) {
+      if (!validSceneEntity && !validSceneModel) {
         return res.status(400).json({ error: 'A cena informada é inválida ou não pertence a este projeto.' });
       }
     }
 
     let savedRelation;
-    if (id && !isNaN(Number(id))) {
+
+    // Atualização
+    if (targetId !== null) {
       const existing = await prisma.characterRelation.findFirst({
-        where: { 
-          id: Number(id), 
-          projectId: String(projectId),
-          project: { userId: req.userId } 
-        }
+        where: { id: targetId, projectId: String(projectId) },
       });
-      if (!existing) return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Relação não encontrada no projeto.' });
+      }
 
       savedRelation = await prisma.characterRelation.update({
-        where: { id: Number(id) },
+        where: { id: targetId },
         data: {
           charAId: String(charAId),
           charBId: String(charBId),
@@ -295,6 +320,7 @@ router.post('/relations', requireAuth, async (req, res) => {
         },
       });
     } else {
+      // Criação
       savedRelation = await prisma.characterRelation.create({
         data: {
           projectId: String(projectId),
@@ -307,33 +333,63 @@ router.post('/relations', requireAuth, async (req, res) => {
         },
       });
     }
+
     res.status(200).json(savedRelation);
   } catch (err) {
     console.error('Erro ao salvar relação:', err);
     res.status(500).json({ error: 'Erro ao salvar a relação no banco de dados.' });
   }
-});
+};
 
-router.delete('/relations/:id', requireAuth, async (req, res) => {
+router.post('/relations', requireAuth, saveRelationHandler);
+router.post('/entities/relations', requireAuth, saveRelationHandler);
+router.put('/relations/:id', requireAuth, saveRelationHandler);
+router.put('/entities/relations/:id', requireAuth, saveRelationHandler);
+router.put('/projects/:projectId/relations/:id', requireAuth, saveRelationHandler);
+router.put('/entities/projects/:projectId/relations/:id', requireAuth, saveRelationHandler);
+
+// 3. EXCLUIR RELAÇÃO
+const deleteRelationHandler = async (req, res) => {
   const { id } = req.params;
+  const targetId = parseRelationId(id);
+
+  if (targetId === null) {
+    return res.status(400).json({ error: 'ID da relação inválido.' });
+  }
+
   try {
-    const deleted = await prisma.characterRelation.deleteMany({
-      where: { 
-        id: Number(id), 
-        project: { userId: req.userId } 
-      }
+    // 1. Busca a relação para identificar o projeto
+    const relation = await prisma.characterRelation.findUnique({
+      where: { id: targetId },
     });
 
-    if (deleted.count === 0) {
-      return res.status(404).json({ error: 'Relação não encontrada ou acesso negado.' });
+    if (!relation) {
+      return res.status(404).json({ error: 'Relação não encontrada.' });
     }
+
+    // 2. Valida se o usuário é dono do projeto vinculado a essa relação
+    const project = await verifyProjectOwner(relation.projectId, req.userId);
+    if (!project) {
+      return res.status(403).json({ error: 'Acesso negado para excluir esta relação.' });
+    }
+
+    // 3. Apaga a relação
+    await prisma.characterRelation.delete({
+      where: { id: targetId },
+    });
 
     res.json({ success: true, message: 'Relação removida com sucesso' });
   } catch (err) {
     console.error('Erro ao deletar relação:', err);
-    res.status(500).json({ error: 'Erro ao excluir relação' });
+    res.status(500).json({ error: 'Erro ao excluir a relação do banco de dados.' });
   }
-});
+};
+
+router.delete('/relations/:id', requireAuth, deleteRelationHandler);
+router.delete('/entities/relations/:id', requireAuth, deleteRelationHandler);
+router.delete('/projects/:projectId/relations/:id', requireAuth, deleteRelationHandler);
+router.delete('/entities/projects/:projectId/relations/:id', requireAuth, deleteRelationHandler);
+
 
 // ==========================================
 // CONFIGURAÇÕES DO PROJETO (Identity, Essência, Engenharia)
@@ -1567,7 +1623,6 @@ router.get('/projects/:projectId/export-stfg', requireAuth, async (req, res) => 
       relations,
     };
 
-    // CORREÇÃO: Adicionado o await pois encryptStorybible é assíncrono
     const cryptoResult = await encryptStorybible(payloadToEncrypt);
 
     const exportPackage = {

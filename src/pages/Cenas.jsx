@@ -11,12 +11,14 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
   Trash2,
   GripVertical,
-  Clapperboard
+  Clapperboard,
+  X
 } from 'lucide-react';
 
 const guideTabs = {
@@ -174,6 +176,9 @@ export default function Cenas({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState('Salvo');
 
+  // Estado para controlar a cena a ser excluída via Modal Customizado
+  const [sceneToDelete, setSceneToDelete] = useState(null);
+
   // Carregar cenas do PostgreSQL ao abrir a página
   useEffect(() => {
     if (!projectId) return;
@@ -283,9 +288,11 @@ export default function Cenas({ projectId }) {
     }, 1000);
   }
 
-  // Excluir cena
-  async function deleteScene(id, title) {
-    if (!window.confirm(`Tem certeza que deseja excluir a cena "${title || 'sem título'}"?`)) return;
+  // Executa a exclusão da cena após confirmação no modal
+  const confirmDeleteScene = async () => {
+    if (!sceneToDelete) return;
+
+    const { id, title } = sceneToDelete;
     setSavingStatus('Salvando...');
 
     try {
@@ -297,7 +304,7 @@ export default function Cenas({ projectId }) {
       showToast({
         type: 'success',
         title: 'Cena Excluída',
-        message: 'A cena foi removida com sucesso.'
+        message: `A cena "${title || 'sem título'}" foi removida com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir cena:', err);
@@ -307,8 +314,10 @@ export default function Cenas({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir a cena.'
       });
+    } finally {
+      setSceneToDelete(null);
     }
-  }
+  };
 
   // Drag and drop para reordenar
   function moveScene(targetId) {
@@ -436,7 +445,7 @@ export default function Cenas({ projectId }) {
                   className="scene-delete text-red-400 hover:text-red-300 cursor-pointer p-1.5 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold flex items-center gap-1"
                   type="button"
                   aria-label={`Excluir ${scene.title}`}
-                  onClick={() => deleteScene(scene.id, scene.title)}
+                  onClick={() => setSceneToDelete(scene)}
                 >
                   <Trash2 size={14} />
                   <span>Excluir</span>
@@ -453,6 +462,49 @@ export default function Cenas({ projectId }) {
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE CENA */}
+      {sceneToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setSceneToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Cena</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir a cena <strong className="text-white">"{sceneToDelete.title || 'sem título'}"</strong>? Esta ação é irreversível e removerá todas as informações cadastradas nela.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSceneToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteScene}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

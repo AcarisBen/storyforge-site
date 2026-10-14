@@ -11,12 +11,14 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
   Pencil,
   Trash2,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 
 const baseElementTypes = [
@@ -193,6 +195,9 @@ export default function Mundo({ projectId }) {
   const [draft, setDraft] = useState({ name: '', type: 'País', customType: '', description: '' });
   const [loading, setLoading] = useState(true);
 
+  // Estado para controlar o elemento a ser excluído via Modal Customizado
+  const [elementToDelete, setElementToDelete] = useState(null);
+
   // Carrega os elementos do banco de dados ao carregar a tela
   useEffect(() => {
     if (!projectId) return;
@@ -304,15 +309,17 @@ export default function Mundo({ projectId }) {
       console.error('Erro ao salvar elemento do mundo:', err);
       showToast({
         type: 'error',
-        title: 'Erro de Criação',
+        title: 'Erro de Salvamento',
         message: err.response?.data?.error || 'Não foi possível salvar o elemento.'
       });
     }
   }
 
-  // Excluir Elemento do PostgreSQL
-  async function deleteElement(id) {
-    if (!window.confirm('Tem certeza que deseja excluir este elemento?')) return;
+  // Executa a exclusão do elemento após confirmação no modal
+  const confirmDeleteElement = async () => {
+    if (!elementToDelete) return;
+
+    const { id, name } = elementToDelete;
 
     try {
       await apiClient.delete(`/entities/world/${id}`);
@@ -320,7 +327,7 @@ export default function Mundo({ projectId }) {
       showToast({
         type: 'success',
         title: 'Elemento Excluído',
-        message: 'O elemento foi removido com sucesso.'
+        message: `O elemento "${name}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir elemento:', err);
@@ -329,8 +336,10 @@ export default function Mundo({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir o elemento.'
       });
+    } finally {
+      setElementToDelete(null);
     }
-  }
+  };
 
   return (
     <main className="module-page w-full world-page">
@@ -344,8 +353,8 @@ export default function Mundo({ projectId }) {
 
       <WorldGuide />
 
-      <div className="world-toolbar mt-6">
-        <nav className="world-filters flex flex-wrap gap-2">
+      <div className="world-toolbar mt-6 flex justify-between items-center gap-4 flex-wrap">
+        <nav className="world-filters flex flex-wrap gap-2 flex-1">
           {/* Botão "Todos" */}
           <button
             className={`px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-all ${
@@ -378,23 +387,29 @@ export default function Mundo({ projectId }) {
             );
           })}
         </nav>
-        <button className="new-character-button cursor-pointer flex items-center gap-1" type="button" onClick={openCreate}>
-          <Plus size={14} /> Novo
+        <button 
+          className="new-character-button cursor-pointer flex items-center gap-1 rounded-full px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm transition-all shrink-0" 
+          type="button" 
+          onClick={openCreate}
+        >
+          <Plus size={16} /> Novo Elemento
         </button>
       </div>
 
       {isCreating && (
-        <div className="world-create-form space-y-3 mt-4">
+        <div className="world-create-form bg-[#1c1c28] p-5 rounded-2xl border border-purple-900/50 space-y-3 mt-4 shadow-xl">
           <input
             autoFocus
             type="text"
             placeholder="Nome do elemento..."
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            className="w-full bg-[#14141e] border border-gray-800 rounded-xl p-3 text-xs text-white placeholder-gray-500 outline-none focus:border-purple-500"
           />
           <select 
             value={draft.type} 
             onChange={(event) => setDraft({ ...draft, type: event.target.value })}
+            className="w-full bg-[#14141e] border border-gray-800 rounded-xl p-3 text-xs font-semibold text-white outline-none focus:border-purple-500 cursor-pointer"
           >
             {baseElementTypes.map((type) => (
               <option key={type} value={type}>{type}</option>
@@ -408,6 +423,7 @@ export default function Mundo({ projectId }) {
               placeholder="Digite seu tipo personalizado (ex: Artefato, Guilda, Constelação)..."
               value={draft.customType}
               onChange={(event) => setDraft({ ...draft, customType: event.target.value })}
+              className="w-full bg-[#14141e] border border-gray-800 rounded-xl p-3 text-xs text-white placeholder-gray-500 outline-none focus:border-purple-500"
             />
           )}
 
@@ -415,12 +431,21 @@ export default function Mundo({ projectId }) {
             placeholder="Descrição..."
             value={draft.description}
             onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+            className="w-full h-24 bg-[#14141e] border border-gray-800 rounded-xl p-3 text-xs text-gray-300 placeholder-gray-500 outline-none focus:border-purple-500"
           />
-          <div>
-            <button className="cursor-pointer" type="button" onClick={saveElement}>
-              {editingId ? 'Salvar' : 'Criar'}
+          <div className="flex gap-2 pt-1">
+            <button 
+              className="cursor-pointer bg-purple-600 hover:bg-purple-500 px-5 py-2.5 rounded-xl text-white font-bold text-xs transition-colors" 
+              type="button" 
+              onClick={saveElement}
+            >
+              {editingId ? 'Salvar Alterações' : 'Criar Elemento'}
             </button>
-            <button className="cursor-pointer" type="button" onClick={() => setIsCreating(false)}>
+            <button 
+              className="cursor-pointer bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-xl text-gray-300 font-bold text-xs transition-colors" 
+              type="button" 
+              onClick={() => setIsCreating(false)}
+            >
               Cancelar
             </button>
           </div>
@@ -430,29 +455,85 @@ export default function Mundo({ projectId }) {
       {loading ? (
         <div className="text-center py-12 text-gray-500">Carregando universo...</div>
       ) : visibleElements.length === 0 ? (
-        <div className="empty-characters world-empty">
+        <div className="empty-characters world-empty text-center py-12">
           <Globe size={32} className="text-gray-600 mx-auto mb-2" />
-          <p>Nenhum elemento criado ainda.</p>
+          <p className="text-gray-400 text-sm">Nenhum elemento criado ainda.</p>
         </div>
       ) : (
-        <div className="world-elements mt-6">
+        <div className="world-elements grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           {visibleElements.map((element) => (
-            <article className="world-card" key={element.id}>
-              <div>
-                <h2>{element.name}</h2>
-                <small>{element.type}</small>
-                <p>{element.description || 'Sem descrição.'}</p>
+            <article className="world-card bg-[#181822] border border-gray-800 rounded-2xl p-5 flex flex-col justify-between shadow-lg hover:border-purple-900/50 transition-all" key={element.id}>
+              <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <h2 className="text-base font-bold text-white">{element.name}</h2>
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full border font-semibold shrink-0 ${getWorldTheme(element.type)}`}>
+                    {element.type}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed">{element.description || 'Sem descrição.'}</p>
               </div>
-              <div className="world-card-actions">
-                <button className="cursor-pointer flex items-center gap-1" type="button" onClick={() => openEdit(element)}>
+
+              <div className="world-card-actions flex gap-2 pt-4 mt-4 border-t border-gray-800/80 justify-end">
+                <button 
+                  className="px-3 py-1.5 bg-[#14141e] hover:bg-amber-950/40 border border-gray-800 hover:border-amber-600/60 text-amber-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1" 
+                  type="button" 
+                  onClick={() => openEdit(element)}
+                >
                   <Pencil size={13} /> Editar
                 </button>
-                <button className="cursor-pointer flex items-center gap-1" type="button" onClick={() => deleteElement(element.id)}>
+                <button 
+                  className="px-3 py-1.5 bg-[#14141e] hover:bg-red-950/60 border border-gray-800 hover:border-red-600/60 text-red-400 hover:text-red-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1" 
+                  type="button" 
+                  onClick={() => setElementToDelete(element)}
+                >
                   <Trash2 size={13} /> Excluir
                 </button>
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE ELEMENTO */}
+      {elementToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setElementToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Elemento</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o elemento <strong className="text-white">"{elementToDelete.name}"</strong>? Esta ação é irreversível e removerá todas as informações cadastradas nele.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setElementToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteElement}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

@@ -1,5 +1,5 @@
 // src/pages/PlotTwists.jsx
-// Página de Planejamento de Plot Twists do StoryForge com Guia do Módulo e Guia de Foreshadowing Padronizados
+// Página de Planejamento de Plot Twists do StoryForge com Guia do Módulo, Guia de Foreshadowing e Modal Customizado de Exclusão
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
@@ -11,6 +11,7 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
@@ -18,7 +19,8 @@ import {
   Zap,
   Sparkles,
   Eye,
-  BookMarked
+  BookMarked,
+  X
 } from 'lucide-react';
 
 const guideTabs = {
@@ -282,6 +284,9 @@ export default function PlotTwists({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState('Salvo');
 
+  // Estado para controlar o Plot Twist a ser excluído via Modal Customizado
+  const [twistToDelete, setTwistToDelete] = useState(null);
+
   // Carregar Plot Twists do banco
   useEffect(() => {
     if (!projectId) return;
@@ -392,21 +397,25 @@ export default function PlotTwists({ projectId }) {
     }, 1000);
   }
 
-  // Deletar Plot Twist no banco
-  async function deleteTwist(id) {
-    if (!window.confirm('Tem certeza que deseja excluir este plot twist?')) return;
+  // Executa a exclusão de Plot Twist após confirmação no modal
+  async function confirmDeleteTwist() {
+    if (!twistToDelete) return;
+
+    const targetId = twistToDelete.id;
+    const targetTitle = twistToDelete.title || 'Plot Twist';
+
     setSavingStatus('Salvando...');
 
     try {
-      await apiClient.delete(`/entities/twists/${id}`);
-      setTwists((prev) => prev.filter((t) => t.id !== id));
-      if (expandedId === id) setExpandedId(null);
+      await apiClient.delete(`/entities/twists/${targetId}`);
+      setTwists((prev) => prev.filter((t) => t.id !== targetId));
+      if (expandedId === targetId) setExpandedId(null);
       setSavingStatus('Salvo');
 
       showToast({
         type: 'success',
         title: 'Plot Twist Excluído',
-        message: 'O plot twist foi removido com sucesso.'
+        message: `O plot twist "${targetTitle}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir plot twist:', err);
@@ -416,6 +425,8 @@ export default function PlotTwists({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir o plot twist.'
       });
+    } finally {
+      setTwistToDelete(null);
     }
   }
 
@@ -500,7 +511,7 @@ export default function PlotTwists({ projectId }) {
                     aria-label={`Excluir ${twist.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteTwist(twist.id);
+                      setTwistToDelete(twist);
                     }}
                   >
                     <Trash2 size={14} />
@@ -539,6 +550,49 @@ export default function PlotTwists({ projectId }) {
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE PLOT TWIST */}
+      {twistToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setTwistToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Plot Twist</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o plot twist <strong className="text-white">"{twistToDelete.title || 'sem título'}"</strong>? Esta ação é irreversível e removerá todos os dados salvos.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setTwistToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteTwist}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

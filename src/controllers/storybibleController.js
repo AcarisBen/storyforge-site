@@ -1,4 +1,6 @@
 // src/controllers/storybibleController.js
+// Controller for handling the export and import of StoryForge project data in .stfg format.
+
 const { encryptStorybible, decryptStorybible } = require('../../backend/server/routes/utils/cryptoStorybible');
 const prisma = require('../config/prisma');
 

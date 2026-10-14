@@ -1,5 +1,5 @@
 // src/pages/MapaEmocional.jsx
-// Página de Mapa Emocional do StoryForge com Guia do Módulo Padronizado
+// Página de Mapa Emocional do StoryForge com Guia do Módulo e Modal Customizado de Exclusão
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -20,11 +20,13 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
   Trash2,
-  HeartPulse
+  HeartPulse,
+  X
 } from 'lucide-react';
 
 const EMOTIONS = [
@@ -167,6 +169,9 @@ export default function MapaEmocional({ projectId }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Estado para controlar o Ponto Emocional a ser excluído via Modal
+  const [pointToDelete, setPointToDelete] = useState(null);
+
   // Listas para vínculos
   const [characters, setCharacters] = useState([]);
   const [worldElements, setWorldElements] = useState([]);
@@ -285,11 +290,20 @@ export default function MapaEmocional({ projectId }) {
     });
   };
 
-  const handleDeletePoint = (id) => {
-    if (!window.confirm('Tem certeza que deseja excluir este ponto emocional?')) return;
+  // Abre o modal de confirmação de exclusão
+  const handleOpenDeleteModal = (point) => {
+    setPointToDelete(point);
+  };
+
+  // Executa a exclusão após confirmação no modal
+  const confirmDeletePoint = () => {
+    if (!pointToDelete) return;
+
+    const targetId = pointToDelete.id;
+    const targetName = pointToDelete.name || 'Ponto Emocional';
 
     setPoints((prev) => {
-      const updated = prev.filter((p) => p.id !== id);
+      const updated = prev.filter((p) => p.id !== targetId);
       if (isLoaded) savePointsToBackend(updated);
       return updated;
     });
@@ -297,8 +311,10 @@ export default function MapaEmocional({ projectId }) {
     showToast({
       type: 'success',
       title: 'Ponto Excluído',
-      message: 'Ponto emocional removido com sucesso.'
+      message: `Ponto "${targetName}" removido com sucesso.`
     });
+
+    setPointToDelete(null);
   };
 
   const handleUpdatePoint = (id, field, value) => {
@@ -428,7 +444,7 @@ export default function MapaEmocional({ projectId }) {
                 <div className="flex justify-center">
                   <button
                     type="button"
-                    onClick={() => handleDeletePoint(point.id)}
+                    onClick={() => handleOpenDeleteModal(point)}
                     className="text-red-400 hover:text-red-300 text-xs font-bold p-1 cursor-pointer transition-colors flex items-center gap-1"
                     title="Excluir Ponto"
                   >
@@ -523,6 +539,49 @@ export default function MapaEmocional({ projectId }) {
                 </select>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE PONTO EMOCIONAL */}
+      {pointToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setPointToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Ponto Emocional</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o ponto <strong className="text-white">"{pointToDelete.name}"</strong>? Esta ação é irreversível e removerá todos os dados e vínculos salvos.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPointToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletePoint}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
           </div>
         </div>
       )}

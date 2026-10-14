@@ -1,5 +1,5 @@
 // src/pages/DialogEngine.jsx
-// Página de Diálogos do StoryForge com Guia do Módulo Padronizado
+// Página de Diálogos do StoryForge com Guia do Módulo e Modal Customizado de Exclusão Padronizados
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
@@ -11,6 +11,7 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
@@ -22,7 +23,8 @@ import {
   MessageSquare,
   Music,
   ChevronUp as ArrowUp,
-  ChevronDown as ArrowDown
+  ChevronDown as ArrowDown,
+  X
 } from 'lucide-react';
 
 const guideTabs = {
@@ -134,6 +136,9 @@ export default function DialogEngine({ projectId }) {
 
   // Estado de Edição
   const [editingCardId, setEditingCardId] = useState(null);
+
+  // Estado para controlar o Diálogo a ser excluído via Modal Customizado
+  const [dialogueToDelete, setDialogueToDelete] = useState(null);
 
   // Form de Construção / Edição do Diálogo
   const [selectedSceneId, setSelectedSceneId] = useState('');
@@ -397,8 +402,12 @@ export default function DialogEngine({ projectId }) {
     });
   };
 
-  const handleDeleteCard = async (cardId) => {
-    if (!window.confirm('Tem certeza que deseja excluir este diálogo?')) return;
+  // Executa a exclusão do card de diálogo após confirmação no modal
+  const confirmDeleteCard = async () => {
+    if (!dialogueToDelete) return;
+
+    const cardId = dialogueToDelete.id;
+    const cardTitle = `${dialogueToDelete.charAName || 'Personagem A'} & ${dialogueToDelete.charBName || 'Interlocutor'}`;
 
     setSavingStatus('Salvando...');
     try {
@@ -411,7 +420,7 @@ export default function DialogEngine({ projectId }) {
       showToast({
         type: 'success',
         title: 'Diálogo Excluído',
-        message: 'O diálogo foi removido com sucesso.'
+        message: `O diálogo de "${cardTitle}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao deletar diálogo:', err);
@@ -421,6 +430,8 @@ export default function DialogEngine({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Não foi possível excluir o diálogo.'
       });
+    } finally {
+      setDialogueToDelete(null);
     }
   };
 
@@ -802,7 +813,7 @@ export default function DialogEngine({ projectId }) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteCard(card.id)}
+                            onClick={() => setDialogueToDelete(card)}
                             className="px-3 py-1.5 bg-[#181824] hover:bg-red-950/60 border border-gray-700 hover:border-red-600 text-red-400 hover:text-red-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
                           >
                             <Trash2 size={13} />
@@ -818,6 +829,49 @@ export default function DialogEngine({ projectId }) {
           </div>
         )}
       </section>
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE DIÁLOGO */}
+      {dialogueToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setDialogueToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Diálogo</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o diálogo de <strong className="text-white">"{dialogueToDelete.charAName} & {dialogueToDelete.charBName}"</strong>? Esta ação é irreversível e removerá todas as falas e subtextos salvos.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDialogueToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCard}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

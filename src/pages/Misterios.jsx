@@ -1,5 +1,5 @@
 // src/pages/Misterios.jsx
-// Página de Mistérios do StoryForge com Guia do Módulo Padronizado
+// Página de Mistérios do StoryForge com Guia do Módulo e Modal Customizado de Exclusão Padronizados
 
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
@@ -11,11 +11,13 @@ import {
   BookOpen, 
   HelpCircle, 
   AlertCircle,
+  AlertTriangle,
   ChevronUp, 
   ChevronDown,
   Plus,
   Trash2,
-  Search
+  Search,
+  X
 } from 'lucide-react';
 
 const guideTabs = {
@@ -199,6 +201,9 @@ export default function Misterios({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState('Salvo');
 
+  // Estado para controlar o Mistério a ser excluído via Modal Customizado
+  const [mysteryToDelete, setMysteryToDelete] = useState(null);
+
   // Carregar mistérios do PostgreSQL
   useEffect(() => {
     if (!projectId) return;
@@ -309,21 +314,25 @@ export default function Misterios({ projectId }) {
     }, 1000);
   }
 
-  // Excluir mistério no banco
-  async function deleteMystery(id) {
-    if (!window.confirm('Tem certeza que deseja excluir este mistério?')) return;
+  // Executa a exclusão do mistério após confirmação no modal
+  async function confirmDeleteMystery() {
+    if (!mysteryToDelete) return;
+
+    const targetId = mysteryToDelete.id;
+    const targetTitle = mysteryToDelete.title || 'Mistério';
+
     setSavingStatus('Salvando...');
 
     try {
-      await apiClient.delete(`/entities/mysteries/${id}`);
-      setMysteries((prev) => prev.filter((m) => m.id !== id));
-      if (expandedId === id) setExpandedId(null);
+      await apiClient.delete(`/entities/mysteries/${targetId}`);
+      setMysteries((prev) => prev.filter((m) => m.id !== targetId));
+      if (expandedId === targetId) setExpandedId(null);
       setSavingStatus('Salvo');
 
       showToast({
         type: 'success',
         title: 'Mistério Excluído',
-        message: 'O mistério foi removido com sucesso.'
+        message: `O mistério "${targetTitle}" foi removido com sucesso.`
       });
     } catch (err) {
       console.error('Erro ao excluir mistério:', err);
@@ -333,6 +342,8 @@ export default function Misterios({ projectId }) {
         title: 'Erro de Exclusão',
         message: err.response?.data?.error || 'Erro ao excluir o mistério.'
       });
+    } finally {
+      setMysteryToDelete(null);
     }
   }
 
@@ -407,7 +418,10 @@ export default function Misterios({ projectId }) {
                     type="button"
                     className="text-red-400 hover:text-red-300 cursor-pointer p-1.5 rounded-lg hover:bg-red-950/30 transition-all text-xs font-bold flex items-center gap-1"
                     aria-label={`Excluir ${mystery.title}`}
-                    onClick={() => deleteMystery(mystery.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMysteryToDelete(mystery);
+                    }}
                   >
                     <Trash2 size={14} />
                     <span>Excluir</span>
@@ -432,6 +446,49 @@ export default function Misterios({ projectId }) {
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {/* MODAL PADRONIZADO DE CONFIRMAÇÃO DE EXCLUSÃO DE MISTÉRIO */}
+      {mysteryToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => setMysteryToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-12 h-12 bg-red-950/50 border border-red-800/50 rounded-2xl flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-950/50">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Excluir Mistério</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Tem certeza que deseja excluir o mistério <strong className="text-white">"{mysteryToDelete.title || 'sem título'}"</strong>? Esta ação é irreversível e removerá todos os dados salvos.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setMysteryToDelete(null)}
+                className="flex-1 py-2.5 bg-[#171724] hover:bg-[#202030] text-gray-300 font-bold text-xs rounded-xl border border-gray-800/80 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteMystery}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
+              >
+                <Trash2 size={15} /> Confirmar Exclusão
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>
