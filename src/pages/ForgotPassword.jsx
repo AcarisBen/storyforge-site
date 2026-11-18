@@ -31,7 +31,7 @@ export default function ForgotPassword({ onNavigateToLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
+    <div className="flex-1 bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
       <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-6">
         
         <button

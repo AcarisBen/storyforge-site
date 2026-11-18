@@ -51,7 +51,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white animate-in fade-in slide-in-from-left-4 duration-300 ease-out">
+    <div className="flex-1 bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:p-12 font-sans selection:bg-purple-500 selection:text-white animate-in fade-in slide-in-from-left-4 duration-300 ease-out">
       
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto py-8">
         
@@ -82,7 +82,7 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
             </p>
           </div>
 
-          <div className="space-y-3.5 max-w-md">
+          <div id="recursos" className="space-y-3.5 max-w-md">
             <div className="p-4 bg-[#13131c]/80 border border-gray-800/80 rounded-2xl flex items-center gap-4 hover:border-purple-800/40 transition-all">
               <div className="p-2.5 bg-purple-950/60 border border-purple-800/50 rounded-xl text-purple-400">
                 <Feather size={20} />
@@ -111,6 +111,13 @@ export default function Login({ onLoginSuccess, onNavigateToRegister, onNavigate
                 <h3 className="text-sm font-bold text-white">Mundos e Personagens</h3>
                 <p className="text-xs text-gray-400">Construção narrativa profunda e coerente</p>
               </div>
+            </div>
+
+            <div id="como-funciona" className="max-w-md space-y-2">
+              <h2 className="text-sm font-bold text-white">Da ideia à revisão</h2>
+              <p className="text-xs leading-relaxed text-gray-400">
+                Planeje a narrativa, escreva seus capítulos e refine o texto em um único espaço.
+              </p>
             </div>
           </div>
         </div>

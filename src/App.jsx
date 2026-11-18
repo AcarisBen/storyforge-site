@@ -30,6 +30,7 @@ import Relacoes from './pages/Relacoes';
 import MapaEmocional from './pages/MapaEmocional';
 import DialogEngine from './pages/DialogEngine';
 import ForgotPassword from './pages/ForgotPassword';
+import PublicLayout from './layouts/PublicLayout';
 
 import { 
   LayoutDashboard, Fingerprint, Sparkles, Cpu, GitBranch, 
@@ -268,64 +269,65 @@ export default function App() {
       {(() => {
         if (confirmToken) {
           return (
-            <ConfirmEmail 
-              token={confirmToken} 
-              onNavigateToLogin={clearUrlTokens} 
-            />
+            <PublicLayout
+              onNavigateToLogin={clearUrlTokens}
+              onNavigateToRegister={() => setAuthScreen('register')}
+            >
+              <div className="flex flex-1 flex-col">
+                <ConfirmEmail token={confirmToken} onNavigateToLogin={clearUrlTokens} />
+              </div>
+            </PublicLayout>
           );
         }
 
         if (resetToken) {
           return (
-            <ResetPassword 
-              token={resetToken} 
-              onNavigateToLogin={clearUrlTokens} 
-            />
+            <PublicLayout
+              onNavigateToLogin={clearUrlTokens}
+              onNavigateToRegister={() => setAuthScreen('register')}
+            >
+              <div className="flex flex-1 flex-col">
+                <ResetPassword token={resetToken} onNavigateToLogin={clearUrlTokens} />
+              </div>
+            </PublicLayout>
           );
         }
 
         if (deleteToken) {
           return (
-            <ConfirmDelete 
-              token={deleteToken} 
-              onNavigateToLogin={() => {
-                clearUrlTokens();
-              }} 
-            />
+            <PublicLayout
+              onNavigateToLogin={clearUrlTokens}
+              onNavigateToRegister={() => setAuthScreen('register')}
+            >
+              <div className="flex flex-1 flex-col">
+                <ConfirmDelete token={deleteToken} onNavigateToLogin={clearUrlTokens} />
+              </div>
+            </PublicLayout>
           );
         }
 
         if (!currentUser) {
-  if (authScreen === 'register') {
-    return (
-      <div className="w-full h-full animate-in fade-in duration-300">
-        <Register 
-          onNavigateToLogin={() => setAuthScreen('login')}
-        />
-      </div>
-    );
-  }
-
-          if (authScreen === 'forgot-password') {
-    return (
-      <div className="w-full h-full animate-in fade-in duration-300">
-        <ForgotPassword 
-          onNavigateToLogin={() => setAuthScreen('login')}
-        />
-      </div>
-    );
-  }
-
           return (
-    <div className="w-full h-full animate-in fade-in duration-300">
-      <Login 
-        onLoginSuccess={() => {}}
-        onNavigateToRegister={() => setAuthScreen('register')}
-        onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
-      />
-    </div>
-  );
-}
+            <PublicLayout
+              onNavigateToLogin={() => setAuthScreen('login')}
+              onNavigateToRegister={() => setAuthScreen('register')}
+            >
+              <div className="flex flex-1 flex-col animate-in fade-in duration-300">
+                {authScreen === 'register' ? (
+                  <Register onNavigateToLogin={() => setAuthScreen('login')} />
+                ) : authScreen === 'forgot-password' ? (
+                  <ForgotPassword onNavigateToLogin={() => setAuthScreen('login')} />
+                ) : (
+                  <Login
+                    onLoginSuccess={() => {}}
+                    onNavigateToRegister={() => setAuthScreen('register')}
+                    onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+                  />
+                )}
+              </div>
+            </PublicLayout>
+          );
+        }
 
         if (!currentProject) {
           return (

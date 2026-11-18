@@ -113,7 +113,7 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
 
   if (registeredEmail) {
     return (
-      <div className="h-screen bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
+      <div className="flex-1 bg-[#0d0d12] text-white flex flex-col items-center justify-center p-6 font-sans">
         <div className="bg-[#12121a] border border-gray-800/90 rounded-2xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
           <div className="w-14 h-14 bg-purple-950/60 border border-purple-800/50 text-purple-400 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg">
             📧
@@ -138,7 +138,7 @@ export default function Register({ onNavigateToLogin, onNavigateToTerms }) {
   }
 
   return (
-    <div className="h-screen max-h-screen bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:px-12 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
+    <div className="flex-1 bg-[#0d0d12] text-white flex flex-col justify-between p-6 md:px-12 font-sans selection:bg-purple-500 selection:text-white">
       
       {/* CONTEÚDO PRINCIPAL */}
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center my-auto">
